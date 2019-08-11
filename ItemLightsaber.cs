@@ -25,6 +25,7 @@ namespace TOR {
 
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
+            item.OnTeleUnGrabEvent += OnTeleUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
 
             blades = module.lightsaberBlades.Select(Instantiate).ToArray();
@@ -98,6 +99,10 @@ namespace TOR {
             }
         }
 
+        public void OnTeleUngrabEvent(Handle handle, Telekinesis teleGrabber) {
+            ResetCollisions();
+        }
+
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
             if (action == Interactable.Action.UseStart && isHolding) {
                 ExecuteAction(module.primaryGripPrimaryAction, interactor);
@@ -126,7 +131,10 @@ namespace TOR {
             }
 
             if (playerHand && thrown && PlayerControl.GetHand(playerHand.side).gripPressed && !item.isGripped && !item.isTeleGrabbed) {
-                ReturnSaber();
+                // forget hand if hand is currently holding something
+                if (playerHand.bodyHand.interactor.grabbedHandle) playerHand = null;
+                else ReturnSaber();
+                
             }
 
             if (isHolding && !item.isTeleGrabbed) {
@@ -135,8 +143,11 @@ namespace TOR {
         }
 
         void ReturnSaber() {
+            var hand = PlayerControl.GetHand(playerHand.side);
+            var gripAxis = (hand.middleCurl + hand.ringCurl + hand.littleCurl) / 3f;
+
             float grabDistance = 0.3f;
-            float returnSpeed = 10f;
+            float returnSpeed = 10f * gripAxis;
             if (Vector3.Distance(item.transform.position, playerHand.transform.position) < grabDistance) {
                 playerHand.bodyHand.interactor.TryRelease();
                 playerHand.bodyHand.interactor.Grab(item.mainHandleRight);
@@ -200,6 +211,11 @@ namespace TOR {
 
             SetComponentState(false);
             maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
+
+            // setup audio sources
+            Utils.ApplyStandardMixer(new AudioSource[] { idleSound });
+            Utils.ApplyStandardMixer(startSounds);
+            Utils.ApplyStandardMixer(stopSounds);
         }
 
         public void SetComponentState(bool state) {

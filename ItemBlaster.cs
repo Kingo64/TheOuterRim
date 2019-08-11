@@ -93,6 +93,23 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.secondaryGripID)) scopeGrip = item.definition.GetCustomReference(module.secondaryGripID).GetComponent<Handle>();
             if (!string.IsNullOrEmpty(module.bulletSpawnID)) bulletSpawn = item.definition.GetCustomReference(module.bulletSpawnID);
 
+            // setup audio sources
+            Utils.ApplyStandardMixer(altFireSounds);
+            Utils.ApplyStandardMixer(altFireSounds2);
+            Utils.ApplyStandardMixer(emptySounds);
+            Utils.ApplyStandardMixer(emptySounds2);
+            Utils.ApplyStandardMixer(fireSounds);
+            Utils.ApplyStandardMixer(fireSounds2);
+            Utils.ApplyStandardMixer(fireModeSounds);
+            Utils.ApplyStandardMixer(fireModeSounds2);
+            Utils.ApplyStandardMixer(overheatSounds);
+            Utils.ApplyStandardMixer(overheatSounds2);
+            Utils.ApplyStandardMixer(reloadSounds);
+            Utils.ApplyStandardMixer(reloadSounds2);
+            Utils.ApplyStandardMixer(reloadEndSounds);
+            Utils.ApplyStandardMixer(reloadEndSounds2);
+
+
             // setup item events
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;

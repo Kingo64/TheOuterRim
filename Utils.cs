@@ -1,7 +1,20 @@
-﻿using UnityEngine;
+﻿using BS;
+using UnityEngine;
 
 namespace TOR {
     class Utils {
+        public static void ApplyStandardMixer(AudioSource[] audioSource) {
+            if (audioSource != null) {
+                try {
+                    var defaultAudioMixer = GameManager.local.audioMixer.FindMatchingGroups("Effect")[0];
+                    foreach (var a in audioSource) a.outputAudioMixerGroup = defaultAudioMixer;
+                }
+                catch {
+                    Debug.LogWarning("The Outer Rim: Couldn't find AudioMixerGroup 'Effect'.");
+                }
+            }
+        }
+
         public static void PlayParticleEffect(ParticleSystem effect, bool detachFromParent = false) {
             if (effect != null) {
                 if (detachFromParent) {
@@ -14,9 +27,10 @@ namespace TOR {
             }
         }
 
-        public static void PlayRandomSound(AudioSource[] sounds) {
+        public static void PlayRandomSound(AudioSource[] sounds, float volume = 0) {
             if (sounds != null) {
-                sounds[Random.Range(0, sounds.Length)].Play();
+                var randomSource = sounds[Random.Range(0, sounds.Length)];
+                randomSource.PlayOneShot(randomSource.clip, volume <= 0 ? randomSource.volume : volume);
             }
         }
     }
