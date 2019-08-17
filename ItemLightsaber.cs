@@ -16,6 +16,8 @@ namespace TOR {
         bool isHolding;
 
         bool thrown;
+        float ignoreCrystalTime;
+        ItemModuleAI.WeaponClass originalWeaponClass;
         PlayerHand playerHand;
 
         protected void Awake() {
@@ -27,6 +29,7 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnTeleUnGrabEvent += OnTeleUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
+            item.OnCollisionEvent += CollisionHandler;
 
             blades = module.lightsaberBlades.Select(Instantiate).ToArray();
 
@@ -35,6 +38,7 @@ namespace TOR {
                 blade.extendDelta = -(blade.maxLength / module.ignitionDuration);
             }
             TurnOff(false);
+            originalWeaponClass = item.data.moduleAI.weaponClass;
         }
 
         public void ExecuteAction(string action, Interactor interactor = null) {
@@ -50,11 +54,13 @@ namespace TOR {
         }
 
         void TurnOn(bool playSound = true) {
-            isActive = true;
-            ResetCollisions();
+            if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
+                isActive = true;
+                ResetCollisions();
 
-            foreach (var blade in blades) {
-                blade.TurnOn(playSound);
+                foreach (var blade in blades) {
+                    blade.TurnOn(playSound);
+                }
             }
         }
 
@@ -111,6 +117,35 @@ namespace TOR {
             }
         }
 
+        void CollisionHandler(ref CollisionStruct collisionInstance) {
+            try {
+                if (collisionInstance.sourceColliderGroup.name == "HiltCollision") {
+                    if (collisionInstance.targetColliderGroup.name == "LightsaberToolCollision") {
+                        if (item.leftNpcHand || item.rightNpcHand) return;
+                        foreach (var blade in blades) {
+                            if (!string.IsNullOrEmpty(blade.kyberCrystal)) {
+                                TurnOff(isActive);
+                                item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
+                                blade.RemoveCrystal();
+                                ignoreCrystalTime = 0.5f;
+                                break;
+                            }
+                        }
+                    } else if (collisionInstance.targetColliderGroup.name == "KyberCrystalCollision" && ignoreCrystalTime <= 0) {
+                        foreach (var blade in blades) {
+                            if (string.IsNullOrEmpty(blade.kyberCrystal)) {
+                                var kyberCrystal = collisionInstance.targetCollider.attachedRigidbody.GetComponentInParent<ItemKyberCrystal>();
+                                blade.AddCrystal(kyberCrystal);
+                                break;
+                            }
+                        }
+                        // Allow AI to use lightsaber again
+                        if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) item.data.moduleAI.weaponClass = originalWeaponClass;
+                    }
+                }
+            } catch {}
+        }
+
         void ResetCollisions() {
             foreach (var blade in blades) {
                 blade.collisionBlade.enabled = isActive;
@@ -139,7 +174,10 @@ namespace TOR {
 
             if (isHolding && !item.isTeleGrabbed) {
                 thrown = false;
+                body.collisionDetectionMode = (body.velocity.magnitude > module.fastCollisionSpeed) ? (CollisionDetectionMode)module.fastCollisionMode : CollisionDetectionMode.Discrete;
             }
+
+            if (ignoreCrystalTime > 0) ignoreCrystalTime -= Time.deltaTime;
         }
 
         void ReturnSaber() {
@@ -163,6 +201,8 @@ namespace TOR {
         public float bladeLength;
 
         // custom reference strings
+        public string kyberCrystal;
+        public string crystalEjectRef;
         public string collisionRef;
         public string saberBodyRef;
         public string saberTipGlowRef;
@@ -171,8 +211,9 @@ namespace TOR {
         public string startSoundsRef;
         public string stopSoundsRef;
         public string whooshRef;
-        
+
         // primary objects for Lightsaber to interact with
+        public Transform crystalEject;
         public AudioSource idleSound;
         public MeshRenderer saberBody;
         public MeshRenderer saberGlow;
@@ -199,6 +240,7 @@ namespace TOR {
                 collisionBlade.enabled = true;
                 collisionBlade.enabled = isActive;
             }
+            if (!string.IsNullOrEmpty(crystalEjectRef)) crystalEject = parent.definition.GetCustomReference(crystalEjectRef);
             if (!string.IsNullOrEmpty(startSoundsRef)) startSounds = parent.definition.GetCustomReference(startSoundsRef).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(stopSoundsRef)) stopSounds = parent.definition.GetCustomReference(stopSoundsRef).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(saberBodyRef)) saberBody = parent.definition.GetCustomReference(saberBodyRef).GetComponent<MeshRenderer>();
@@ -208,6 +250,14 @@ namespace TOR {
             if (!string.IsNullOrEmpty(saberGlowRef)) saberGlowLight = parent.definition.GetCustomReference(saberGlowRef).GetComponent<Light>();
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.definition.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(whooshRef)) whooshBlade = parent.definition.GetCustomReference(whooshRef).GetComponent<Whoosh>();
+
+            if (!string.IsNullOrEmpty(kyberCrystal)) {
+                var kyberCrystalData = Catalog.current.GetData<ItemData>(kyberCrystal, true);
+                if (kyberCrystalData == null) return;
+                var kyberCrystalObject = kyberCrystalData.Spawn(true);
+                if (!kyberCrystalObject.gameObject.activeInHierarchy) kyberCrystalObject.gameObject.SetActive(true);
+                AddCrystal(kyberCrystalObject.GetComponent<ItemKyberCrystal>());
+            }
 
             SetComponentState(false);
             maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
@@ -233,18 +283,57 @@ namespace TOR {
             }
         }
 
+        public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
+            saberGlow.material = kyberCrystalObject.glowMaterial;
+            saberGlowLight.color = kyberCrystalObject.glowLight.color;
+            saberTipGlow.color = kyberCrystalObject.glowLight.color;
+            if (!string.IsNullOrEmpty(saberBodyRef)) {
+                var current = parent.definition.GetCustomReference(saberBodyRef);
+                idleSound = Instantiate(kyberCrystalObject.idleSound, current.position, current.rotation, current.parent);
+            }
+            if (!string.IsNullOrEmpty(startSoundsRef)) {
+                var current = parent.definition.GetCustomReference(startSoundsRef);
+                startSounds = Instantiate(kyberCrystalObject.startSounds, current.position, current.rotation, current.parent).GetComponents<AudioSource>();
+            }
+            if (!string.IsNullOrEmpty(stopSoundsRef)) {
+                var current = parent.definition.GetCustomReference(stopSoundsRef);
+                stopSounds = Instantiate(kyberCrystalObject.stopSounds, current.position, current.rotation, current.parent).GetComponents<AudioSource>();
+            }
+
+            kyberCrystal = kyberCrystalObject.name.Replace("(Clone)", "");
+            kyberCrystalObject.GetComponent<Item>().Despawn();
+        }
+
+        public void RemoveCrystal() {
+            if (!string.IsNullOrEmpty(kyberCrystal)) {
+                var kyberCrystalData = Catalog.current.GetData<ItemData>(kyberCrystal, true);
+                if (kyberCrystalData == null) return;
+                var kyberCrystalObject = kyberCrystalData.Spawn(true);
+                if (!kyberCrystalObject.gameObject.activeInHierarchy) kyberCrystalObject.gameObject.SetActive(true);
+
+                kyberCrystalObject.transform.position = crystalEject.position;
+                kyberCrystalObject.transform.rotation = crystalEject.rotation;
+
+                kyberCrystal = "";
+            }
+        }
+
         public void TurnOn(bool playSound = true) {
-            isActive = true;
-            if (playSound) Utils.PlayRandomSound(startSounds);
-            idleSound.Play();
-            SetComponentState(true);
-            extendDelta = Mathf.Abs(extendDelta);
+            if (!string.IsNullOrEmpty(kyberCrystal)) {
+                isActive = true;
+                if (playSound) Utils.PlayRandomSound(startSounds);
+                idleSound.Play();
+                SetComponentState(true);
+                extendDelta = Mathf.Abs(extendDelta);
+            }
         }
 
         public void TurnOff(bool playSound = true) {
-            isActive = false;
-            if (playSound) Utils.PlayRandomSound(stopSounds);
-            extendDelta = -Mathf.Abs(extendDelta);
+            if (!string.IsNullOrEmpty(kyberCrystal)) {
+                isActive = false;
+                if (playSound) Utils.PlayRandomSound(stopSounds);
+                extendDelta = -Mathf.Abs(extendDelta);
+            }
         }
 
         public void UpdateSize() {
