@@ -17,6 +17,8 @@ namespace TOR {
 
         bool thrown;
         float ignoreCrystalTime;
+        float primaryControlHoldTime;
+        float secondaryControlHoldTime;
         ItemModuleAI.WeaponClass originalWeaponClass;
         PlayerHand playerHand;
 
@@ -37,12 +39,15 @@ namespace TOR {
                 blade.Initialise(item);
                 blade.extendDelta = -(blade.maxLength / module.ignitionDuration);
             }
-            TurnOff(false);
+            if (module.startActive) TurnOn(true);
+            else TurnOff(false);
+
             originalWeaponClass = item.data.moduleAI.weaponClass;
         }
 
         public void ExecuteAction(string action, Interactor interactor = null) {
             if (action == "toggleIgnition") ToggleLightsaber(interactor);
+            else if (action == "toggleSingle") ToggleSingle(interactor);
             else if (action == "turnOn") TurnOn();
             else if (action == "turnOff") TurnOff();
         }
@@ -53,13 +58,29 @@ namespace TOR {
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
         }
 
+        // Turn on only first blade - used for saber staff
+        void ToggleSingle(Interactor interactor = null) {
+            var singleAlreadyActive = blades[0].isActive;
+            if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
+                isActive = true;
+                ResetCollisions();
+
+                var firstEnabled = false;
+                foreach (var blade in blades) {
+                    if (!firstEnabled || singleAlreadyActive && !blade.isActive) blade.TurnOn(!blade.isActive);
+                    else blade.TurnOff(blade.isActive);
+                    firstEnabled = true;
+                }
+            }
+        }
+
         void TurnOn(bool playSound = true) {
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
                 isActive = true;
                 ResetCollisions();
 
                 foreach (var blade in blades) {
-                    blade.TurnOn(playSound);
+                    blade.TurnOn(playSound && !blade.isActive);
                 }
             }
         }
@@ -77,7 +98,7 @@ namespace TOR {
             });
 
             foreach (var blade in blades) {
-                blade.TurnOff(playSound);
+                blade.TurnOff(playSound && blade.isActive);
             }
         }
 
@@ -101,6 +122,7 @@ namespace TOR {
 
             // throw the lightsaber
             if (!thrown && body.velocity.magnitude > module.throwSpeed && module.canThrow) {
+                playerHand = interactor.playerHand;
                 thrown = true;
             }
         }
@@ -110,10 +132,38 @@ namespace TOR {
         }
 
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
-            if (action == Interactable.Action.UseStart && isHolding) {
-                ExecuteAction(module.primaryGripPrimaryAction, interactor);
-            } else if (action == Interactable.Action.AlternateUseStart && isHolding) {
-                ExecuteAction(module.primaryGripSecondaryAction, interactor);
+            if (isHolding) {
+                // If priamry hold action available
+                if (!string.IsNullOrEmpty(module.primaryGripPrimaryActionHold)) {
+                    // start primary control timer
+                    if (action == Interactable.Action.UseStart) {
+                        primaryControlHoldTime = module.controlHoldTime;
+                    } else if (action == Interactable.Action.UseStop) {
+                        // if not held for long run standard action
+                        if (primaryControlHoldTime > 0 && primaryControlHoldTime > (primaryControlHoldTime / 2)) {
+                            ExecuteAction(module.primaryGripPrimaryAction, interactor);
+                        }
+                        primaryControlHoldTime = 0;
+                    }
+                } else {
+                    if (action == Interactable.Action.UseStart) ExecuteAction(module.primaryGripPrimaryAction, interactor);
+                }
+
+                // If secondary hold action available
+                if (!string.IsNullOrEmpty(module.primaryGripSecondaryActionHold)) {
+                    // start secondary control timer
+                    if (action == Interactable.Action.AlternateUseStart) {
+                        secondaryControlHoldTime = module.controlHoldTime;
+                    } else if (action == Interactable.Action.AlternateUseStop) {
+                        // if not held for long run standard action
+                        if (secondaryControlHoldTime > 0 && secondaryControlHoldTime > (secondaryControlHoldTime / 2)) {
+                            ExecuteAction(module.primaryGripSecondaryAction, interactor);
+                        }
+                        secondaryControlHoldTime = 0;
+                    }
+                } else {
+                    if (action == Interactable.Action.AlternateUseStart) ExecuteAction(module.primaryGripSecondaryAction, interactor);
+                }
             }
         }
 
@@ -169,7 +219,6 @@ namespace TOR {
                 // forget hand if hand is currently holding something
                 if (playerHand.bodyHand.interactor.grabbedHandle) playerHand = null;
                 else ReturnSaber();
-                
             }
 
             if (isHolding && !item.isTeleGrabbed) {
@@ -178,6 +227,15 @@ namespace TOR {
             }
 
             if (ignoreCrystalTime > 0) ignoreCrystalTime -= Time.deltaTime;
+
+            if (primaryControlHoldTime > 0) {
+                primaryControlHoldTime -= Time.deltaTime;
+                if (primaryControlHoldTime <= 0) ExecuteAction(module.primaryGripPrimaryActionHold);
+            }
+            if (secondaryControlHoldTime > 0) {
+                secondaryControlHoldTime -= Time.deltaTime;
+                if (secondaryControlHoldTime <= 0) ExecuteAction(module.primaryGripSecondaryActionHold);
+            }
         }
 
         void ReturnSaber() {
