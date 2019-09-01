@@ -9,10 +9,12 @@ namespace TOR {
 
         bool markForDeletion;
         bool destroyNextTick;
+        float despawnTime;
 
         protected void Awake() {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlasterBolt>();
+            despawnTime = module.despawnTime;
             item.OnCollisionEvent += CollisionHandler;
         }
 
@@ -29,6 +31,9 @@ namespace TOR {
                 item.Despawn();
             }
             destroyNextTick = markForDeletion;
+
+            despawnTime -= Time.deltaTime;
+            if (despawnTime <= 0) markForDeletion = true;
         }
     }
 }

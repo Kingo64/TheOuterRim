@@ -46,10 +46,18 @@ namespace TOR {
         }
 
         public void ExecuteAction(string action, Interactor interactor = null) {
-            if (action == "toggleIgnition") ToggleLightsaber(interactor);
+            if (action == "nextPhase") NextPhase(interactor);
+            else if (action == "toggleIgnition") ToggleLightsaber(interactor);
             else if (action == "toggleSingle") ToggleSingle(interactor);
             else if (action == "turnOn") TurnOn();
             else if (action == "turnOff") TurnOff();
+        }
+
+        void NextPhase(Interactor interactor = null) {
+            foreach (var blade in blades) {
+                blade.NextPhase();
+            }
+            if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
         }
 
         void ToggleLightsaber(Interactor interactor = null) {
@@ -257,6 +265,7 @@ namespace TOR {
     public class LightsaberBlade : ScriptableObject {
         // sets blade length in metres - defaults to default mesh size if blank
         public float bladeLength;
+        public float[] phaseLengths;
 
         // custom reference strings
         public string kyberCrystal;
@@ -286,6 +295,7 @@ namespace TOR {
         // internal properties
         public Item parent;
         public float currentLength;
+        public int currentPhase;
         public float minLength;
         public float maxLength;
         public float extendDelta;
@@ -341,6 +351,13 @@ namespace TOR {
             }
         }
 
+        public void NextPhase() {
+            currentPhase = (currentPhase >= phaseLengths.Length - 1) ? -1 : currentPhase;
+            // var previousLength = maxLength;
+            maxLength = phaseLengths[++currentPhase] / 10;
+            // extendDelta = (previousLength < maxLength) ? Mathf.Abs(extendDelta) : -Mathf.Abs(extendDelta);
+        }
+
         public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
             saberGlow.material = kyberCrystalObject.glowMaterial;
             saberGlowLight.color = kyberCrystalObject.glowLight.color;
@@ -382,7 +399,6 @@ namespace TOR {
                 if (playSound) Utils.PlayRandomSound(startSounds);
                 idleSound.Play();
                 SetComponentState(true);
-                extendDelta = Mathf.Abs(extendDelta);
             }
         }
 
@@ -390,15 +406,28 @@ namespace TOR {
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 isActive = false;
                 if (playSound) Utils.PlayRandomSound(stopSounds);
-                extendDelta = -Mathf.Abs(extendDelta);
             }
         }
 
+        public void UpdateBladeDirection() {
+            extendDelta = (!isActive || currentLength > maxLength) ? -Mathf.Abs(extendDelta) : Mathf.Abs(extendDelta);
+        }
+
         public void UpdateSize() {
+            // if blade is currently longer than expected (going from long to short blade phase)
+            if (isActive && currentLength > maxLength) {
+                UpdateBladeDirection();
+                currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), maxLength, currentLength);
+                saberBody.transform.localScale = new Vector3(saberBody.transform.localScale.x, saberBody.transform.localScale.y, currentLength);
+                return;
+            }
+            
             // if blade still extending or retracting
-            if ((isActive && currentLength < maxLength) || (!isActive && currentLength > minLength)) {
+            if ((isActive && (currentLength < maxLength || currentLength > maxLength)) || (!isActive && currentLength > minLength)) {
+                UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), minLength, maxLength);
                 saberBody.transform.localScale = new Vector3(saberBody.transform.localScale.x, saberBody.transform.localScale.y, currentLength);
+                return;
             }
         }
     }
