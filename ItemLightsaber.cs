@@ -177,8 +177,8 @@ namespace TOR {
 
         void CollisionHandler(ref CollisionStruct collisionInstance) {
             try {
-                if (collisionInstance.sourceColliderGroup.name == "HiltCollision") {
-                    if (collisionInstance.targetColliderGroup.name == "LightsaberToolCollision") {
+                if (collisionInstance.sourceColliderGroup.name == "CollisionHilt") {
+                    if (collisionInstance.targetColliderGroup.name == "CollisionLightsaberTool") {
                         if (item.leftNpcHand || item.rightNpcHand) return;
                         foreach (var blade in blades) {
                             if (!string.IsNullOrEmpty(blade.kyberCrystal)) {
@@ -330,16 +330,18 @@ namespace TOR {
             SetComponentState(false);
             maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
 
+            // Always set this to false now, it is only used for item previews
+            if (saberGlow != null) saberGlow.enabled = false;
+
             // setup audio sources
-            Utils.ApplyStandardMixer(new AudioSource[] { idleSound });
-            Utils.ApplyStandardMixer(startSounds);
-            Utils.ApplyStandardMixer(stopSounds);
+            // Utils.ApplyStandardMixer(new AudioSource[] { idleSound });
+            // Utils.ApplyStandardMixer(startSounds);
+            // Utils.ApplyStandardMixer(stopSounds);
         }
 
         public void SetComponentState(bool state) {
             if (whooshBlade != null) whooshBlade.enabled = state;
             if (saberBody != null) saberBody.enabled = state;
-            if (saberGlow != null) saberGlow.enabled = state;
             if (saberGlowLight != null) saberGlowLight.enabled = state;
             if (saberTipGlow != null) saberTipGlow.enabled = state;
             if (saberParticles !=null) {
@@ -359,6 +361,7 @@ namespace TOR {
         }
 
         public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
+            saberBody.material = kyberCrystalObject.bladeMaterial;
             saberGlow.material = kyberCrystalObject.glowMaterial;
             saberGlowLight.color = kyberCrystalObject.glowLight.color;
             saberTipGlow.color = kyberCrystalObject.glowLight.color;

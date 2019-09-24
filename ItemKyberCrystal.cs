@@ -6,6 +6,7 @@ namespace TOR {
         protected Item item;
         protected ItemModuleKyberCrystal module;
 
+        public Material bladeMaterial;
         public AudioSource idleSound;
         public Light glowLight;
         public Material glowMaterial;
@@ -16,6 +17,7 @@ namespace TOR {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleKyberCrystal>();
 
+            bladeMaterial = item.definition.GetCustomReference("BladeMaterial").GetComponent<MeshRenderer>().material;
             idleSound = item.definition.GetCustomReference("IdleSound").GetComponent<AudioSource>();
             glowMaterial = item.definition.GetCustomReference("GlowMaterial").GetComponent<MeshRenderer>().material;
             glowLight = item.definition.GetCustomReference("GlowLight").GetComponent<Light>();

@@ -63,13 +63,19 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ItemTaunt.cs" />
+    <Compile Include="ItemBinoculars.cs" />
+    <Compile Include="ItemHelmet.cs" />
     <Compile Include="ItemKyberCrystal.cs" />
     <Compile Include="ItemBlasterBolt.cs" />
     <Compile Include="ItemBlaster.cs" />
     <Compile Include="ItemLightsaber.cs" />
+    <Compile Include="ItemModuleBinoculars.cs" />
     <Compile Include="ItemModuleBlasterBolt.cs" />
     <Compile Include="ItemModuleBlaster.cs" />
+    <Compile Include="ItemModuleHelmet.cs" />
     <Compile Include="ItemModuleKyberCrystal.cs" />
+    <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils.cs" />
