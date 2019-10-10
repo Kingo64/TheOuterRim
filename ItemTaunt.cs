@@ -54,10 +54,12 @@ namespace TOR {
         }
 
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
-            if (action == Interactable.Action.UseStart) {
-                ExecuteAction(module.gripPrimaryAction);
-            } else if (action == Interactable.Action.AlternateUseStart) {
-                ExecuteAction(module.gripSecondaryAction);
+            if (handle == grip) {
+                if (action == Interactable.Action.UseStart) {
+                    ExecuteAction(module.gripPrimaryAction);
+                } else if (action == Interactable.Action.AlternateUseStart) {
+                    ExecuteAction(module.gripSecondaryAction);
+                }
             }
         }
     }

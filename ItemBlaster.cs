@@ -1,4 +1,5 @@
 ﻿using BS;
+using System.Linq;
 using UnityEngine;
 
 namespace TOR {
@@ -37,6 +38,8 @@ namespace TOR {
 
         Renderer scope;
         Camera scopeCamera;
+        Material originalScopeMaterial;
+        Material scopeMaterial;
         Texture originalScopeTexture;
         RenderTexture renderScopeTexture;
 
@@ -62,6 +65,17 @@ namespace TOR {
         float reloadTime;
         bool isOverheated;
         bool isReloading;
+
+        // AI settings
+        Creature currentAI;
+        BrainHuman currentAIBrain;
+        int aiBurstAmount;
+        float aiGrabForegripTime;
+        float aiShootTime;
+        bool aiOriginalMeleeEnabled;
+        float aiOriginalMeleeDistMult;
+        float aiOriginalParryDetectionRadius;
+        float aiOriginalParryMaxDist;
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -93,23 +107,6 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.secondaryGripID)) secondaryGrip = item.definition.GetCustomReference(module.secondaryGripID).GetComponent<Handle>();
             if (!string.IsNullOrEmpty(module.bulletSpawnID)) bulletSpawn = item.definition.GetCustomReference(module.bulletSpawnID);
 
-            // setup audio sources
-            // Utils.ApplyStandardMixer(altFireSounds);
-            // Utils.ApplyStandardMixer(altFireSounds2);
-            // Utils.ApplyStandardMixer(emptySounds);
-            // Utils.ApplyStandardMixer(emptySounds2);
-            // Utils.ApplyStandardMixer(fireSounds);
-            // Utils.ApplyStandardMixer(fireSounds2);
-            // Utils.ApplyStandardMixer(fireModeSounds);
-            // Utils.ApplyStandardMixer(fireModeSounds2);
-            // Utils.ApplyStandardMixer(overheatSounds);
-            // Utils.ApplyStandardMixer(overheatSounds2);
-            // Utils.ApplyStandardMixer(reloadSounds);
-            // Utils.ApplyStandardMixer(reloadSounds2);
-            // Utils.ApplyStandardMixer(reloadEndSounds);
-            // Utils.ApplyStandardMixer(reloadEndSounds2);
-
-
             // setup item events
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
@@ -136,6 +133,7 @@ namespace TOR {
             if (module.hasScope) SetupScope();
             currentFiremode = module.fireModes[0];
             currentFirerate = module.gunRPM[0];
+            aiBurstAmount = Mathf.Abs(module.fireModes.Max());
             ammoLeft = module.magazineSize;
         }
 
@@ -144,28 +142,29 @@ namespace TOR {
             var scopeTransform = item.definition.GetCustomReference(module.scopeID);
             if (scopeTransform != null) {
                 scope = scopeTransform.GetComponent<Renderer>();
-                originalScopeTexture = scope.material.mainTexture;
+                originalScopeMaterial = scope.materials[0];
+                scopeMaterial = scope.materials[1];
+                scope.materials = new Material[] { originalScopeMaterial };
 
                 scopeCamera = item.definition.GetCustomReference(module.scopeCameraID).GetComponent<Camera>();
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
                 renderScopeTexture = new RenderTexture(module.scopeResolution[0], module.scopeResolution[1], module.scopeDepth, RenderTextureFormat.Default);
                 renderScopeTexture.Create();
                 scopeCamera.targetTexture = renderScopeTexture;
+                scopeMaterial.SetTexture("_BaseMap", renderScopeTexture);
             }
         }
 
         void EnableScopeRender() {
             if (scope == null) return;
-            scope.material.mainTexture = renderScopeTexture;
-            scope.material.SetTexture("_EmissionMap", renderScopeTexture);
-            scope.material.SetColor("_EmissionColor", new Color(0.9f, 0.9f, 0.9f, 0.9f));
+            scopeCamera.enabled = true;
+            scope.material = scopeMaterial;
         }
 
         void DisableScopeRender() {
             if (scope == null) return;
-            scope.material.mainTexture = originalScopeTexture;
-            scope.material.SetTexture("_EmissionMap", null);
-            scope.material.SetColor("_EmissionColor", new Color(0.0f, 0.0f, 0.0f, 0.0f));
+            scopeCamera.enabled = false;
+            scope.material = originalScopeMaterial;
         }
 
         void CycleFiremode() {
@@ -194,7 +193,7 @@ namespace TOR {
 
         public void OnGrabEvent(Handle handle, Interactor interactor) {
             // toggle scope for performance reasons
-            if (module.hasScope) EnableScopeRender();
+            if (module.hasScope && (interactor.playerHand == Player.local.handRight || interactor.playerHand == Player.local.handLeft)) EnableScopeRender();
         }
 
         public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
@@ -240,11 +239,41 @@ namespace TOR {
         public void OnGripGrabbed(Interactor interactor, EventTime arg2) {
             holdingGunGripRight = interactor.playerHand == Player.local.handRight;
             holdingGunGripLeft = interactor.playerHand == Player.local.handLeft;
+
+            if (!holdingGunGripLeft && !holdingGunGripRight) {
+                currentAI = interactor.bodyHand.body.creature;
+                currentAIBrain = (BrainHuman)currentAI.brain;
+                aiOriginalMeleeEnabled = currentAIBrain.meleeEnabled;
+                if (aiOriginalMeleeEnabled) {
+                    aiOriginalMeleeDistMult = currentAIBrain.meleeMax;
+                    aiOriginalParryDetectionRadius = currentAIBrain.parryDetectionRadius;
+                    aiOriginalParryMaxDist = currentAIBrain.parryMaxDistance;
+                    currentAIBrain.meleeEnabled = module.aiMeleeEnabled;
+                    currentAIBrain.meleeDistMult = currentAIBrain.bowDist * module.aiShootDistanceMult;
+                    currentAIBrain.parryDetectionRadius = currentAIBrain.bowDist * module.aiShootDistanceMult; ;
+                    currentAIBrain.parryMaxDistance = currentAIBrain.bowDist * module.aiShootDistanceMult;
+                }
+                if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip != null) {
+                    aiGrabForegripTime = 1.0f;
+                }
+            }
         }
 
         public void OnGripUnGrabbed(Interactor interactor, EventTime arg2) {
             if (interactor.playerHand == Player.local.handRight) holdingGunGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingGunGripLeft = false;
+
+            if (currentAI != null) {
+                if (aiOriginalMeleeEnabled) {
+                    currentAIBrain.meleeEnabled = aiOriginalMeleeEnabled;
+                    currentAIBrain.meleeDistMult = aiOriginalMeleeDistMult;
+                    currentAIBrain.parryMaxDistance = aiOriginalParryMaxDist;
+                }
+                if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip != null) {
+                    currentAI.body.handLeft.interactor.TryRelease();
+                }
+                currentAI = null;
+            }
         }
 
         public void OnForeGripGrabbed(Interactor interactor, EventTime arg2) {
@@ -255,6 +284,12 @@ namespace TOR {
         public void OnForeGripUnGrabbed(Interactor interactor, EventTime arg2) {
             if (interactor.playerHand == Player.local.handRight) holdingForeGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingForeGripLeft = false;
+
+            if (currentAI != null && !currentAI.body.handLeft.interactor.grabbedHandle) {
+                if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip != null) {
+                    aiGrabForegripTime = 1.0f;
+                }
+            }
         }
 
         public void OnScopeGripGrabbed(Interactor interactor, EventTime arg2) {
@@ -291,6 +326,7 @@ namespace TOR {
             if (projectileData == null) return;
             var projectile = projectileData.Spawn(true);
             if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
+            try { projectile.lastHandler = gunGrip.handlers.First(); } catch {}
 
             // match new projectile inertia with current gun motion inertia
             projectile.transform.position = bulletSpawn.position;
@@ -322,7 +358,7 @@ namespace TOR {
         void Stun() {
             Utils.PlayParticleEffect(altFireEffect, module.altFireEffectDetachFromParent);
             Utils.PlayRandomSound(altFireSounds); Utils.PlayRandomSound(altFireSounds2);
-            if (Physics.Raycast(bulletSpawn.transform.position, bulletSpawn.transform.TransformDirection(Vector3.forward), out RaycastHit hit, module.altFireRange)) {
+            if (Physics.Raycast(bulletSpawn.position, bulletSpawn.TransformDirection(Vector3.forward), out RaycastHit hit, module.altFireRange)) {
                 var target = hit.collider.transform.root.GetComponent<Creature>();
                 if (target != null && target != Creature.player && target.state != Creature.State.Dead) {
                     target.ragdoll.SetState(Creature.State.Destabilized);
@@ -357,12 +393,36 @@ namespace TOR {
             }
         }
 
+        void AIShoot() {
+            if (currentAI != null && currentAIBrain.targetCreature != null) {
+                if (!module.aiMeleeEnabled) {
+                    currentAIBrain.meleeEnabled = Vector3.Distance(body.position, currentAIBrain.targetCreature.transform.position) <= (gunGrip.definition.reach + 3f);
+                }
+                if (aiShootTime <= 0 && fireTime <= 0 && !isReloading) {
+                    var bulletSpawnVector = bulletSpawn.TransformDirection(Vector3.forward);
+                    var aiAimAngle = new Vector3(
+                        bulletSpawnVector.x * (Random.Range(-1f, 1f) * currentAIBrain.actionBow.aimSpreadCone / module.aiShootDistanceMult),
+                        bulletSpawnVector.y * (Random.Range(-1f, 1f) * currentAIBrain.actionBow.aimSpreadCone / module.aiShootDistanceMult),
+                        bulletSpawnVector.z);
+                    if (Physics.Raycast(bulletSpawn.transform.position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius)) {
+                        var target = hit.collider.transform.root.GetComponent<Creature>();
+                        if (target != null && (currentAI.team == 0 || target.team != currentAI.team)) {
+                            shotsLeftInBurst = aiBurstAmount;
+                            Fire();
+                            aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
+                        }
+                    }
+                }
+            }
+        }
+
         protected void LateUpdate() {
             // update timers
             if (altFireTime > 0) altFireTime -= Time.deltaTime;
             if (fireTime > 0) fireTime -= Time.deltaTime;
             if (reloadTime > 0) reloadTime -= Time.deltaTime;
             if (currentHeat > 0) currentHeat -= Time.deltaTime;
+            if (aiShootTime > 0) aiShootTime -= Time.deltaTime;
 
             if (currentHeat > module.overheatThreshold && !isOverheated) {
                 isOverheated = true;
@@ -394,6 +454,16 @@ namespace TOR {
                 // start reloading if auto and out of ammo
                 else if (ammoLeft == 0 && module.automaticReload && !isReloading) Reload();
             }
+
+            // Run AI logic
+            if (aiGrabForegripTime > 0) {
+                aiGrabForegripTime -= Time.deltaTime;
+                if (aiGrabForegripTime <= 0 && currentAI != null) {
+                    currentAI.body.handLeft.interactor.TryRelease();
+                    currentAI.body.handLeft.interactor.Grab(foreGrip);
+                }
+            }
+            AIShoot();
         }
     }
 }

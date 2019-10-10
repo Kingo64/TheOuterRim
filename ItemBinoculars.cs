@@ -16,12 +16,14 @@ namespace TOR {
 
         Renderer scopeL;
         Camera scopeCameraL;
-        Texture originalScopeTextureL;
+        Material scopeMaterialL;
+        Material originalScopeMaterialL;
         RenderTexture renderScopeTextureL;
 
         Renderer scopeR;
         Camera scopeCameraR;
-        Texture originalScopeTextureR;
+        Material scopeMaterialR;
+        Material originalScopeMaterialR;
         RenderTexture renderScopeTextureR;
 
         public bool holdingGunGripLeft;
@@ -53,41 +55,39 @@ namespace TOR {
         void SetupScopeLeft(Transform scopeTransform, Camera scopeCamera) {
             if (scopeTransform != null) {
                 scopeL = scopeTransform.GetComponent<Renderer>();
-                originalScopeTextureL = scopeL.material.mainTexture;
+                originalScopeMaterialL = scopeL.materials[0];
+                scopeMaterialL = scopeL.materials[1];
+                scopeL.materials = new Material[] { originalScopeMaterialL };
 
                 scopeCameraL = scopeCamera;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
                 renderScopeTextureL = new RenderTexture(module.scopeResolution[0], module.scopeResolution[1], module.scopeDepth, RenderTextureFormat.Default);
                 renderScopeTextureL.Create();
                 scopeCamera.targetTexture = renderScopeTextureL;
+                scopeMaterialL.SetTexture("_BaseMap", renderScopeTextureL);
             }
         }
 
         void SetupScopeRight(Transform scopeTransform, Camera scopeCamera) {
             if (scopeTransform != null) {
                 scopeR = scopeTransform.GetComponent<Renderer>();
-                originalScopeTextureR = scopeR.material.mainTexture;
+                originalScopeMaterialR = scopeR.materials[0];
+                scopeMaterialR = scopeR.materials[1];
+                scopeR.materials = new Material[] { originalScopeMaterialR };
 
                 scopeCameraR = scopeCamera;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
                 renderScopeTextureR = new RenderTexture(module.scopeResolution[0], module.scopeResolution[1], module.scopeDepth, RenderTextureFormat.Default);
                 renderScopeTextureR.Create();
                 scopeCamera.targetTexture = renderScopeTextureR;
+                scopeMaterialR.SetTexture("_BaseMap", renderScopeTextureR);
             }
         }
 
-        void EnableScopeRender(Renderer scope, RenderTexture renderTexture) {
+        void SetScopeRender(Renderer scope, Camera scopeCamera, Material material, bool state) {
             if (scope == null) return;
-            scope.material.mainTexture = renderTexture;
-            scope.material.SetTexture("_EmissionMap", renderTexture);
-            scope.material.SetColor("_EmissionColor", new Color(0.9f, 0.9f, 0.9f, 0.9f));
-        }
-
-        void DisableScopeRender(Renderer scope, Texture originalTexture) {
-            if (scope == null) return;
-            scope.material.mainTexture = originalTexture;
-            scope.material.SetTexture("_EmissionMap", null);
-            scope.material.SetColor("_EmissionColor", new Color(0.0f, 0.0f, 0.0f, 0.0f));
+            scopeCamera.enabled = state;
+            scope.material = material;
         }
 
         void CycleScope() {
@@ -118,14 +118,16 @@ namespace TOR {
 
         public void OnGrabEvent(Handle handle, Interactor interactor) {
             // toggle scope for performance reasons
-            EnableScopeRender(scopeL, renderScopeTextureL);
-            EnableScopeRender(scopeR, renderScopeTextureR);
+            if (interactor.playerHand == Player.local.handRight || interactor.playerHand == Player.local.handLeft) {
+                SetScopeRender(scopeL, scopeCameraL, scopeMaterialL, true);
+                SetScopeRender(scopeR, scopeCameraR, scopeMaterialR, true);
+            }
         }
 
         public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
             // toggle scope for performance reasons
-            DisableScopeRender(scopeL, originalScopeTextureL);
-            DisableScopeRender(scopeR, originalScopeTextureR);
+            SetScopeRender(scopeL, scopeCameraL, originalScopeMaterialL, false);
+            SetScopeRender(scopeR, scopeCameraR, originalScopeMaterialR, false);
         }
 
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {

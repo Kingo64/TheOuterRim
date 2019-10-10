@@ -68,9 +68,13 @@ namespace TOR {
 
         // scope
         public bool hasScope = true;
-        public int scopeDepth;
+        public int scopeDepth = 24;
         public int[] scopeResolution = { 512, 512 };
         public float[] scopeZoom = { 10f, 6f, 18f };
+
+        // AI settings
+        public float aiShootDistanceMult = 1.0f;
+        public bool aiMeleeEnabled;
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);

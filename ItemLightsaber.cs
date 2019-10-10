@@ -14,6 +14,7 @@ namespace TOR {
         LightsaberBlade[] blades;
         bool isActive;
         bool isHolding;
+        bool isTeleGrabbed;
 
         bool thrown;
         float ignoreCrystalTime;
@@ -29,6 +30,7 @@ namespace TOR {
 
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
+            item.OnTeleGrabEvent += OnTeleGrabEvent;
             item.OnTeleUnGrabEvent += OnTeleUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
             item.OnCollisionEvent += CollisionHandler;
@@ -135,7 +137,13 @@ namespace TOR {
             }
         }
 
+        public void OnTeleGrabEvent(Handle handle, Telekinesis teleGrabber) {
+            isTeleGrabbed = true;
+            ResetCollisions();
+        }
+
         public void OnTeleUngrabEvent(Handle handle, Telekinesis teleGrabber) {
+            isTeleGrabbed = false;
             ResetCollisions();
         }
 
@@ -223,13 +231,13 @@ namespace TOR {
                 }
             }
 
-            if (playerHand && thrown && PlayerControl.GetHand(playerHand.side).gripPressed && !item.isGripped && !item.isTeleGrabbed) {
+            if (playerHand && thrown && PlayerControl.GetHand(playerHand.side).gripPressed && !item.isGripped && !isTeleGrabbed) {
                 // forget hand if hand is currently holding something
                 if (playerHand.bodyHand.interactor.grabbedHandle) playerHand = null;
                 else ReturnSaber();
             }
 
-            if (isHolding && !item.isTeleGrabbed) {
+            if (isHolding && !isTeleGrabbed) {
                 thrown = false;
                 body.collisionDetectionMode = (body.velocity.magnitude > module.fastCollisionSpeed) ? (CollisionDetectionMode)module.fastCollisionMode : CollisionDetectionMode.Discrete;
             }
@@ -287,6 +295,7 @@ namespace TOR {
         public Light saberGlowLight;
         public Light saberTipGlow;
         public ParticleSystem saberParticles;
+        public ParticleSystem unstableParticles;
         public Whoosh whooshBlade;
         public Collider collisionBlade;
         protected AudioSource[] startSounds;
@@ -300,6 +309,7 @@ namespace TOR {
         public float maxLength;
         public float extendDelta;
         public bool isActive;
+        public bool isUnstable;
 
         public void Initialise(Item parent) {
             this.parent = parent;
@@ -311,13 +321,21 @@ namespace TOR {
             if (!string.IsNullOrEmpty(crystalEjectRef)) crystalEject = parent.definition.GetCustomReference(crystalEjectRef);
             if (!string.IsNullOrEmpty(startSoundsRef)) startSounds = parent.definition.GetCustomReference(startSoundsRef).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(stopSoundsRef)) stopSounds = parent.definition.GetCustomReference(stopSoundsRef).GetComponents<AudioSource>();
-            if (!string.IsNullOrEmpty(saberBodyRef)) saberBody = parent.definition.GetCustomReference(saberBodyRef).GetComponent<MeshRenderer>();
-            if (!string.IsNullOrEmpty(saberBodyRef)) idleSound = parent.definition.GetCustomReference(saberBodyRef).GetComponent<AudioSource>();
+
+            if (!string.IsNullOrEmpty(saberBodyRef)) {
+                var tempSaberBody = parent.definition.GetCustomReference(saberBodyRef);
+                saberBody = tempSaberBody.GetComponent<MeshRenderer>();
+                idleSound = tempSaberBody.GetComponent<AudioSource>();
+                var tempUnstable = tempSaberBody.transform.Find("UnstableParticles");
+                if (tempUnstable != null) unstableParticles = tempUnstable.GetComponent<ParticleSystem>();
+            }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.definition.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
             if (!string.IsNullOrEmpty(saberGlowRef)) saberGlow = parent.definition.GetCustomReference(saberGlowRef).GetComponent<MeshRenderer>();
             if (!string.IsNullOrEmpty(saberGlowRef)) saberGlowLight = parent.definition.GetCustomReference(saberGlowRef).GetComponent<Light>();
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.definition.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(whooshRef)) whooshBlade = parent.definition.GetCustomReference(whooshRef).GetComponent<Whoosh>();
+
+            maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
 
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 var kyberCrystalData = Catalog.current.GetData<ItemData>(kyberCrystal, true);
@@ -328,7 +346,6 @@ namespace TOR {
             }
 
             SetComponentState(false);
-            maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
 
             // Always set this to false now, it is only used for item previews
             if (saberGlow != null) saberGlow.enabled = false;
@@ -344,11 +361,18 @@ namespace TOR {
             if (saberBody != null) saberBody.enabled = state;
             if (saberGlowLight != null) saberGlowLight.enabled = state;
             if (saberTipGlow != null) saberTipGlow.enabled = state;
-            if (saberParticles !=null) {
+            if (saberParticles != null) {
                 if (state) saberParticles.Play();
                 else {
                     saberParticles.Stop();
                     saberParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear); // destroy leftover beam particles
+                }
+            }
+            if (unstableParticles != null) {
+                if (state && isUnstable) unstableParticles.Play();
+                else {
+                    unstableParticles.Stop();
+                    unstableParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear); // destroy leftover beam particles
                 }
             }
         }
@@ -361,10 +385,26 @@ namespace TOR {
         }
 
         public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
-            saberBody.material = kyberCrystalObject.bladeMaterial;
-            saberGlow.material = kyberCrystalObject.glowMaterial;
-            saberGlowLight.color = kyberCrystalObject.glowLight.color;
-            saberTipGlow.color = kyberCrystalObject.glowLight.color;
+            saberBody.material.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
+            saberGlow.material.SetColor("_DiffuseColor", kyberCrystalObject.bladeColour);
+            if (unstableParticles) {
+                var main = unstableParticles.main;
+                main.startColor = kyberCrystalObject.bladeColour;
+                main.startLifetimeMultiplier = 33.333f * maxLength;
+                var shape = unstableParticles.GetComponentInChildren<ParticleSystem>().shape;
+                shape.scale = new Vector3(shape.scale.x, maxLength, shape.scale.y);
+            }
+
+            saberGlowLight.color = kyberCrystalObject.glowColour;
+            saberGlowLight.intensity = kyberCrystalObject.glowIntensity * 0.1f;
+            saberGlowLight.range = kyberCrystalObject.glowRange;
+
+            saberTipGlow.color = kyberCrystalObject.glowColour;
+            saberTipGlow.intensity = kyberCrystalObject.glowIntensity;
+            saberTipGlow.range = kyberCrystalObject.glowRange;
+
+            isUnstable = kyberCrystalObject.isUnstable;
+
             if (!string.IsNullOrEmpty(saberBodyRef)) {
                 var current = parent.definition.GetCustomReference(saberBodyRef);
                 idleSound = Instantiate(kyberCrystalObject.idleSound, current.position, current.rotation, current.parent);
