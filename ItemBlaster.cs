@@ -141,6 +141,7 @@ namespace TOR {
             item.definition.TryGetSavedValue("Ammo", out string foundAmmo);
             if(!int.TryParse(foundAmmo, out ammoLeft)) {
                 ammoLeft = module.magazineSize;
+                UpdateAmmoDisplay();
             }
         }
 
@@ -475,6 +476,7 @@ namespace TOR {
                 if (isReloading) {
                     isReloading = false;
                     ammoLeft = module.magazineSize;
+                    UpdateAmmoDisplay();
                     Utils.PlayRandomSound(reloadEndSounds); Utils.PlayRandomSound(reloadEndSounds2);
                 }
                 // start reloading if auto and out of ammo
