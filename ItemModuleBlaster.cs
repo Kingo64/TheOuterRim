@@ -7,6 +7,7 @@ namespace TOR {
         public bool automaticReload = true;
         public float altFireCooldown = 2f;
         public float bulletForce = 5000f;
+        public float burstRPM;
         public float fireHaptic = 1f;
         public int[] fireModes = { -1, 1 };
         public float[] gunRPM = { 300 };
@@ -30,6 +31,7 @@ namespace TOR {
 
         // standard refs
         public string altFireEffectID = "AltFireEffect";
+        public string ammoDisplayID;
         public string bulletSpawnID = "BulletSpawn";
         public string fireEffectID = "FireEffect";
         public string overheatEffectID = "OverheatEffect";

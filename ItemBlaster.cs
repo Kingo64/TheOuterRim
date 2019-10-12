@@ -1,6 +1,7 @@
 ﻿using BS;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace TOR {
     // The item module will add a unity component to the item object. See unity monobehaviour for more information: https://docs.unity3d.com/ScriptReference/MonoBehaviour.html
@@ -27,6 +28,7 @@ namespace TOR {
         protected AudioSource[] reloadEndSounds;
         protected AudioSource[] reloadEndSounds2;
         protected ParticleSystem altFireEffect;
+        protected Text ammoDisplay;
         protected ParticleSystem fireEffect;
         protected ParticleSystem overheatEffect;
 
@@ -40,7 +42,6 @@ namespace TOR {
         Camera scopeCamera;
         Material originalScopeMaterial;
         Material scopeMaterial;
-        Texture originalScopeTexture;
         RenderTexture renderScopeTexture;
 
         public bool holdingGunGripLeft;
@@ -99,6 +100,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.reloadEndSoundsID2)) reloadEndSounds2 = item.definition.GetCustomReference(module.reloadEndSoundsID2).GetComponents<AudioSource>();
 
             if (!string.IsNullOrEmpty(module.altFireEffectID)) altFireEffect = item.definition.GetCustomReference(module.altFireEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.ammoDisplayID)) ammoDisplay = item.definition.GetCustomReference(module.ammoDisplayID).GetComponent<Text>();
             if (!string.IsNullOrEmpty(module.fireEffectID)) fireEffect = item.definition.GetCustomReference(module.fireEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.overheatEffectID)) overheatEffect = item.definition.GetCustomReference(module.overheatEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.gunGripID)) gunGrip = item.definition.GetCustomReference(module.gunGripID).GetComponent<Handle>();
@@ -111,6 +113,7 @@ namespace TOR {
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
+            item.OnSnapEvent += OnSnapEvent;
 
             // setup grip events
             if (gunGrip != null) {
@@ -134,7 +137,11 @@ namespace TOR {
             currentFiremode = module.fireModes[0];
             currentFirerate = module.gunRPM[0];
             aiBurstAmount = Mathf.Abs(module.fireModes.Max());
-            ammoLeft = module.magazineSize;
+            
+            item.definition.TryGetSavedValue("Ammo", out string foundAmmo);
+            if(!int.TryParse(foundAmmo, out ammoLeft)) {
+                ammoLeft = module.magazineSize;
+            }
         }
 
         void SetupScope() {
@@ -200,6 +207,10 @@ namespace TOR {
             // toggle scope for performance reasons
             if (module.hasScope) DisableScopeRender();
         }
+        
+        public void OnSnapEvent(ObjectHolder holder) {
+            item.definition.SetSavedValue("Ammo", ammoLeft.ToString());
+        }
 
         public void ExecuteAction(string action) {
             if (action == "cycleScope") CycleScope();
@@ -250,7 +261,7 @@ namespace TOR {
                     aiOriginalParryMaxDist = currentAIBrain.parryMaxDistance;
                     currentAIBrain.meleeEnabled = module.aiMeleeEnabled;
                     currentAIBrain.meleeDistMult = currentAIBrain.bowDist * module.aiShootDistanceMult;
-                    currentAIBrain.parryDetectionRadius = currentAIBrain.bowDist * module.aiShootDistanceMult; ;
+                    currentAIBrain.parryDetectionRadius = currentAIBrain.bowDist * module.aiShootDistanceMult;
                     currentAIBrain.parryMaxDistance = currentAIBrain.bowDist * module.aiShootDistanceMult;
                 }
                 if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip != null) {
@@ -326,7 +337,12 @@ namespace TOR {
             if (projectileData == null) return;
             var projectile = projectileData.Spawn(true);
             if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
-            try { projectile.lastHandler = gunGrip.handlers.First(); } catch {}
+            try {
+                var shooter = gunGrip.handlers.First();
+                projectile.parryTargets.Select(target => target.owner = shooter.bodyHand.body.creature);
+                projectile.lastHandler = shooter;
+            }
+            catch { }
 
             // match new projectile inertia with current gun motion inertia
             projectile.transform.position = bulletSpawn.position;
@@ -349,8 +365,11 @@ namespace TOR {
             if (--shotsLeftInBurst == 0) {
                 leftInteractor = null;
                 rightInteractor = null;
+            } else if (module.burstRPM > 0) {
+                fireTime = 1 / (module.burstRPM / 60);
             }
 
+            UpdateAmmoDisplay();
             Utils.PlayParticleEffect(fireEffect, module.fireEffectDetachFromParent);
             Utils.PlayRandomSound(fireSounds); Utils.PlayRandomSound(fireSounds2);
         }
@@ -393,6 +412,13 @@ namespace TOR {
             }
         }
 
+        void UpdateAmmoDisplay() {
+            if (ammoDisplay != null) {
+                var digits = module.magazineSize == 0 ? 1 : 1 + (int)System.Math.Log10(System.Math.Abs(module.magazineSize));
+                ammoDisplay.text = ammoLeft.ToString("D" + digits);
+            }
+        }
+
         void AIShoot() {
             if (currentAI != null && currentAIBrain.targetCreature != null) {
                 if (!module.aiMeleeEnabled) {
@@ -406,7 +432,7 @@ namespace TOR {
                         bulletSpawnVector.z);
                     if (Physics.Raycast(bulletSpawn.transform.position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius)) {
                         var target = hit.collider.transform.root.GetComponent<Creature>();
-                        if (target != null && (currentAI.team == 0 || target.team != currentAI.team)) {
+                        if (target != null && target.team != Team.Ignore && (currentAI.team == Team.None || target.team != currentAI.team)) {
                             shotsLeftInBurst = aiBurstAmount;
                             Fire();
                             aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);

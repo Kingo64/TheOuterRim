@@ -16,6 +16,7 @@ namespace TOR {
         bool isHolding;
         bool isTeleGrabbed;
 
+        string[] kyberCrystals = { };
         bool thrown;
         float ignoreCrystalTime;
         float primaryControlHoldTime;
@@ -35,12 +36,15 @@ namespace TOR {
             item.OnHeldActionEvent += OnHeldAction;
             item.OnCollisionEvent += CollisionHandler;
 
+            RetrieveKyberCrystals();
             blades = module.lightsaberBlades.Select(Instantiate).ToArray();
 
-            foreach (var blade in blades) {
-                blade.Initialise(item);
+            for (var i = 0; i < blades.Count(); i++) {
+                var blade = blades[i];
+                blade.Initialise(item, kyberCrystals.ElementAtOrDefault(i) ?? null);
                 blade.extendDelta = -(blade.maxLength / module.ignitionDuration);
             }
+            
             if (module.startActive) TurnOn(true);
             else TurnOff(false);
 
@@ -70,6 +74,7 @@ namespace TOR {
 
         // Turn on only first blade - used for saber staff
         void ToggleSingle(Interactor interactor = null) {
+            if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
             var singleAlreadyActive = blades[0].isActive;
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
                 isActive = true;
@@ -193,6 +198,7 @@ namespace TOR {
                                 TurnOff(isActive);
                                 item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
                                 blade.RemoveCrystal();
+                                StoreKyberCrystals();
                                 ignoreCrystalTime = 0.5f;
                                 break;
                             }
@@ -202,6 +208,7 @@ namespace TOR {
                             if (string.IsNullOrEmpty(blade.kyberCrystal)) {
                                 var kyberCrystal = collisionInstance.targetCollider.attachedRigidbody.GetComponentInParent<ItemKyberCrystal>();
                                 blade.AddCrystal(kyberCrystal);
+                                StoreKyberCrystals();
                                 break;
                             }
                         }
@@ -267,6 +274,17 @@ namespace TOR {
                 body.velocity = (playerHand.transform.position - body.position) * returnSpeed;
             }
         }
+
+        void RetrieveKyberCrystals() {
+            item.definition.TryGetSavedValue("kyberCrystals", out string tempCrystals);
+            if (!string.IsNullOrEmpty(tempCrystals)) {
+                kyberCrystals = tempCrystals.Split(',');
+            }
+        }
+
+        void StoreKyberCrystals() {
+            item.definition.SetSavedValue("kyberCrystals", string.Join(",", blades.Select(blade => blade.kyberCrystal)));
+        }
     }
 
     [Serializable]
@@ -311,7 +329,7 @@ namespace TOR {
         public bool isActive;
         public bool isUnstable;
 
-        public void Initialise(Item parent) {
+        public void Initialise(Item parent, string kyberCrystalOverride = null) {
             this.parent = parent;
             if (!string.IsNullOrEmpty(collisionRef)) {
                 collisionBlade = parent.definition.GetCustomReference(collisionRef).GetComponent<Collider>();
@@ -337,6 +355,7 @@ namespace TOR {
 
             maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
 
+            kyberCrystal = kyberCrystalOverride ?? kyberCrystal;
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 var kyberCrystalData = Catalog.current.GetData<ItemData>(kyberCrystal, true);
                 if (kyberCrystalData == null) return;
