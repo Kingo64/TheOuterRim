@@ -433,10 +433,12 @@ namespace TOR {
                         bulletSpawnVector.z);
                     if (Physics.Raycast(bulletSpawn.transform.position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius)) {
                         var target = hit.collider.transform.root.GetComponent<Creature>();
-                        if (target != null && target.team != Team.Ignore && (currentAI.team == Team.None || target.team != currentAI.team)) {
-                            shotsLeftInBurst = aiBurstAmount;
-                            Fire();
-                            aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
+                        if (target != null && currentAI != target
+                            && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Passive 
+                            && target.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && (currentAI.faction.attackBehaviour == Creature.Faction.AttackBehaviour.Agressive || currentAI.factionId != target.factionId)) {
+                                shotsLeftInBurst = aiBurstAmount;
+                                Fire();
+                                aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
                         }
                     }
                 }
