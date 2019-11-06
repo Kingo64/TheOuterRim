@@ -360,15 +360,14 @@ namespace TOR {
             // Apply recoil
             if (module.recoil) ApplyRecoil();
 
-            fireTime = 1 / (currentFirerate / 60);
             if (module.magazineSize > 0) ammoLeft--;
             if (module.overheatRate > 0) currentHeat += module.overheatRate;
             if (--shotsLeftInBurst == 0) {
                 leftInteractor = null;
                 rightInteractor = null;
-            } else if (module.burstRPM > 0) {
-                fireTime = 1 / (module.burstRPM / 60);
             }
+            var fireModifier = (module.burstRPM > 0 && shotsLeftInBurst > 0) ? module.burstRPM : currentFirerate;
+            fireTime = 1 / (fireModifier / 60);
 
             UpdateAmmoDisplay();
             Utils.PlayParticleEffect(fireEffect, module.fireEffectDetachFromParent);
@@ -421,7 +420,7 @@ namespace TOR {
         }
 
         void AIShoot() {
-            if (currentAI != null && currentAIBrain.targetCreature != null) {
+            if (currentAI != null && currentAIBrain != null && currentAIBrain.targetCreature != null) {
                 if (!module.aiMeleeEnabled) {
                     currentAIBrain.meleeEnabled = Vector3.Distance(body.position, currentAIBrain.targetCreature.transform.position) <= (gunGrip.definition.reach + 3f);
                 }
