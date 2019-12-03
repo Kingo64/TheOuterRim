@@ -15,7 +15,9 @@ namespace TOR {
         bool isActive;
         bool isHolding;
         bool isTeleGrabbed;
+        bool isOpen;
 
+        Animator[] animators = { };
         string[] kyberCrystals = { };
         bool thrown;
         float ignoreCrystalTime;
@@ -28,6 +30,8 @@ namespace TOR {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleLightsaber>();
             body = item.GetComponent<Rigidbody>();
+
+            if (!string.IsNullOrEmpty(module.animatorId)) animators = item.definition.GetCustomReference(module.animatorId).GetComponentsInChildren<Animator>();
 
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
@@ -53,6 +57,7 @@ namespace TOR {
 
         public void ExecuteAction(string action, Interactor interactor = null) {
             if (action == "nextPhase") NextPhase(interactor);
+            else if (action == "toggleAnimation") ToggleAnimation(interactor);
             else if (action == "toggleIgnition") ToggleLightsaber(interactor);
             else if (action == "toggleSingle") ToggleSingle(interactor);
             else if (action == "turnOn") TurnOn();
@@ -64,6 +69,15 @@ namespace TOR {
                 blade.NextPhase();
             }
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
+        }
+
+        void ToggleAnimation(Interactor interactor = null) {
+            if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
+            isOpen = !isOpen;
+            foreach (var animator in animators) {
+                animator.SetTrigger(isOpen ? "open" : "close");
+                animator.ResetTrigger(isOpen ? "close" : "open");
+            }
         }
 
         void ToggleLightsaber(Interactor interactor = null) {
@@ -78,7 +92,6 @@ namespace TOR {
             var singleAlreadyActive = blades[0].isActive;
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
                 isActive = true;
-                ResetCollisions();
 
                 var firstEnabled = false;
                 foreach (var blade in blades) {
@@ -86,23 +99,23 @@ namespace TOR {
                     else blade.TurnOff(blade.isActive);
                     firstEnabled = true;
                 }
+                ResetCollisions();
             }
         }
 
         void TurnOn(bool playSound = true) {
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
                 isActive = true;
-                ResetCollisions();
 
                 foreach (var blade in blades) {
                     blade.TurnOn(playSound && !blade.isActive);
                 }
+                ResetCollisions();
             }
         }
 
         void TurnOff(bool playSound = true) {
             isActive = false;
-            ResetCollisions();
 
             // Unpenetrate all currently penetrated objects - fixes glitchy physics
             Array.ForEach(item.collisions, collision => {
@@ -115,6 +128,7 @@ namespace TOR {
             foreach (var blade in blades) {
                 blade.TurnOff(playSound && blade.isActive);
             }
+            ResetCollisions();
         }
 
         public void OnGrabEvent(Handle handle, Interactor interactor) {
@@ -221,7 +235,7 @@ namespace TOR {
 
         void ResetCollisions() {
             foreach (var blade in blades) {
-                blade.collisionBlade.enabled = isActive;
+                if (blade.collisionBlade != null) blade.collisionBlade.enabled = blade.isActive;
             }
             body.ResetCenterOfMass();
         }
@@ -232,7 +246,7 @@ namespace TOR {
 
                 // Turn off blade completely if at minimum length and currently active
                 if (blade.currentLength <= blade.minLength && (blade.saberBody.enabled)) {
-                    blade.idleSound.Stop();
+                    blade.idleSoundSource.Stop();
                     ResetCollisions();
                     blade.SetComponentState(false);
                 }
@@ -307,7 +321,6 @@ namespace TOR {
 
         // primary objects for Lightsaber to interact with
         public Transform crystalEject;
-        public AudioSource idleSound;
         public MeshRenderer saberBody;
         public MeshRenderer saberGlow;
         public Light saberGlowLight;
@@ -316,8 +329,12 @@ namespace TOR {
         public ParticleSystem unstableParticles;
         public Whoosh whooshBlade;
         public Collider collisionBlade;
-        protected AudioSource[] startSounds;
-        protected AudioSource[] stopSounds;
+        public AudioContainer idleSound;
+        public AudioContainer startSound;
+        public AudioContainer stopSound;
+        public AudioSource idleSoundSource;
+        public AudioSource startSoundSource;
+        public AudioSource stopSoundSource;
 
         // internal properties
         public Item parent;
@@ -328,6 +345,7 @@ namespace TOR {
         public float extendDelta;
         public bool isActive;
         public bool isUnstable;
+        public MaterialPropertyBlock propBlock;
 
         public void Initialise(Item parent, string kyberCrystalOverride = null) {
             this.parent = parent;
@@ -337,13 +355,14 @@ namespace TOR {
                 collisionBlade.enabled = isActive;
             }
             if (!string.IsNullOrEmpty(crystalEjectRef)) crystalEject = parent.definition.GetCustomReference(crystalEjectRef);
-            if (!string.IsNullOrEmpty(startSoundsRef)) startSounds = parent.definition.GetCustomReference(startSoundsRef).GetComponents<AudioSource>();
-            if (!string.IsNullOrEmpty(stopSoundsRef)) stopSounds = parent.definition.GetCustomReference(stopSoundsRef).GetComponents<AudioSource>();
+            if (!string.IsNullOrEmpty(startSoundsRef)) startSoundSource = parent.definition.GetCustomReference(startSoundsRef).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(stopSoundsRef)) stopSoundSource = parent.definition.GetCustomReference(stopSoundsRef).GetComponent<AudioSource>();
 
             if (!string.IsNullOrEmpty(saberBodyRef)) {
                 var tempSaberBody = parent.definition.GetCustomReference(saberBodyRef);
                 saberBody = tempSaberBody.GetComponent<MeshRenderer>();
-                idleSound = tempSaberBody.GetComponent<AudioSource>();
+                propBlock = new MaterialPropertyBlock();
+                idleSoundSource = tempSaberBody.GetComponent<AudioSource>();
                 var tempUnstable = tempSaberBody.transform.Find("UnstableParticles");
                 if (tempUnstable != null) unstableParticles = tempUnstable.GetComponent<ParticleSystem>();
             }
@@ -353,7 +372,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.definition.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(whooshRef)) whooshBlade = parent.definition.GetCustomReference(whooshRef).GetComponent<Whoosh>();
 
-            maxLength = (bladeLength > 0f) ? bladeLength / 10 : saberBody.transform.localScale.z;
+            maxLength = (bladeLength > 0f) ? (bladeLength / saberBody.transform.parent.localScale.z * 0.1f) : saberBody.transform.localScale.z;
 
             kyberCrystal = kyberCrystalOverride ?? kyberCrystal;
             if (!string.IsNullOrEmpty(kyberCrystal)) {
@@ -401,44 +420,74 @@ namespace TOR {
             // var previousLength = maxLength;
             maxLength = phaseLengths[++currentPhase] / 10;
             // extendDelta = (previousLength < maxLength) ? Mathf.Abs(extendDelta) : -Mathf.Abs(extendDelta);
+            CalculateUnstableParticleSize();
         }
 
-        public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
-            saberBody.material.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
-            saberGlow.material.SetColor("_DiffuseColor", kyberCrystalObject.bladeColour);
+        public void CalculateUnstableParticleSize() {
             if (unstableParticles) {
                 var main = unstableParticles.main;
-                main.startColor = kyberCrystalObject.bladeColour;
-                main.startLifetimeMultiplier = 33.333f * maxLength;
+                main.startLifetimeMultiplier = 33.333f * maxLength * saberBody.transform.parent.localScale.z;
                 var shape = unstableParticles.GetComponentInChildren<ParticleSystem>().shape;
                 shape.scale = new Vector3(shape.scale.x, maxLength, shape.scale.y);
             }
+        }
+
+        public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
+            saberBody.GetPropertyBlock(propBlock);
+            propBlock.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
+            propBlock.SetColor("_Color", kyberCrystalObject.coreColour);
+            propBlock.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
+            propBlock.SetFloat("_OuterGlow", kyberCrystalObject.module.outerGlow);
+            propBlock.SetFloat("_CoreRadius", kyberCrystalObject.module.coreRadius);
+            propBlock.SetFloat("_CoreStrength", kyberCrystalObject.module.coreStrength);
+            propBlock.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
+            propBlock.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
+            propBlock.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
+            saberGlow.material.SetColor("_DiffuseColor", kyberCrystalObject.bladeColour);
+            saberBody.SetPropertyBlock(propBlock);
+
+            if (unstableParticles) {
+                var main = unstableParticles.main;
+                main.startColor = kyberCrystalObject.bladeColour;
+                CalculateUnstableParticleSize();
+            }
 
             saberGlowLight.color = kyberCrystalObject.glowColour;
-            saberGlowLight.intensity = kyberCrystalObject.glowIntensity * 0.1f;
-            saberGlowLight.range = kyberCrystalObject.glowRange;
+            saberGlowLight.intensity = kyberCrystalObject.module.glowIntensity * 0.1f;
+            saberGlowLight.range = kyberCrystalObject.module.glowRange;
 
             saberTipGlow.color = kyberCrystalObject.glowColour;
-            saberTipGlow.intensity = kyberCrystalObject.glowIntensity;
-            saberTipGlow.range = kyberCrystalObject.glowRange;
+            saberTipGlow.intensity = kyberCrystalObject.module.glowIntensity;
+            saberTipGlow.range = kyberCrystalObject.module.glowRange;
 
-            isUnstable = kyberCrystalObject.isUnstable;
+            isUnstable = kyberCrystalObject.module.isUnstable;
 
-            if (!string.IsNullOrEmpty(saberBodyRef)) {
-                var current = parent.definition.GetCustomReference(saberBodyRef);
-                idleSound = Instantiate(kyberCrystalObject.idleSound, current.position, current.rotation, current.parent);
+            if (idleSoundSource != null) {
+                idleSound = kyberCrystalObject.module.idleSoundAsset;
+                idleSoundSource.volume = kyberCrystalObject.module.idleSoundVolume;
+                idleSoundSource.pitch = kyberCrystalObject.module.idleSoundPitch;
             }
-            if (!string.IsNullOrEmpty(startSoundsRef)) {
-                var current = parent.definition.GetCustomReference(startSoundsRef);
-                startSounds = Instantiate(kyberCrystalObject.startSounds, current.position, current.rotation, current.parent).GetComponents<AudioSource>();
+            if (startSoundSource != null) {
+                startSound = kyberCrystalObject.module.startSoundAsset;
+                startSoundSource.volume = kyberCrystalObject.module.startSoundVolume;
+                startSoundSource.pitch = kyberCrystalObject.module.startSoundPitch;
             }
-            if (!string.IsNullOrEmpty(stopSoundsRef)) {
-                var current = parent.definition.GetCustomReference(stopSoundsRef);
-                stopSounds = Instantiate(kyberCrystalObject.stopSounds, current.position, current.rotation, current.parent).GetComponents<AudioSource>();
+            
+            if (stopSoundSource != null) {
+                stopSound = kyberCrystalObject.module.stopSoundAsset;
+                stopSoundSource.volume = kyberCrystalObject.module.stopSoundVolume;
+                stopSoundSource.pitch = kyberCrystalObject.module.stopSoundPitch;
             }
 
-            kyberCrystal = kyberCrystalObject.name.Replace("(Clone)", "");
-            kyberCrystalObject.GetComponent<Item>().Despawn();
+            if (!string.IsNullOrEmpty(whooshRef)) {
+                whooshBlade.Load(kyberCrystalObject.module.whoosh, whooshBlade.trigger, whooshBlade.minVelocity, whooshBlade.maxVelocity);
+            }
+
+            kyberCrystal = kyberCrystalObject.item.definition.itemId;
+            var tempItem = kyberCrystalObject.GetComponent<Item>();
+            if (tempItem.mainHandler != null) tempItem.mainHandler.TryRelease();
+            tempItem.Despawn();
+
         }
 
         public void RemoveCrystal() {
@@ -458,8 +507,13 @@ namespace TOR {
         public void TurnOn(bool playSound = true) {
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 isActive = true;
-                if (playSound) Utils.PlayRandomSound(startSounds);
-                idleSound.Play();
+                if (playSound && startSound != null && startSoundSource != null) {
+                    startSoundSource.PlayOneShot(startSound.PickAudioClip());
+                }
+                if (idleSound != null && idleSoundSource != null) {
+                    idleSoundSource.clip = idleSound.PickAudioClip();
+                    idleSoundSource.Play();
+                }
                 SetComponentState(true);
             }
         }
@@ -467,7 +521,9 @@ namespace TOR {
         public void TurnOff(bool playSound = true) {
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 isActive = false;
-                if (playSound) Utils.PlayRandomSound(stopSounds);
+                if (playSound && stopSound != null && stopSoundSource != null) {
+                    stopSoundSource.PlayOneShot(stopSound.PickAudioClip());
+                }
             }
         }
 

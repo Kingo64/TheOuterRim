@@ -3,30 +3,45 @@ using BS;
 
 namespace TOR {
     public class ItemKyberCrystal : MonoBehaviour {
-        protected Item item;
-        protected ItemModuleKyberCrystal module;
+        public Item item;
+        public ItemModuleKyberCrystal module;
 
         public Color bladeColour;
-        public AudioSource idleSound;
-        public bool isUnstable;
+        public Color coreColour;
         public Color glowColour;
-        public float glowIntensity;
-        public float glowRange;
-        public Transform startSounds;
-        public Transform stopSounds;
+        MeshRenderer mesh;
+        MaterialPropertyBlock propBlock;
 
         protected void Awake() {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleKyberCrystal>();
 
             bladeColour = new Color(module.bladeColour[0], module.bladeColour[1], module.bladeColour[2], module.bladeColour[3]);
-            idleSound = item.definition.GetCustomReference("IdleSound").GetComponent<AudioSource>();
-            isUnstable = module.isUnstable;
+            coreColour = new Color(module.coreColour[0], module.coreColour[1], module.coreColour[2], module.coreColour[3]);
             glowColour = new Color(module.glowColour[0], module.glowColour[1], module.glowColour[2], module.glowColour[3]);
-            glowIntensity = module.glowIntensity;
-            glowRange = module.glowRange;
-            startSounds = item.definition.GetCustomReference("StartSounds");
-            stopSounds = item.definition.GetCustomReference("StopSounds");
+
+            mesh = item.definition.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
+            propBlock = new MaterialPropertyBlock();
+            mesh.GetPropertyBlock(propBlock);
+            propBlock.SetColor("_BaseColor", coreColour);
+            mesh.SetPropertyBlock(propBlock);
+        }
+
+        public float getClosestHandDistance() {
+            var distanceToHandLeft = Vector3.Distance(item.transform.position, Player.local.handLeft.transform.position);
+            var distanceToHandRight = Vector3.Distance(item.transform.position, Player.local.handRight.transform.position);
+            return (distanceToHandLeft < distanceToHandRight) ? distanceToHandLeft : distanceToHandRight;
+        }
+
+        protected void Update() {
+            var distanceToHand = getClosestHandDistance();
+            var minGlow = 0.33f;
+            var maxGlow = 1.5f;
+            var flicker = module.isUnstable ? Random.Range(-0.1f, 0.1f) : Random.Range(-0.02f, 0.02f);
+            var intensity = Mathf.Clamp(maxGlow - (8 * distanceToHand) + flicker, minGlow, maxGlow);
+            mesh.GetPropertyBlock(propBlock);
+            propBlock.SetColor("_EmissionColor", new Color(bladeColour.r * intensity, bladeColour.g * intensity, bladeColour.b * intensity, bladeColour.a));
+            mesh.SetPropertyBlock(propBlock);
         }
     }
 }

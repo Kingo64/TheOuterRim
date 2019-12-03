@@ -23,6 +23,7 @@ namespace TOR {
         protected AudioSource[] fireModeSounds2;
         protected AudioSource[] overheatSounds;
         protected AudioSource[] overheatSounds2;
+        protected AudioSource[] preFireSounds;
         protected AudioSource[] reloadSounds;
         protected AudioSource[] reloadSounds2;
         protected AudioSource[] reloadEndSounds;
@@ -62,8 +63,10 @@ namespace TOR {
         int currentFirerateIndex;
         int currentScopeZoom;
         float altFireTime;
+        float fireDelayTime;
         float fireTime;
         float reloadTime;
+        bool isDelayingFire;
         bool isOverheated;
         bool isReloading;
 
@@ -94,6 +97,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.fireModeSoundsID2)) fireModeSounds2 = item.definition.GetCustomReference(module.fireModeSoundsID2).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(module.overheatSoundsID)) overheatSounds = item.definition.GetCustomReference(module.overheatSoundsID).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(module.overheatSoundsID2)) overheatSounds2 = item.definition.GetCustomReference(module.overheatSoundsID2).GetComponents<AudioSource>();
+            if (!string.IsNullOrEmpty(module.preFireSoundsID)) preFireSounds = item.definition.GetCustomReference(module.preFireSoundsID).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(module.reloadSoundsID)) reloadSounds = item.definition.GetCustomReference(module.reloadSoundsID).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(module.reloadSoundsID2)) reloadSounds2 = item.definition.GetCustomReference(module.reloadSoundsID2).GetComponents<AudioSource>();
             if (!string.IsNullOrEmpty(module.reloadEndSoundsID)) reloadEndSounds = item.definition.GetCustomReference(module.reloadEndSoundsID).GetComponents<AudioSource>();
@@ -261,9 +265,11 @@ namespace TOR {
                     aiOriginalParryDetectionRadius = currentAIBrain.parryDetectionRadius;
                     aiOriginalParryMaxDist = currentAIBrain.parryMaxDistance;
                     currentAIBrain.meleeEnabled = module.aiMeleeEnabled;
-                    currentAIBrain.meleeDistMult = currentAIBrain.bowDist * module.aiShootDistanceMult;
-                    currentAIBrain.parryDetectionRadius = currentAIBrain.bowDist * module.aiShootDistanceMult;
-                    currentAIBrain.parryMaxDistance = currentAIBrain.bowDist * module.aiShootDistanceMult;
+                    if (!module.aiMeleeEnabled) {
+                        currentAIBrain.meleeDistMult = currentAIBrain.bowDist * module.aiShootDistanceMult;
+                        currentAIBrain.parryDetectionRadius = currentAIBrain.bowDist * module.aiShootDistanceMult;
+                        currentAIBrain.parryMaxDistance = currentAIBrain.bowDist * module.aiShootDistanceMult;
+                    }
                 }
                 if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip != null) {
                     aiGrabForegripTime = 1.0f;
@@ -448,6 +454,7 @@ namespace TOR {
             // update timers
             if (altFireTime > 0) altFireTime -= Time.deltaTime;
             if (fireTime > 0) fireTime -= Time.deltaTime;
+            if (fireDelayTime > 0) fireDelayTime -= Time.deltaTime;
             if (reloadTime > 0) reloadTime -= Time.deltaTime;
             if (currentHeat > 0) currentHeat -= Time.deltaTime;
             if (aiShootTime > 0) aiShootTime -= Time.deltaTime;
@@ -465,9 +472,19 @@ namespace TOR {
             if (fireTime <= 0 && !isReloading) {
                 if (shotsLeftInBurst > 0) {
                     Fire();
-                } else if ((rightInteractor && holdingGunGripRight) || (leftInteractor && holdingGunGripLeft)) {
+                } else if (isDelayingFire && fireDelayTime <= 0) {
+                    isDelayingFire = false;
                     shotsLeftInBurst = currentFiremode;
                     Fire();
+                } else if (!isDelayingFire && ((rightInteractor && holdingGunGripRight) || (leftInteractor && holdingGunGripLeft))) {
+                    if (module.fireDelay > 0) {
+                        fireDelayTime = module.fireDelay;
+                        isDelayingFire = true;
+                        Utils.PlayRandomSound(preFireSounds);
+                    } else {
+                        shotsLeftInBurst = currentFiremode;
+                        Fire();
+                    }
                 }
             }
 

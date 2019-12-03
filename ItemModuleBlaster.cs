@@ -8,6 +8,7 @@ namespace TOR {
         public float altFireCooldown = 2f;
         public float bulletForce = 5000f;
         public float burstRPM;
+        public float fireDelay;
         public float fireHaptic = 1f;
         public int[] fireModes = { -1, 1 };
         public float[] gunRPM = { 300 };
@@ -59,6 +60,7 @@ namespace TOR {
         public string fireModeSoundsID2;
         public string overheatSoundsID = "OverheatSounds";
         public string overheatSoundsID2;
+        public string preFireSoundsID;
         public string reloadSoundsID = "ReloadSounds";
         public string reloadSoundsID2 = "ReloadFoleySounds";
         public string reloadEndSoundsID;
