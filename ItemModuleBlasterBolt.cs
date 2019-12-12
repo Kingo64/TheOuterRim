@@ -2,6 +2,7 @@
 
 namespace TOR {
     public class ItemModuleBlasterBolt : ItemModule {
+        public float colliderScale;
         public string[] deflectionMaterials = { "Lightsaber" };
         public float despawnTime = 2f;
 

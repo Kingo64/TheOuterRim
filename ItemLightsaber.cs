@@ -20,6 +20,8 @@ namespace TOR {
         Animator[] animators = { };
         string[] kyberCrystals = { };
         bool thrown;
+        bool tapReturning;
+        bool tapToReturn;
         float ignoreCrystalTime;
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
@@ -52,6 +54,7 @@ namespace TOR {
             if (module.startActive) TurnOn(true);
             else TurnOff(false);
 
+            tapToReturn = !GameManager.options.GetController().holdGripForHandles;
             originalWeaponClass = item.data.moduleAI.weaponClass;
         }
 
@@ -252,7 +255,7 @@ namespace TOR {
                 }
             }
 
-            if (playerHand && thrown && PlayerControl.GetHand(playerHand.side).gripPressed && !item.isGripped && !isTeleGrabbed) {
+            if (playerHand && thrown && (PlayerControl.GetHand(playerHand.side).gripPressed || tapReturning) && !item.isGripped && !isTeleGrabbed) {
                 // forget hand if hand is currently holding something
                 if (playerHand.bodyHand.interactor.grabbedHandle) playerHand = null;
                 else ReturnSaber();
@@ -275,15 +278,20 @@ namespace TOR {
             }
         }
 
-        void ReturnSaber() {
+        void ReturnSaber() {            
             var hand = PlayerControl.GetHand(playerHand.side);
-            var gripAxis = (hand.middleCurl + hand.ringCurl + hand.littleCurl) / 3f;
-
             float grabDistance = 0.3f;
-            float returnSpeed = 10f * gripAxis;
+            float returnSpeed = 10f;
+            if (!tapToReturn) {
+                var gripAxis = (hand.middleCurl + hand.ringCurl + hand.littleCurl) / 3f;
+                returnSpeed *= gripAxis;
+            }
+            tapReturning = tapToReturn;
+
             if (Vector3.Distance(item.transform.position, playerHand.transform.position) < grabDistance) {
                 playerHand.bodyHand.interactor.TryRelease();
                 playerHand.bodyHand.interactor.Grab(item.mainHandleRight);
+                tapReturning = false;
             } else {
                 body.velocity = (playerHand.transform.position - body.position) * returnSpeed;
             }

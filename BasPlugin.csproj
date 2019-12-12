@@ -91,6 +91,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "S:\SteamLibrary\steamapps\common\Blade &amp; Sorcery\Modding\BasSDK-master\Plugins\TheOuterRim\bin\Release\TheOuterRim.dll" "S:\SteamLibrary\steamapps\common\Blade &amp; Sorcery\BladeAndSorcery_Data\StreamingAssets\The Outer Rim\TheOuterRim.dll" /Y</PostBuildEvent>
+    <PostBuildEvent>IF EXIST "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\The Outer Rim" (
+copy "$(TargetPath)" "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\The Outer Rim\TheOuterRim.dll" /Y
+)</PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -20,7 +20,7 @@ namespace TOR {
         public string primaryGripPrimaryActionHold = "";
         public string primaryGripSecondaryAction = "toggleIgnition";
         public string primaryGripSecondaryActionHold = "";
-        public float controlHoldTime = 0.2f;
+        public float controlHoldTime = 0.3f;
 
         public override void OnItemLoaded(Item item)
         {

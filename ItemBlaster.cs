@@ -31,6 +31,7 @@ namespace TOR {
         protected ParticleSystem altFireEffect;
         protected Text ammoDisplay;
         protected ParticleSystem fireEffect;
+        protected ParticleSystem preFireEffect;
         protected ParticleSystem overheatEffect;
 
         protected Transform bulletSpawn;
@@ -106,6 +107,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.altFireEffectID)) altFireEffect = item.definition.GetCustomReference(module.altFireEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.ammoDisplayID)) ammoDisplay = item.definition.GetCustomReference(module.ammoDisplayID).GetComponent<Text>();
             if (!string.IsNullOrEmpty(module.fireEffectID)) fireEffect = item.definition.GetCustomReference(module.fireEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.preFireEffectID)) preFireEffect = item.definition.GetCustomReference(module.preFireEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.overheatEffectID)) overheatEffect = item.definition.GetCustomReference(module.overheatEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.gunGripID)) gunGrip = item.definition.GetCustomReference(module.gunGripID).GetComponent<Handle>();
             if (!string.IsNullOrEmpty(module.foreGripID)) foreGrip = item.definition.GetCustomReference(module.foreGripID).GetComponent<Handle>();
@@ -353,7 +355,7 @@ namespace TOR {
 
             // match new projectile inertia with current gun motion inertia
             projectile.transform.position = bulletSpawn.position;
-            projectile.transform.rotation = bulletSpawn.rotation;
+            projectile.transform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
             var projectileBody = projectile.GetComponent<Rigidbody>();
             projectileBody.velocity = body.velocity;
             projectile.Throw(1f);
@@ -424,20 +426,23 @@ namespace TOR {
                 ammoDisplay.text = ammoLeft.ToString("D" + digits);
             }
         }
-
+        
         void AIShoot() {
             if (currentAI != null && currentAIBrain != null && currentAIBrain.targetCreature != null) {
                 if (!module.aiMeleeEnabled) {
                     currentAIBrain.meleeEnabled = Vector3.Distance(body.position, currentAIBrain.targetCreature.transform.position) <= (gunGrip.definition.reach + 3f);
                 }
                 if (aiShootTime <= 0 && fireTime <= 0 && !isReloading) {
-                    var bulletSpawnVector = bulletSpawn.TransformDirection(Vector3.forward);
-                    var aiAimAngle = new Vector3(
-                        bulletSpawnVector.x * (Random.Range(-1f, 1f) * currentAIBrain.actionBow.aimSpreadCone / module.aiShootDistanceMult),
-                        bulletSpawnVector.y * (Random.Range(-1f, 1f) * currentAIBrain.actionBow.aimSpreadCone / module.aiShootDistanceMult),
-                        bulletSpawnVector.z);
+                    var aiAimAngle = CalculateInaccuracy(bulletSpawn.TransformDirection(Vector3.forward));
                     if (Physics.Raycast(bulletSpawn.transform.position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius)) {
-                        var target = hit.collider.transform.root.GetComponent<Creature>();
+                        Creature target = null;
+                        if (hit.collider.material.name == "Lightsaber (Instance)") {
+                            var handles = hit.collider.transform.root.GetComponentsInChildren<Handle>();
+                            var handedHandle = handles.FirstOrDefault(handle => handle.IsHanded());
+                            if (handedHandle != null) target = handedHandle.handlers[0].bodyHand.body.creature;
+                        } else {
+                            target = hit.collider.transform.root.GetComponent<Creature>();
+                        }
                         if (target != null && currentAI != target
                             && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Passive 
                             && target.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && (currentAI.faction.attackBehaviour == Creature.Faction.AttackBehaviour.Agressive || currentAI.factionId != target.factionId)) {
@@ -448,6 +453,15 @@ namespace TOR {
                     }
                 }
             }
+        }
+
+        Vector3 CalculateInaccuracy(Vector3 initial) {
+            if (currentAIBrain == null) return initial;
+            var inaccuracyMult = 0.2f * (currentAIBrain.actionBow.aimSpreadCone / module.aiShootDistanceMult);
+            return new Vector3(
+                        initial.x + (Random.Range(-inaccuracyMult, inaccuracyMult)),
+                        initial.y + (Random.Range(-inaccuracyMult, inaccuracyMult)),
+                        initial.z);
         }
 
         protected void LateUpdate() {
@@ -481,6 +495,7 @@ namespace TOR {
                         fireDelayTime = module.fireDelay;
                         isDelayingFire = true;
                         Utils.PlayRandomSound(preFireSounds);
+                        Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
                     } else {
                         shotsLeftInBurst = currentFiremode;
                         Fire();

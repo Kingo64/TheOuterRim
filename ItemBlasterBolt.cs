@@ -16,6 +16,11 @@ namespace TOR {
             module = item.data.GetModule<ItemModuleBlasterBolt>();
             despawnTime = module.despawnTime;
             item.OnCollisionEvent += CollisionHandler;
+
+            if (module.colliderScale > 0) {
+                var colliders = item.GetComponentsInChildren<Collider>();
+                colliders.Select(collider => collider.transform.localScale *= module.colliderScale);
+            }
         }
 
         void CollisionHandler(ref CollisionStruct collisionInstance) {

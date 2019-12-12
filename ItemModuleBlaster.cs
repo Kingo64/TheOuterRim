@@ -35,6 +35,7 @@ namespace TOR {
         public string ammoDisplayID;
         public string bulletSpawnID = "BulletSpawn";
         public string fireEffectID = "FireEffect";
+        public string preFireEffectID;
         public string overheatEffectID = "OverheatEffect";
         public string projectileID = "BlasterBolt";
         public string scopeID = "Scope";
@@ -69,6 +70,7 @@ namespace TOR {
         // particles
         public bool altFireEffectDetachFromParent = true;
         public bool fireEffectDetachFromParent;
+        public bool preFireEffectDetachFromParent;
 
         // scope
         public bool hasScope = true;
