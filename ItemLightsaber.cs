@@ -1,7 +1,7 @@
-﻿using UnityEngine;
-using BS;
+﻿using BS;
 using System;
 using System.Linq;
+using UnityEngine;
 
 namespace TOR {
     // The item module will add a unity component to the item object. See unity monobehaviour for more information: https://docs.unity3d.com/ScriptReference/MonoBehaviour.html
@@ -355,6 +355,8 @@ namespace TOR {
         public bool isUnstable;
         public MaterialPropertyBlock propBlock;
 
+        Transform saberBodyTrans;
+
         public void Initialise(Item parent, string kyberCrystalOverride = null) {
             this.parent = parent;
             if (!string.IsNullOrEmpty(collisionRef)) {
@@ -369,9 +371,10 @@ namespace TOR {
             if (!string.IsNullOrEmpty(saberBodyRef)) {
                 var tempSaberBody = parent.definition.GetCustomReference(saberBodyRef);
                 saberBody = tempSaberBody.GetComponent<MeshRenderer>();
+                saberBodyTrans = tempSaberBody.transform;
                 propBlock = new MaterialPropertyBlock();
                 idleSoundSource = tempSaberBody.GetComponent<AudioSource>();
-                var tempUnstable = tempSaberBody.transform.Find("UnstableParticles");
+                var tempUnstable = saberBodyTrans.Find("UnstableParticles");
                 if (tempUnstable != null) unstableParticles = tempUnstable.GetComponent<ParticleSystem>();
             }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.definition.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
@@ -380,7 +383,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.definition.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(whooshRef)) whooshBlade = parent.definition.GetCustomReference(whooshRef).GetComponent<Whoosh>();
 
-            maxLength = (bladeLength > 0f) ? (bladeLength / saberBody.transform.parent.localScale.z * 0.1f) : saberBody.transform.localScale.z;
+            maxLength = (bladeLength > 0f) ? (bladeLength / saberBodyTrans.parent.localScale.z * 0.1f) : saberBodyTrans.localScale.z;
 
             kyberCrystal = kyberCrystalOverride ?? kyberCrystal;
             if (!string.IsNullOrEmpty(kyberCrystal)) {
@@ -434,7 +437,7 @@ namespace TOR {
         public void CalculateUnstableParticleSize() {
             if (unstableParticles) {
                 var main = unstableParticles.main;
-                main.startLifetimeMultiplier = 33.333f * maxLength * saberBody.transform.parent.localScale.z;
+                main.startLifetimeMultiplier = 33.333f * maxLength * saberBodyTrans.parent.localScale.z;
                 var shape = unstableParticles.GetComponentInChildren<ParticleSystem>().shape;
                 shape.scale = new Vector3(shape.scale.x, maxLength, shape.scale.y);
             }
@@ -544,7 +547,7 @@ namespace TOR {
             if (isActive && currentLength > maxLength) {
                 UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), maxLength, currentLength);
-                saberBody.transform.localScale = new Vector3(saberBody.transform.localScale.x, saberBody.transform.localScale.y, currentLength);
+                saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x, saberBodyTrans.localScale.y, currentLength);
                 return;
             }
             
@@ -552,7 +555,7 @@ namespace TOR {
             if ((isActive && (currentLength < maxLength || currentLength > maxLength)) || (!isActive && currentLength > minLength)) {
                 UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), minLength, maxLength);
-                saberBody.transform.localScale = new Vector3(saberBody.transform.localScale.x, saberBody.transform.localScale.y, currentLength);
+                saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x, saberBodyTrans.localScale.y, currentLength);
                 return;
             }
         }

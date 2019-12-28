@@ -8,7 +8,7 @@ namespace TOR {
         public float[] coreColour = { 1f, 1f, 1f, 1f };
         public float coreRadius;
         public float coreStrength;
-        public float innerGlow = 0.3f;
+        public float innerGlow = 0.4f;
         public float outerGlow = 2.76f;
         public float flicker = 0.4f;
         public float flickerSpeed = 2.68f;

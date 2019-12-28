@@ -354,8 +354,9 @@ namespace TOR {
             catch { }
 
             // match new projectile inertia with current gun motion inertia
-            projectile.transform.position = bulletSpawn.position;
-            projectile.transform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
+            var projTransform = projectile.transform;
+            projTransform.position = bulletSpawn.position;
+            projTransform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
             var projectileBody = projectile.GetComponent<Rigidbody>();
             projectileBody.velocity = body.velocity;
             projectile.Throw(1f);
@@ -432,24 +433,22 @@ namespace TOR {
                 if (!module.aiMeleeEnabled) {
                     currentAIBrain.meleeEnabled = Vector3.Distance(body.position, currentAIBrain.targetCreature.transform.position) <= (gunGrip.definition.reach + 3f);
                 }
-                if (aiShootTime <= 0 && fireTime <= 0 && !isReloading) {
-                    var aiAimAngle = CalculateInaccuracy(bulletSpawn.TransformDirection(Vector3.forward));
-                    if (Physics.Raycast(bulletSpawn.transform.position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius)) {
-                        Creature target = null;
-                        if (hit.collider.material.name == "Lightsaber (Instance)") {
-                            var handles = hit.collider.transform.root.GetComponentsInChildren<Handle>();
-                            var handedHandle = handles.FirstOrDefault(handle => handle.IsHanded());
-                            if (handedHandle != null) target = handedHandle.handlers[0].bodyHand.body.creature;
-                        } else {
-                            target = hit.collider.transform.root.GetComponent<Creature>();
-                        }
-                        if (target != null && currentAI != target
-                            && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Passive 
-                            && target.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && (currentAI.faction.attackBehaviour == Creature.Faction.AttackBehaviour.Agressive || currentAI.factionId != target.factionId)) {
-                                shotsLeftInBurst = aiBurstAmount;
-                                Fire();
-                                aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
-                        }
+                var aiAimAngle = CalculateInaccuracy(bulletSpawn.TransformDirection(Vector3.forward));
+                if (Physics.Raycast(bulletSpawn.position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius)) {
+                    Creature target = null;
+                    if (hit.collider.material.name == "Lightsaber (Instance)") {
+                        var handles = hit.collider.transform.root.GetComponentsInChildren<Handle>();
+                        var handedHandle = handles.FirstOrDefault(handle => handle.IsHanded());
+                        if (handedHandle != null) target = handedHandle.handlers[0].bodyHand.body.creature;
+                    } else {
+                        target = hit.collider.transform.root.GetComponent<Creature>();
+                    }
+                    if (target != null && currentAI != target
+                        && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && currentAI.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Passive 
+                        && target.faction.attackBehaviour != Creature.Faction.AttackBehaviour.Ignored && (currentAI.faction.attackBehaviour == Creature.Faction.AttackBehaviour.Agressive || currentAI.factionId != target.factionId)) {
+                            shotsLeftInBurst = aiBurstAmount;
+                            Fire();
+                            aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
                     }
                 }
             }
@@ -490,16 +489,19 @@ namespace TOR {
                     isDelayingFire = false;
                     shotsLeftInBurst = currentFiremode;
                     Fire();
-                } else if (!isDelayingFire && ((rightInteractor && holdingGunGripRight) || (leftInteractor && holdingGunGripLeft))) {
-                    if (module.fireDelay > 0) {
-                        fireDelayTime = module.fireDelay;
-                        isDelayingFire = true;
-                        Utils.PlayRandomSound(preFireSounds);
-                        Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
-                    } else {
-                        shotsLeftInBurst = currentFiremode;
-                        Fire();
+                } else if (!isDelayingFire) {
+                    if ((rightInteractor && holdingGunGripRight) || (leftInteractor && holdingGunGripLeft)) {
+                        if (module.fireDelay > 0) {
+                            fireDelayTime = module.fireDelay;
+                            isDelayingFire = true;
+                            Utils.PlayRandomSound(preFireSounds);
+                            Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
+                        } else {
+                            shotsLeftInBurst = currentFiremode;
+                            Fire();
+                        }
                     }
+                    else if (aiShootTime <= 0) { AIShoot(); }
                 }
             }
 
@@ -524,7 +526,6 @@ namespace TOR {
                     currentAI.body.handLeft.interactor.Grab(foreGrip);
                 }
             }
-            AIShoot();
         }
     }
 }

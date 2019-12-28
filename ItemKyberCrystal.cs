@@ -11,6 +11,9 @@ namespace TOR {
         public Color glowColour;
         MeshRenderer mesh;
         MaterialPropertyBlock propBlock;
+        Transform itemTrans;
+        Transform leftHandTrans;
+        Transform rightHandTrans;
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -25,11 +28,15 @@ namespace TOR {
             mesh.GetPropertyBlock(propBlock);
             propBlock.SetColor("_BaseColor", coreColour);
             mesh.SetPropertyBlock(propBlock);
+
+            itemTrans = item.transform;
+            leftHandTrans = Player.local.handLeft.transform;
+            rightHandTrans = Player.local.handRight.transform;
         }
 
         public float getClosestHandDistance() {
-            var distanceToHandLeft = Vector3.Distance(item.transform.position, Player.local.handLeft.transform.position);
-            var distanceToHandRight = Vector3.Distance(item.transform.position, Player.local.handRight.transform.position);
+            var distanceToHandLeft = Vector3.Distance(itemTrans.position, leftHandTrans.position);
+            var distanceToHandRight = Vector3.Distance(itemTrans.position, rightHandTrans.position);
             return (distanceToHandLeft < distanceToHandRight) ? distanceToHandLeft : distanceToHandRight;
         }
 
