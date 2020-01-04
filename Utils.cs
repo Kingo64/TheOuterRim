@@ -19,9 +19,10 @@ namespace TOR {
             if (effect != null) {
                 if (detachFromParent) {
                     var clone = Object.Instantiate(effect);
-                    clone.transform.parent = null;
-                    clone.transform.position = effect.transform.position;
-                    clone.transform.rotation = effect.transform.rotation;
+                    var cloneTrans = clone.transform;
+                    cloneTrans.parent = null;
+                    cloneTrans.position = effect.transform.position;
+                    cloneTrans.rotation = effect.transform.rotation;
                     clone.Play();
                 } else effect.Play();
             }

@@ -30,11 +30,11 @@ namespace TOR {
             mesh.SetPropertyBlock(propBlock);
 
             itemTrans = item.transform;
-            leftHandTrans = Player.local.handLeft.transform;
-            rightHandTrans = Player.local.handRight.transform;
         }
 
         public float getClosestHandDistance() {
+            if (!leftHandTrans) leftHandTrans = Player.local.handLeft.transform;
+            if (!rightHandTrans) rightHandTrans = Player.local.handRight.transform;
             var distanceToHandLeft = Vector3.Distance(itemTrans.position, leftHandTrans.position);
             var distanceToHandRight = Vector3.Distance(itemTrans.position, rightHandTrans.position);
             return (distanceToHandLeft < distanceToHandRight) ? distanceToHandLeft : distanceToHandRight;

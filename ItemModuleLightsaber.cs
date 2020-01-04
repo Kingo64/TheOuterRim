@@ -2,17 +2,17 @@
 using UnityEngine;
 
 namespace TOR {
-    // This create an item module that can be referenced in the item JSON
     public class ItemModuleLightsaber : ItemModule
     {
         public string animatorId;
-        public bool canThrow = true;
+        public bool canThrow;
         public int fastCollisionMode = (int)CollisionDetectionMode.ContinuousDynamic;
-        public float fastCollisionSpeed = 10f;
+        public float fastCollisionSpeed;
+        public float[] helicopterThrust = { 0f, 100f };
         public string kyberCrystalID = "KyberCrystalBlue";
         public float ignitionDuration = 0.1f;
-        public bool startActive = false;
-        public float throwSpeed = 7f;
+        public bool startActive;
+        public float throwSpeed;
         public LightsaberBlade[] lightsaberBlades = { new LightsaberBlade() };
 
         // controls
@@ -20,12 +20,20 @@ namespace TOR {
         public string primaryGripPrimaryActionHold = "";
         public string primaryGripSecondaryAction = "toggleIgnition";
         public string primaryGripSecondaryActionHold = "";
-        public float controlHoldTime = 0.3f;
+        public float controlHoldTime;
 
         public override void OnItemLoaded(Item item)
         {
             base.OnItemLoaded(item);
+            LoadGlobalSettings();
             item.gameObject.AddComponent<ItemLightsaber>();
+        }
+
+        private void LoadGlobalSettings() {
+            if (canThrow) canThrow = TORGlobalSettings.SaberThrowable;
+            fastCollisionSpeed = TORGlobalSettings.SaberExpensiveCollisionsMinVelocity;
+            throwSpeed = TORGlobalSettings.SaberThrowMinVelocity;
+            controlHoldTime = TORGlobalSettings.SaberControlsHoldDuration;
         }
     }
 }

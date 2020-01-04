@@ -72,6 +72,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ItemLightsaberTool.cs" />
+    <Compile Include="ItemModuleLightsaberTool.cs" />
     <Compile Include="ItemTaunt.cs" />
     <Compile Include="ItemBinoculars.cs" />
     <Compile Include="ItemHelmet.cs" />
@@ -87,6 +89,7 @@
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TORGlobalSettings.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

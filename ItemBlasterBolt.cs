@@ -17,9 +17,14 @@ namespace TOR {
             despawnTime = module.despawnTime;
             item.OnCollisionEvent += CollisionHandler;
 
-            if (module.colliderScale > 0) {
+            if (module.colliderScale > 0 && !Mathf.Approximately(module.colliderScale, 1.0f)) {
                 var colliders = item.GetComponentsInChildren<Collider>();
-                colliders.Select(collider => collider.transform.localScale *= module.colliderScale);
+                foreach (var col in colliders) {
+                    var colTrans = col.transform;
+                    var colScale = colTrans.localScale;
+                    colTrans.localScale = new Vector3(colScale.x * module.colliderScale, colScale.y * module.colliderScale, colScale.z * module.colliderScale);
+                    Debug.Log(col.transform.localScale);
+                }
             }
         }
 

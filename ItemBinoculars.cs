@@ -2,8 +2,6 @@
 using UnityEngine;
 
 namespace TOR {
-    // The item module will add a unity component to the item object. See unity monobehaviour for more information: https://docs.unity3d.com/ScriptReference/MonoBehaviour.html
-    // This component will apply a force on the player rigidbody to the direction of an item transform when the trigger is pressed (see custom reference in the item definition component of the item prefab)
     public class ItemBinoculars : MonoBehaviour {
         protected Item item;
         protected ItemModuleBinoculars module;

@@ -1,7 +1,6 @@
 ﻿using BS;
 
 namespace TOR {
-    // This create an item module that can be referenced in the item JSON
     public class ItemModuleBinoculars : ItemModule {
         // controls
         public string leftGripPrimaryAction = "";

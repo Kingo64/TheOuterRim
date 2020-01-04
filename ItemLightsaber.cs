@@ -1,11 +1,10 @@
 ﻿using BS;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace TOR {
-    // The item module will add a unity component to the item object. See unity monobehaviour for more information: https://docs.unity3d.com/ScriptReference/MonoBehaviour.html
-    // This component will apply a force on the player rigidbody to the direction of an item transform when the trigger is pressed (see custom reference in the item definition component of the item prefab)
     public class ItemLightsaber : MonoBehaviour {
         protected Item item;
         protected ItemModuleLightsaber module;
@@ -13,22 +12,31 @@ namespace TOR {
 
         LightsaberBlade[] blades;
         bool isActive;
+        bool isHelicoptering;
         bool isHolding;
         bool isTeleGrabbed;
         bool isOpen;
 
+        Interactor leftInteractor;
+        Interactor rightInteractor;
+
         Animator[] animators = { };
         string[] kyberCrystals = { };
         bool thrown;
+        bool returning;
         bool tapReturning;
         bool tapToReturn;
+        bool useExpensiveCollisions;
         float ignoreCrystalTime;
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
         ItemModuleAI.WeaponClass originalWeaponClass;
         PlayerHand playerHand;
 
-        protected void Awake() {
+        Transform itemTrans;
+        Rigidbody playerBody;
+
+    protected void Awake() {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleLightsaber>();
             body = item.GetComponent<Rigidbody>();
@@ -56,11 +64,19 @@ namespace TOR {
 
             tapToReturn = !GameManager.options.GetController().holdGripForHandles;
             originalWeaponClass = item.data.moduleAI.weaponClass;
+
+            itemTrans = item.transform;
+            playerBody = Player.local.locomotion.rb;
+        }
+
+        void LoadGlobalSettings() {
+            useExpensiveCollisions = TORGlobalSettings.SaberExpensiveCollisions;
         }
 
         public void ExecuteAction(string action, Interactor interactor = null) {
             if (action == "nextPhase") NextPhase(interactor);
             else if (action == "toggleAnimation") ToggleAnimation(interactor);
+            else if (action == "toggleHelicopter") ToggleHelicopter(interactor);
             else if (action == "toggleIgnition") ToggleLightsaber(interactor);
             else if (action == "toggleSingle") ToggleSingle(interactor);
             else if (action == "turnOn") TurnOn();
@@ -81,6 +97,11 @@ namespace TOR {
                 animator.SetTrigger(isOpen ? "open" : "close");
                 animator.ResetTrigger(isOpen ? "close" : "open");
             }
+        }
+
+        void ToggleHelicopter(Interactor interactor = null) {
+            ToggleAnimation(interactor);
+            isHelicoptering = !isHelicoptering;
         }
 
         void ToggleLightsaber(Interactor interactor = null) {
@@ -138,16 +159,17 @@ namespace TOR {
             playerHand = interactor.playerHand;
 
             // Turn on lightsaber automatically if NPC hand
-            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft)
+            if (playerHand != Player.local.handRight && playerHand != Player.local.handLeft)
                 TurnOn();
             isHolding = true;
             ResetCollisions();
             thrown = false;
+            returning = false;
         }
 
         public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
             // Turn off lightsaber automatically if NPC hand
-            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft)
+            if (playerHand != Player.local.handRight && playerHand != Player.local.handLeft)
                 TurnOff();
             isHolding = false;
             ResetCollisions();
@@ -157,11 +179,18 @@ namespace TOR {
                 playerHand = interactor.playerHand;
                 thrown = true;
             }
+
+            leftInteractor = null;
+            rightInteractor = null;
         }
 
         public void OnTeleGrabEvent(Handle handle, Telekinesis teleGrabber) {
             isTeleGrabbed = true;
             ResetCollisions();
+
+            if (isHelicoptering && !thrown) {
+                ToggleHelicopter();
+            }
         }
 
         public void OnTeleUngrabEvent(Handle handle, Telekinesis teleGrabber) {
@@ -170,37 +199,68 @@ namespace TOR {
         }
 
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
-            if (isHolding) {
-                // If priamry hold action available
-                if (!string.IsNullOrEmpty(module.primaryGripPrimaryActionHold)) {
-                    // start primary control timer
-                    if (action == Interactable.Action.UseStart) {
-                        primaryControlHoldTime = module.controlHoldTime;
-                    } else if (action == Interactable.Action.UseStop) {
-                        // if not held for long run standard action
-                        if (primaryControlHoldTime > 0 && primaryControlHoldTime > (primaryControlHoldTime / 2)) {
-                            ExecuteAction(module.primaryGripPrimaryAction, interactor);
-                        }
-                        primaryControlHoldTime = 0;
+            // If priamry hold action available
+            if (!string.IsNullOrEmpty(module.primaryGripPrimaryActionHold)) {
+                // start primary control timer
+                if (action == Interactable.Action.UseStart) {
+                    primaryControlHoldTime = module.controlHoldTime;
+                    if (interactor.side == Side.Right) {
+                        rightInteractor = interactor;
+                    } else {
+                        leftInteractor = interactor;
                     }
-                } else {
-                    if (action == Interactable.Action.UseStart) ExecuteAction(module.primaryGripPrimaryAction, interactor);
+                } else if (action == Interactable.Action.UseStop) {
+                    // if not held for long run standard action
+                    if (primaryControlHoldTime > 0 && primaryControlHoldTime > (primaryControlHoldTime / 2)) {
+                        ExecuteAction(module.primaryGripPrimaryAction, interactor);
+                    }
+                    primaryControlHoldTime = 0;
                 }
+            } else {
+                if (action == Interactable.Action.UseStart) ExecuteAction(module.primaryGripPrimaryAction, interactor);
+            }
 
-                // If secondary hold action available
-                if (!string.IsNullOrEmpty(module.primaryGripSecondaryActionHold)) {
-                    // start secondary control timer
-                    if (action == Interactable.Action.AlternateUseStart) {
-                        secondaryControlHoldTime = module.controlHoldTime;
-                    } else if (action == Interactable.Action.AlternateUseStop) {
-                        // if not held for long run standard action
-                        if (secondaryControlHoldTime > 0 && secondaryControlHoldTime > (secondaryControlHoldTime / 2)) {
-                            ExecuteAction(module.primaryGripSecondaryAction, interactor);
-                        }
-                        secondaryControlHoldTime = 0;
+            // If secondary hold action available
+            if (!string.IsNullOrEmpty(module.primaryGripSecondaryActionHold)) {
+                // start secondary control timer
+                if (action == Interactable.Action.AlternateUseStart) {
+                    secondaryControlHoldTime = module.controlHoldTime;
+                } else if (action == Interactable.Action.AlternateUseStop) {
+                    // if not held for long run standard action
+                    if (secondaryControlHoldTime > 0 && secondaryControlHoldTime > (secondaryControlHoldTime / 2)) {
+                        ExecuteAction(module.primaryGripSecondaryAction, interactor);
                     }
+                    secondaryControlHoldTime = 0;
+                }
+            } else {
+                if (action == Interactable.Action.AlternateUseStart) ExecuteAction(module.primaryGripSecondaryAction, interactor);
+            }
+
+            if (action == Interactable.Action.UseStart) {
+                if (interactor.side == Side.Right) {
+                    rightInteractor = interactor;
                 } else {
-                    if (action == Interactable.Action.AlternateUseStart) ExecuteAction(module.primaryGripSecondaryAction, interactor);
+                    leftInteractor = interactor;
+                }
+            } else if (action == Interactable.Action.UseStop || action == Interactable.Action.Ungrab) {
+                if (interactor.side == Side.Right) {
+                    rightInteractor = null;
+                } else {
+                    leftInteractor = null;
+                }
+            }
+        }
+
+        void TryEjectCrystal(bool allowDisarm) {
+            if (allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+            foreach (var blade in blades) {
+                if (!string.IsNullOrEmpty(blade.kyberCrystal)) {
+                    TurnOff(isActive);
+                    item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
+                    blade.RemoveCrystal();
+                    StoreKyberCrystals();
+                    ignoreCrystalTime = 0.5f;
+                    break;
                 }
             }
         }
@@ -209,18 +269,9 @@ namespace TOR {
             try {
                 if (collisionInstance.sourceColliderGroup.name == "CollisionHilt") {
                     if (collisionInstance.targetColliderGroup.name == "CollisionLightsaberTool") {
-                        if (item.leftNpcHand || item.rightNpcHand) return;
-                        foreach (var blade in blades) {
-                            if (!string.IsNullOrEmpty(blade.kyberCrystal)) {
-                                TurnOff(isActive);
-                                item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
-                                blade.RemoveCrystal();
-                                StoreKyberCrystals();
-                                ignoreCrystalTime = 0.5f;
-                                break;
-                            }
-                        }
-                    } else if (collisionInstance.targetColliderGroup.name == "KyberCrystalCollision" && ignoreCrystalTime <= 0) {
+                        TryEjectCrystal(false);
+                    }
+                     else if (collisionInstance.targetColliderGroup.name == "KyberCrystalCollision" && ignoreCrystalTime <= 0) {
                         foreach (var blade in blades) {
                             if (string.IsNullOrEmpty(blade.kyberCrystal)) {
                                 var kyberCrystal = collisionInstance.targetCollider.attachedRigidbody.GetComponentInParent<ItemKyberCrystal>();
@@ -231,7 +282,7 @@ namespace TOR {
                         }
                         // Allow AI to use lightsaber again
                         if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) item.data.moduleAI.weaponClass = originalWeaponClass;
-                    }
+                   }
                 }
             } catch {}
         }
@@ -258,12 +309,20 @@ namespace TOR {
             if (playerHand && thrown && (PlayerControl.GetHand(playerHand.side).gripPressed || tapReturning) && !item.isGripped && !isTeleGrabbed) {
                 // forget hand if hand is currently holding something
                 if (playerHand.bodyHand.interactor.grabbedHandle) playerHand = null;
-                else ReturnSaber();
+                else {
+                    if (!returning) {
+                        var handToPlay = (playerHand.side == Side.Left) ? TORGlobalSettings.HandAudioLeft : TORGlobalSettings.HandAudioRight;
+                        handToPlay.PlayOneShot(TORGlobalSettings.SaberRecallSound.PickAudioClip());
+                        returning = true;
+                    }
+                    ReturnSaber();
+                }
             }
 
             if (isHolding && !isTeleGrabbed) {
                 thrown = false;
-                body.collisionDetectionMode = (body.velocity.magnitude > module.fastCollisionSpeed) ? (CollisionDetectionMode)module.fastCollisionMode : CollisionDetectionMode.Discrete;
+                returning = false;
+                if (useExpensiveCollisions) body.collisionDetectionMode = (body.velocity.magnitude > module.fastCollisionSpeed) ? (CollisionDetectionMode)module.fastCollisionMode : CollisionDetectionMode.Discrete;
             }
 
             if (ignoreCrystalTime > 0) ignoreCrystalTime -= Time.deltaTime;
@@ -278,6 +337,21 @@ namespace TOR {
             }
         }
 
+        protected void FixedUpdate() {
+            if (isHelicoptering && isActive) {
+                float thrustLeft = 0;
+                float thrustRight = 0;
+                if (leftInteractor) thrustLeft = PlayerControl.GetHand(leftInteractor.side).useAxis;
+                if (rightInteractor) thrustRight = PlayerControl.GetHand(rightInteractor.side).useAxis;
+                float maxThrust = Mathf.Max(thrustLeft, thrustRight);
+                playerBody.AddForce(itemTrans.right * Mathf.Lerp(module.helicopterThrust[0], module.helicopterThrust[1], maxThrust), ForceMode.Force);
+
+                foreach (var animator in animators) {
+                    animator.speed = 1 + maxThrust;
+                }
+            }
+        }
+
         void ReturnSaber() {            
             var hand = PlayerControl.GetHand(playerHand.side);
             float grabDistance = 0.3f;
@@ -288,7 +362,7 @@ namespace TOR {
             }
             tapReturning = tapToReturn;
 
-            if (Vector3.Distance(item.transform.position, playerHand.transform.position) < grabDistance) {
+            if (Vector3.Distance(itemTrans.position, playerHand.transform.position) < grabDistance) {
                 playerHand.bodyHand.interactor.TryRelease();
                 playerHand.bodyHand.interactor.Grab(item.mainHandleRight);
                 tapReturning = false;
@@ -314,6 +388,7 @@ namespace TOR {
         // sets blade length in metres - defaults to default mesh size if blank
         public float bladeLength;
         public float[] phaseLengths;
+        public float audioPitch = 1f;
 
         // custom reference strings
         public string kyberCrystal;
@@ -328,9 +403,11 @@ namespace TOR {
         public string whooshRef;
 
         // primary objects for Lightsaber to interact with
+        public LightsaberTrail trail;
         public Transform crystalEject;
         public MeshRenderer saberBody;
         public MeshRenderer saberGlow;
+        public MeshRenderer trailMeshRenderer;
         public Light saberGlowLight;
         public Light saberTipGlow;
         public ParticleSystem saberParticles;
@@ -376,6 +453,9 @@ namespace TOR {
                 idleSoundSource = tempSaberBody.GetComponent<AudioSource>();
                 var tempUnstable = saberBodyTrans.Find("UnstableParticles");
                 if (tempUnstable != null) unstableParticles = tempUnstable.GetComponent<ParticleSystem>();
+                var trailTrans = saberBodyTrans.Find("Trail");
+                trail = trailTrans.gameObject.AddComponent<LightsaberTrail>();
+                trailMeshRenderer = trailTrans.gameObject.GetComponent<MeshRenderer>();
             }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.definition.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
             if (!string.IsNullOrEmpty(saberGlowRef)) saberGlow = parent.definition.GetCustomReference(saberGlowRef).GetComponent<MeshRenderer>();
@@ -424,13 +504,13 @@ namespace TOR {
                     unstableParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear); // destroy leftover beam particles
                 }
             }
+            if (trail != null && TORGlobalSettings.SaberTrailEnabled) trail.enabled = state;
         }
 
         public void NextPhase() {
             currentPhase = (currentPhase >= phaseLengths.Length - 1) ? -1 : currentPhase;
-            // var previousLength = maxLength;
             maxLength = phaseLengths[++currentPhase] / 10;
-            // extendDelta = (previousLength < maxLength) ? Mathf.Abs(extendDelta) : -Mathf.Abs(extendDelta);
+            trail.height = maxLength * saberBodyTrans.parent.localScale.z;
             CalculateUnstableParticleSize();
         }
 
@@ -454,8 +534,21 @@ namespace TOR {
             propBlock.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
             propBlock.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
             propBlock.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
-            saberGlow.material.SetColor("_DiffuseColor", kyberCrystalObject.bladeColour);
             saberBody.SetPropertyBlock(propBlock);
+
+            trailMeshRenderer.GetPropertyBlock(propBlock);
+            propBlock.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
+            propBlock.SetColor("_Color", kyberCrystalObject.coreColour);
+            propBlock.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
+            propBlock.SetFloat("_OuterGlow", kyberCrystalObject.module.outerGlow * (kyberCrystalObject.module.innerGlow <= 0.01 ? 0.5f : 1f));
+            propBlock.SetFloat("_CoreRadius", kyberCrystalObject.module.innerGlow <= 0.01 ? 0 : kyberCrystalObject.module.coreRadius);
+            propBlock.SetFloat("_CoreStrength", kyberCrystalObject.module.innerGlow <= 0.01 ? 0 : kyberCrystalObject.module.coreStrength);
+            propBlock.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
+            propBlock.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
+            propBlock.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
+            trailMeshRenderer.SetPropertyBlock(propBlock);
+
+            saberGlow.material.SetColor("_DiffuseColor", kyberCrystalObject.bladeColour);
 
             if (unstableParticles) {
                 var main = unstableParticles.main;
@@ -476,29 +569,31 @@ namespace TOR {
             if (idleSoundSource != null) {
                 idleSound = kyberCrystalObject.module.idleSoundAsset;
                 idleSoundSource.volume = kyberCrystalObject.module.idleSoundVolume;
-                idleSoundSource.pitch = kyberCrystalObject.module.idleSoundPitch;
+                idleSoundSource.pitch = kyberCrystalObject.module.idleSoundPitch * audioPitch;
             }
             if (startSoundSource != null) {
                 startSound = kyberCrystalObject.module.startSoundAsset;
                 startSoundSource.volume = kyberCrystalObject.module.startSoundVolume;
-                startSoundSource.pitch = kyberCrystalObject.module.startSoundPitch;
+                startSoundSource.pitch = kyberCrystalObject.module.startSoundPitch * audioPitch;
             }
             
             if (stopSoundSource != null) {
                 stopSound = kyberCrystalObject.module.stopSoundAsset;
                 stopSoundSource.volume = kyberCrystalObject.module.stopSoundVolume;
-                stopSoundSource.pitch = kyberCrystalObject.module.stopSoundPitch;
+                stopSoundSource.pitch = kyberCrystalObject.module.stopSoundPitch * audioPitch;
             }
 
             if (!string.IsNullOrEmpty(whooshRef)) {
-                whooshBlade.Load(kyberCrystalObject.module.whoosh, whooshBlade.trigger, whooshBlade.minVelocity, whooshBlade.maxVelocity);
+                var fxData = kyberCrystalObject.module.whoosh;
+                fxData.maxPitch *= audioPitch;
+                fxData.minPitch *= audioPitch;
+                whooshBlade.Load(fxData, whooshBlade.trigger, whooshBlade.minVelocity, whooshBlade.maxVelocity);
             }
 
             kyberCrystal = kyberCrystalObject.item.definition.itemId;
             var tempItem = kyberCrystalObject.GetComponent<Item>();
             if (tempItem.mainHandler != null) tempItem.mainHandler.TryRelease();
             tempItem.Despawn();
-
         }
 
         public void RemoveCrystal() {
@@ -548,6 +643,7 @@ namespace TOR {
                 UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), maxLength, currentLength);
                 saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x, saberBodyTrans.localScale.y, currentLength);
+                trail.height = currentLength * 10 * saberBodyTrans.parent.localScale.z;
                 return;
             }
             
@@ -556,7 +652,134 @@ namespace TOR {
                 UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), minLength, maxLength);
                 saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x, saberBodyTrans.localScale.y, currentLength);
+                trail.height = currentLength * 10 * saberBodyTrans.parent.localScale.z;
                 return;
+            }
+        }
+
+        /* 
+         * The following Lightsaber Trail code has been adapted from "PocketRPG weapon trail"
+         * Source: https://www.assetstore.unity3d.com/en/#!/content/2458
+         */
+        class TronTrailSection {
+            public Vector3 point;
+            public Vector3 upDir;
+            public float time;
+            public TronTrailSection() {}
+            public TronTrailSection(Vector3 p, float t) {
+                point = p;
+                time = t;
+            }
+        }
+
+        public class LightsaberTrail : MonoBehaviour {
+            public float height = 0.9f;
+            public float time = TORGlobalSettings.SaberTrailDuration;
+            public float desiredTime = TORGlobalSettings.SaberTrailDuration;
+            public float minVelocity = TORGlobalSettings.SaberTrailMinVelocity;
+            public float timeTransitionSpeed = 5f;
+            public Color startColor = Color.white;
+            public Color endColor = new Color(1, 1, 1, 0);
+
+            Vector3 position;
+            Vector3 lastRotation;
+            float now;
+            TronTrailSection currentSection;
+            Matrix4x4 localSpaceTransform;
+
+            Transform trans;
+            Mesh mesh;
+            Vector3[] vertices;
+            Color[] colors;
+            Vector2[] uv;
+
+            List<TronTrailSection> sections = new List<TronTrailSection>();
+
+            void Awake() {
+                MeshFilter meshF = GetComponent<MeshFilter>();
+                mesh = meshF.mesh;
+                trans = transform;
+            }
+
+            void FixedUpdate() {
+                Iterate(Time.time);
+                UpdateTrail(Time.time, Time.deltaTime);
+            }
+
+            public void Iterate(float itterateTime) { // ** call everytime you sample animation **
+                position = trans.position;
+                now = itterateTime;
+
+                var velocity = (lastRotation - trans.rotation.eulerAngles).sqrMagnitude;
+                lastRotation = trans.rotation.eulerAngles;
+
+                if (sections.Count == 0 || velocity > minVelocity) {
+                    TronTrailSection section = new TronTrailSection();
+                    section.point = position;
+                    section.upDir = trans.TransformDirection(Vector3.up);
+
+                    section.time = now;
+                    sections.Insert(0, section);
+                }
+            }
+            
+            public void UpdateTrail(float currentTime, float deltaTime) {
+                mesh.Clear();
+               
+                while (sections.Count > 0 && currentTime > sections[sections.Count - 1].time + time) {
+                    sections.RemoveAt(sections.Count - 1);
+                }
+
+                if (sections.Count < 2) return;
+
+                vertices = new Vector3[sections.Count * 2];
+                colors = new Color[sections.Count * 2];
+                uv = new Vector2[sections.Count * 2];
+
+                currentSection = sections[0];
+                localSpaceTransform = trans.worldToLocalMatrix;
+
+                for (var i = 0; i < sections.Count; i++) {
+                    currentSection = sections[i];
+                    float u = 0.0f;
+                    if (i != 0) u = Mathf.Clamp01((currentTime - currentSection.time) / time);
+
+                    Vector3 upDir = currentSection.upDir;
+
+                    vertices[i * 2 + 0] = localSpaceTransform.MultiplyPoint(currentSection.point);
+                    vertices[i * 2 + 1] = localSpaceTransform.MultiplyPoint(currentSection.point + upDir * height);
+
+                    uv[i * 2 + 0] = new Vector2(u, 0);
+                    uv[i * 2 + 1] = new Vector2(u, 1);
+
+                    Color interpolatedColor = Color.Lerp(startColor, endColor, (u - 0.3f) * 10f);
+                    colors[i * 2 + 0] = interpolatedColor;
+                    colors[i * 2 + 1] = interpolatedColor;
+                }
+
+                int[] triangles = new int[(sections.Count - 1) * 2 * 3];
+                for (int i = 0; i < triangles.Length / 6; i++) {
+                    triangles[i * 6 + 0] = i * 2;
+                    triangles[i * 6 + 1] = i * 2 + 1;
+                    triangles[i * 6 + 2] = i * 2 + 2;
+
+                    triangles[i * 6 + 3] = i * 2 + 2;
+                    triangles[i * 6 + 4] = i * 2 + 1;
+                    triangles[i * 6 + 5] = i * 2 + 3;
+                }
+
+                mesh.vertices = vertices;
+                mesh.colors = colors;
+                mesh.uv = uv;
+                mesh.triangles = triangles;
+
+                if (time > desiredTime) {
+                    time -= deltaTime * timeTransitionSpeed;
+                    if (time <= desiredTime) time = desiredTime;
+                } else if (time < desiredTime) {
+                    time += deltaTime * timeTransitionSpeed;
+                    if (time >= desiredTime) time = desiredTime;
+                }
             }
         }
     }
