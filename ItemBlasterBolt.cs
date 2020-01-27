@@ -19,11 +19,10 @@ namespace TOR {
 
             if (module.colliderScale > 0 && !Mathf.Approximately(module.colliderScale, 1.0f)) {
                 var colliders = item.GetComponentsInChildren<Collider>();
-                foreach (var col in colliders) {
-                    var colTrans = col.transform;
+                for (int i = 0, l = colliders.Count(); i < l; i++) {
+                    var colTrans = colliders[i].transform;
                     var colScale = colTrans.localScale;
                     colTrans.localScale = new Vector3(colScale.x * module.colliderScale, colScale.y * module.colliderScale, colScale.z * module.colliderScale);
-                    Debug.Log(col.transform.localScale);
                 }
             }
         }

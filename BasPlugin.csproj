@@ -89,6 +89,7 @@
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="LevelModuleMapOptimiser.cs" />
     <Compile Include="TORGlobalSettings.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>

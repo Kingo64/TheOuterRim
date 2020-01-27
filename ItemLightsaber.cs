@@ -1,5 +1,6 @@
 ﻿using BS;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -53,10 +54,9 @@ namespace TOR {
             RetrieveKyberCrystals();
             blades = module.lightsaberBlades.Select(Instantiate).ToArray();
 
-            for (var i = 0; i < blades.Count(); i++) {
-                var blade = blades[i];
-                blade.Initialise(item, kyberCrystals.ElementAtOrDefault(i) ?? null);
-                blade.extendDelta = -(blade.maxLength / module.ignitionDuration);
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                blades[i].Initialise(item, kyberCrystals.ElementAtOrDefault(i) ?? null);
+                blades[i].extendDelta = -(blades[i].maxLength / module.ignitionDuration);
             }
             
             if (module.startActive) TurnOn(true);
@@ -84,8 +84,8 @@ namespace TOR {
         }
 
         void NextPhase(Interactor interactor = null) {
-            foreach (var blade in blades) {
-                blade.NextPhase();
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                blades[i].NextPhase();
             }
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
         }
@@ -93,15 +93,17 @@ namespace TOR {
         void ToggleAnimation(Interactor interactor = null) {
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
             isOpen = !isOpen;
-            foreach (var animator in animators) {
-                animator.SetTrigger(isOpen ? "open" : "close");
-                animator.ResetTrigger(isOpen ? "close" : "open");
+            for (int i = 0, l = animators.Count(); i < l; i++) {
+                animators[i].SetTrigger(isOpen ? "open" : "close");
+                animators[i].ResetTrigger(isOpen ? "close" : "open");
             }
         }
 
         void ToggleHelicopter(Interactor interactor = null) {
             ToggleAnimation(interactor);
             isHelicoptering = !isHelicoptering;
+            if (isHelicoptering) StartCoroutine(UnpenetrateCoroutine());
+            else StopCoroutine(UnpenetrateCoroutine());
         }
 
         void ToggleLightsaber(Interactor interactor = null) {
@@ -118,9 +120,9 @@ namespace TOR {
                 isActive = true;
 
                 var firstEnabled = false;
-                foreach (var blade in blades) {
-                    if (!firstEnabled || singleAlreadyActive && !blade.isActive) blade.TurnOn(!blade.isActive);
-                    else blade.TurnOff(blade.isActive);
+                for (int i = 0, l = blades.Count(); i < l; i++) {
+                    if (!firstEnabled || singleAlreadyActive && !blades[i].isActive) blades[i].TurnOn(!blades[i].isActive);
+                    else blades[i].TurnOff(blades[i].isActive);
                     firstEnabled = true;
                 }
                 ResetCollisions();
@@ -131,8 +133,8 @@ namespace TOR {
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
                 isActive = true;
 
-                foreach (var blade in blades) {
-                    blade.TurnOn(playSound && !blade.isActive);
+                for (int i = 0, l = blades.Count(); i < l; i++) {
+                    blades[i].TurnOn(playSound && !blades[i].isActive);
                 }
                 ResetCollisions();
             }
@@ -141,16 +143,9 @@ namespace TOR {
         void TurnOff(bool playSound = true) {
             isActive = false;
 
-            // Unpenetrate all currently penetrated objects - fixes glitchy physics
-            Array.ForEach(item.collisions, collision => {
-                if (collision.damageStruct.penetration == DamageStruct.Penetration.Hit) {
-                    collision.damageStruct.damager.UnPenetrateAll();
-                    collision.active = false;
-                }
-            });
-
-            foreach (var blade in blades) {
-                blade.TurnOff(playSound && blade.isActive);
+            Unpenetrate();
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                blades[i].TurnOff(playSound && blades[i].isActive);
             }
             ResetCollisions();
         }
@@ -253,11 +248,11 @@ namespace TOR {
 
         void TryEjectCrystal(bool allowDisarm) {
             if (allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
-            foreach (var blade in blades) {
-                if (!string.IsNullOrEmpty(blade.kyberCrystal)) {
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                if (!string.IsNullOrEmpty(blades[i].kyberCrystal)) {
                     TurnOff(isActive);
                     item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
-                    blade.RemoveCrystal();
+                    blades[i].RemoveCrystal();
                     StoreKyberCrystals();
                     ignoreCrystalTime = 0.5f;
                     break;
@@ -272,10 +267,10 @@ namespace TOR {
                         TryEjectCrystal(false);
                     }
                      else if (collisionInstance.targetColliderGroup.name == "KyberCrystalCollision" && ignoreCrystalTime <= 0) {
-                        foreach (var blade in blades) {
-                            if (string.IsNullOrEmpty(blade.kyberCrystal)) {
+                        for (int i = 0, l = blades.Count(); i < l; i++) {
+                            if (string.IsNullOrEmpty(blades[i].kyberCrystal)) {
                                 var kyberCrystal = collisionInstance.targetCollider.attachedRigidbody.GetComponentInParent<ItemKyberCrystal>();
-                                blade.AddCrystal(kyberCrystal);
+                                blades[i].AddCrystal(kyberCrystal);
                                 StoreKyberCrystals();
                                 break;
                             }
@@ -288,21 +283,39 @@ namespace TOR {
         }
 
         void ResetCollisions() {
-            foreach (var blade in blades) {
-                if (blade.collisionBlade != null) blade.collisionBlade.enabled = blade.isActive;
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                if (blades[i].collisionBlade != null) blades[i].collisionBlade.enabled = blades[i].isActive;
             }
             body.ResetCenterOfMass();
         }
 
+        void Unpenetrate() {
+            // Unpenetrate all currently penetrated objects - fixes glitchy physics
+            for (int i = 0, l = item.collisions.Count(); i < l; i++) {
+                if (item.collisions[i].damageStruct.penetration == DamageStruct.Penetration.Hit) {
+                    item.collisions[i].damageStruct.damager.UnPenetrateAll();
+                    item.collisions[i].active = false;
+                }
+            }
+        }
+
+        WaitForSeconds unpenetrateLoopDelay = new WaitForSeconds(0.1f);
+        IEnumerator UnpenetrateCoroutine() {
+            while (true) {
+                yield return unpenetrateLoopDelay;
+                Unpenetrate();
+            }
+        }
+
         protected void Update() {
-            foreach (var blade in blades) {
-                blade.UpdateSize();
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                blades[i].UpdateSize();
 
                 // Turn off blade completely if at minimum length and currently active
-                if (blade.currentLength <= blade.minLength && (blade.saberBody.enabled)) {
-                    blade.idleSoundSource.Stop();
+                if (blades[i].currentLength <= blades[i].minLength && (blades[i].saberBody.enabled)) {
+                    blades[i].idleSoundSource.Stop();
                     ResetCollisions();
-                    blade.SetComponentState(false);
+                    blades[i].SetComponentState(false);
                 }
             }
 
@@ -346,9 +359,10 @@ namespace TOR {
                 float maxThrust = Mathf.Max(thrustLeft, thrustRight);
                 playerBody.AddForce(itemTrans.right * Mathf.Lerp(module.helicopterThrust[0], module.helicopterThrust[1], maxThrust), ForceMode.Force);
 
-                foreach (var animator in animators) {
-                    animator.speed = 1 + maxThrust;
+                for (int i = 0, l = animators.Count(); i < l; i++) {
+                    animators[i].speed = 1 + maxThrust;
                 }
+                Unpenetrate();
             }
         }
 
@@ -389,6 +403,7 @@ namespace TOR {
         public float bladeLength;
         public float[] phaseLengths;
         public float audioPitch = 1f;
+        public float glowIntensity = 1f;
 
         // custom reference strings
         public string kyberCrystal;
@@ -556,13 +571,17 @@ namespace TOR {
                 CalculateUnstableParticleSize();
             }
 
-            saberGlowLight.color = kyberCrystalObject.glowColour;
-            saberGlowLight.intensity = kyberCrystalObject.module.glowIntensity * 0.1f;
-            saberGlowLight.range = kyberCrystalObject.module.glowRange;
+            if (saberGlowLight != null) {
+                saberGlowLight.color = kyberCrystalObject.glowColour;
+                saberGlowLight.intensity = kyberCrystalObject.module.glowIntensity * glowIntensity * 0.1f;
+                saberGlowLight.range = kyberCrystalObject.module.glowRange;
+            }
 
-            saberTipGlow.color = kyberCrystalObject.glowColour;
-            saberTipGlow.intensity = kyberCrystalObject.module.glowIntensity;
-            saberTipGlow.range = kyberCrystalObject.module.glowRange;
+            if (saberTipGlow != null) {
+                saberTipGlow.color = kyberCrystalObject.glowColour;
+                saberTipGlow.intensity = kyberCrystalObject.module.glowIntensity * glowIntensity;
+                saberTipGlow.range = kyberCrystalObject.module.glowRange;
+            }
 
             isUnstable = kyberCrystalObject.module.isUnstable;
 
