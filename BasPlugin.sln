@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.757
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasPlugin", "BasPlugin.csproj", "{1649C7CA-AB35-4AD1-9DD2-2ED587EC509D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheOuterRim", "TheOuterRim.csproj", "{1649C7CA-AB35-4AD1-9DD2-2ED587EC509D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

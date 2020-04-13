@@ -7,8 +7,7 @@ namespace TOR {
         protected ItemModuleTaunt module;
 
         protected Handle grip;
-        protected AudioSource[] tauntSounds;
-        protected AudioSource[] tauntSounds2;
+        protected AudioSource tauntSource;
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -20,35 +19,34 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
 
             if (!string.IsNullOrEmpty(module.gripID)) grip = item.definition.GetCustomReference(module.gripID).GetComponent<Handle>();
-            if (!string.IsNullOrEmpty(module.tauntID)) tauntSounds = item.definition.GetCustomReference(module.tauntID).GetComponents<AudioSource>();
-            if (!string.IsNullOrEmpty(module.taunt2ID)) tauntSounds2 = item.definition.GetCustomReference(module.taunt2ID).GetComponents<AudioSource>();
+            if (!string.IsNullOrEmpty(module.tauntID)) tauntSource = item.definition.GetCustomReference(module.tauntID).GetComponent<AudioSource>();
+
+            if (grip == null) grip = item.mainHandleRight;
         }
 
         public void ExecuteAction(string action) {
             if (action == "playTaunt") {
-                PlayTaunt();
+                PlayTaunt(module.tauntAsset);
             } else if (action == "playTaunt2") {
-                PlayTaunt2();
+                PlayTaunt(module.tauntDropAsset);
             }
         }
 
-        public void PlayTaunt() {
-            if (tauntSounds != null) Utils.PlayRandomSound(tauntSounds);
-        }
-
-        public void PlayTaunt2() {
-            if (tauntSounds2 != null) Utils.PlayRandomSound(tauntSounds);
-            else PlayTaunt();
+        public void PlayTaunt(AudioContainer audioContainer) {
+            if (tauntSource != null && audioContainer != null) {
+                tauntSource.clip = audioContainer.PickAudioClip();
+                tauntSource.Play();
+            }
         }
 
         public void OnGrabEvent(Handle handle, Interactor interactor) {
             if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value < module.aiTauntChance)
-                PlayTaunt();
+                PlayTaunt(module.tauntAsset);
         }
 
         public void OnUngrabEvent(Handle handle, Interactor interactor, bool thrown) {
             if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value < module.aiTauntChance)
-                PlayTaunt2();
+                PlayTaunt(module.tauntDropAsset);
         }
 
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {

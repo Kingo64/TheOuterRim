@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using System.Text;
 
 namespace TOR {
     public class ItemLightsaber : MonoBehaviour {
@@ -15,6 +16,7 @@ namespace TOR {
         bool isActive;
         bool isHelicoptering;
         bool isHolding;
+        public bool isSnapped;
         bool isTeleGrabbed;
         bool isOpen;
 
@@ -23,26 +25,62 @@ namespace TOR {
 
         Animator[] animators = { };
         string[] kyberCrystals = { };
+        float[] bladeLengths = { };
         bool thrown;
         bool returning;
         bool tapReturning;
         bool tapToReturn;
         bool useExpensiveCollisions;
         float ignoreCrystalTime;
+        public float ignoreCoupleTime;
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
         ItemModuleAI.WeaponClass originalWeaponClass;
         PlayerHand playerHand;
 
         Transform itemTrans;
+        Collider couplerCollider;
+        Transform couplerTrans;
+        FixedJoint couplerJoint;
+        Item coupledItem;
+        ItemData.Slot coupledItemOriginalSlot;
+        ItemLightsaber coupledLightsaber;
+
         Rigidbody playerBody;
+
+        char listSeperator = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator[0];
 
     protected void Awake() {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleLightsaber>();
             body = item.GetComponent<Rigidbody>();
+            itemTrans = item.transform;
 
             if (!string.IsNullOrEmpty(module.animatorId)) animators = item.definition.GetCustomReference(module.animatorId).GetComponentsInChildren<Animator>();
+
+            if (module.hasCoupler) {
+                couplerCollider = item.definition.GetCustomReference("CouplerCollider").GetComponent<Collider>();
+                couplerTrans = item.definition.GetCustomReference("CouplerHolder");
+
+                item.definition.TryGetSavedValue("coupledLightsaberProps", out string coupledLightsaberProps);
+                if (!string.IsNullOrEmpty(coupledLightsaberProps)) {
+                    var decodedBytes = Convert.FromBase64String(coupledLightsaberProps);
+                    var savedLightsaber = JsonUtility.FromJson<SavedLightsaber>(Encoding.UTF8.GetString(decodedBytes));
+                    SpawnCoupledItem(savedLightsaber.itemId);
+
+                    var coupledKyberCrystals = savedLightsaber.kyberCrystals.Split(listSeperator) ?? null;
+                    for (int i = 0, l = coupledKyberCrystals.Count(); i < l; i++) {
+                        coupledLightsaber.blades[i].AddCrystal(coupledKyberCrystals[i]);
+                    }
+
+                    var lengths = savedLightsaber.bladeLengths.Split(listSeperator);
+                    for (int i = 0, l = lengths.Count(); i < l; i++) {
+                        coupledLightsaber.blades[i].SetBladeLength(float.Parse(lengths[i]) / coupledLightsaber.blades[i].saberBodyTrans.parent.localScale.z * 0.1f);
+                    }
+
+                    coupledLightsaber.StoreSaberState();
+                }
+            }
 
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
@@ -50,13 +88,14 @@ namespace TOR {
             item.OnTeleUnGrabEvent += OnTeleUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
             item.OnCollisionEvent += CollisionHandler;
+            item.OnSnapEvent += OnSnapEvent;
+            item.OnUnSnapEvent += OnUnSnapEvent;
 
-            RetrieveKyberCrystals();
+            RetrieveSaberState();
             blades = module.lightsaberBlades.Select(Instantiate).ToArray();
 
             for (int i = 0, l = blades.Count(); i < l; i++) {
-                blades[i].Initialise(item, kyberCrystals.ElementAtOrDefault(i) ?? null);
-                blades[i].extendDelta = -(blades[i].maxLength / module.ignitionDuration);
+                blades[i].Initialise(item, module.ignitionDuration, kyberCrystals.ElementAtOrDefault(i) ?? null, bladeLengths.ElementAtOrDefault(i));
             }
             
             if (module.startActive) TurnOn(true);
@@ -65,8 +104,8 @@ namespace TOR {
             tapToReturn = !GameManager.options.GetController().holdGripForHandles;
             originalWeaponClass = item.data.moduleAI.weaponClass;
 
-            itemTrans = item.transform;
             playerBody = Player.local.locomotion.rb;
+            StoreSaberState();
         }
 
         void LoadGlobalSettings() {
@@ -74,7 +113,8 @@ namespace TOR {
         }
 
         public void ExecuteAction(string action, Interactor interactor = null) {
-            if (action == "nextPhase") NextPhase(interactor);
+            if (action == "decouple") Decouple();
+            else if (action == "nextPhase") NextPhase(interactor);
             else if (action == "toggleAnimation") ToggleAnimation(interactor);
             else if (action == "toggleHelicopter") ToggleHelicopter(interactor);
             else if (action == "toggleIgnition") ToggleLightsaber(interactor);
@@ -83,11 +123,74 @@ namespace TOR {
             else if (action == "turnOff") TurnOff();
         }
 
+        void DecreaseBladeLength(dynamic args) {
+            if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                if (blades[i].maxLength - args.lengthChange > 0) {
+                    blades[i].SetBladeLength(blades[i].maxLength - args.lengthChange);
+                }
+            }
+            StoreSaberState();
+        }
+
+        void IncreaseBladeLength(dynamic args) {
+            if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                blades[i].SetBladeLength(blades[i].maxLength + args.lengthChange);
+            }
+            StoreSaberState();
+        }
+
+        void ResetBladeLength(dynamic args) {
+            if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+            for (int i = 0, l = blades.Count(); i < l; i++) {
+                blades[i].SetBladeLength(module.lightsaberBlades[i].bladeLength / blades[i].saberBodyTrans.parent.localScale.z * 0.1f);
+            }
+            StoreSaberState();
+        }
+
         void NextPhase(Interactor interactor = null) {
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 blades[i].NextPhase();
             }
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
+        }
+
+        public void Couple(Item itemToCouple) {
+            if (itemToCouple != null && (itemToCouple.definition.itemId == item.definition.itemId || module.couplingWhitelist.Contains(itemToCouple.definition.itemId))) {
+                coupledItem = itemToCouple;
+                coupledItemOriginalSlot = coupledItem.data.slot;
+                coupledItem.data.slot = ItemData.Slot.Cork;
+                coupledItem.transform.MoveAlign(coupledItem.definition.holderPoint, couplerTrans, couplerTrans);
+                couplerJoint = itemTrans.gameObject.AddComponent<FixedJoint>();
+                couplerJoint.connectedBody = coupledItem.rb;
+                coupledLightsaber = coupledItem.GetComponent<ItemLightsaber>();
+                SetCouplerCollider(false);
+                StoreSaberState();
+            }
+        }
+
+        public void Decouple() {
+            if (couplerJoint != null) Destroy(couplerJoint);
+            coupledItem.transform.SetParent(null);
+            coupledItem.data.slot = coupledItemOriginalSlot;
+            coupledItem = null;
+            SetCouplerCollider(true);
+            coupledLightsaber = null;
+            StoreSaberState();
+        }
+
+        public void SetCouplerCollider(bool enabled) {
+            couplerCollider.enabled = enabled;
+            ignoreCoupleTime = 0.5f;
+            if (coupledLightsaber != null) {
+                coupledLightsaber.SetCouplerCollider(enabled);
+                coupledLightsaber.ignoreCoupleTime = 1f;
+            }
+        }
+
+        void SpawnCoupledItem(string itemId) {
+            Couple(Catalog.current.GetData<ItemData>(itemId, true).Spawn(true, null));
         }
 
         void ToggleAnimation(Interactor interactor = null) {
@@ -179,6 +282,15 @@ namespace TOR {
             rightInteractor = null;
         }
 
+        public void OnSnapEvent(ObjectHolder holder) {
+            isSnapped = true;
+            if (playerHand) playerHand.bodyHand.interactor.TryRelease();
+        }
+
+        public void OnUnSnapEvent(ObjectHolder holder) {
+            isSnapped = false;
+        }
+
         public void OnTeleGrabEvent(Handle handle, Telekinesis teleGrabber) {
             isTeleGrabbed = true;
             ResetCollisions();
@@ -253,9 +365,19 @@ namespace TOR {
                     TurnOff(isActive);
                     item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
                     blades[i].RemoveCrystal();
-                    StoreKyberCrystals();
+                    StoreSaberState();
                     ignoreCrystalTime = 0.5f;
                     break;
+                }
+            }
+        }
+
+        void OnTriggerEnter(Collider other) {
+            if (other.name == "CouplerCollider" && module.hasCoupler && coupledItem == null && ignoreCoupleTime <= 0 && isSnapped == false) {
+                var itemToCouple = other.attachedRigidbody.GetComponentInParent<Item>();
+                var lightsaberToCouple = other.attachedRigidbody.GetComponentInParent<ItemLightsaber>();
+                if (lightsaberToCouple != null && !lightsaberToCouple.isSnapped && lightsaberToCouple.coupledItem == null && lightsaberToCouple.item.data.slot != ItemData.Slot.Cork) {
+                    Couple(itemToCouple);
                 }
             }
         }
@@ -263,15 +385,12 @@ namespace TOR {
         void CollisionHandler(ref CollisionStruct collisionInstance) {
             try {
                 if (collisionInstance.sourceColliderGroup.name == "CollisionHilt") {
-                    if (collisionInstance.targetColliderGroup.name == "CollisionLightsaberTool") {
-                        TryEjectCrystal(false);
-                    }
-                     else if (collisionInstance.targetColliderGroup.name == "KyberCrystalCollision" && ignoreCrystalTime <= 0) {
+                    if (collisionInstance.targetColliderGroup.name == "KyberCrystalCollision" && ignoreCrystalTime <= 0) {
                         for (int i = 0, l = blades.Count(); i < l; i++) {
                             if (string.IsNullOrEmpty(blades[i].kyberCrystal)) {
                                 var kyberCrystal = collisionInstance.targetCollider.attachedRigidbody.GetComponentInParent<ItemKyberCrystal>();
                                 blades[i].AddCrystal(kyberCrystal);
-                                StoreKyberCrystals();
+                                StoreSaberState();
                                 break;
                             }
                         }
@@ -326,6 +445,7 @@ namespace TOR {
                     if (!returning) {
                         var handToPlay = (playerHand.side == Side.Left) ? TORGlobalSettings.HandAudioLeft : TORGlobalSettings.HandAudioRight;
                         handToPlay.PlayOneShot(TORGlobalSettings.SaberRecallSound.PickAudioClip());
+                        Unpenetrate();
                         returning = true;
                     }
                     ReturnSaber();
@@ -339,6 +459,7 @@ namespace TOR {
             }
 
             if (ignoreCrystalTime > 0) ignoreCrystalTime -= Time.deltaTime;
+            if (ignoreCoupleTime > 0) ignoreCoupleTime -= Time.deltaTime;
 
             if (primaryControlHoldTime > 0) {
                 primaryControlHoldTime -= Time.deltaTime;
@@ -385,16 +506,47 @@ namespace TOR {
             }
         }
 
-        void RetrieveKyberCrystals() {
+        void RetrieveSaberState() {
             item.definition.TryGetSavedValue("kyberCrystals", out string tempCrystals);
             if (!string.IsNullOrEmpty(tempCrystals)) {
-                kyberCrystals = tempCrystals.Split(',');
+                kyberCrystals = tempCrystals.Split(listSeperator);
+            }
+            item.definition.TryGetSavedValue("bladeLengths", out string tempLengths);
+            if (!string.IsNullOrEmpty(tempLengths)) {
+                var lengths = tempLengths.Split(listSeperator);
+                bladeLengths = new float[lengths.Count()];
+                for (int i = 0, l = module.lightsaberBlades.Count(); i < l; i++) {
+                    bladeLengths[i] = float.Parse(lengths[i]);
+                }
             }
         }
 
-        void StoreKyberCrystals() {
-            item.definition.SetSavedValue("kyberCrystals", string.Join(",", blades.Select(blade => blade.kyberCrystal)));
+        void StoreSaberState() {
+            if (blades != null) {
+                item.definition.SetSavedValue("kyberCrystals", string.Join(listSeperator.ToString(), blades.Select(blade => blade.kyberCrystal)));
+                item.definition.SetSavedValue("bladeLengths", string.Join(listSeperator.ToString(), blades.Select(blade => (blade.maxLength * blade.saberBodyTrans.parent.localScale.z * 10f).ToString())));
+            }
+            if (coupledItem) {
+                coupledItem.definition.TryGetSavedValue("kyberCrystals", out string tempCrystals);
+                coupledItem.definition.TryGetSavedValue("bladeLengths", out string tempLengths);
+                var savedLightsaber = new SavedLightsaber {
+                    itemId = coupledItem.definition.itemId,
+                    kyberCrystals = tempCrystals,
+                    bladeLengths = tempLengths
+                };
+                var bytesToEncode = Encoding.UTF8.GetBytes(JsonUtility.ToJson(savedLightsaber));
+                item.definition.SetSavedValue("coupledLightsaberProps", Convert.ToBase64String(bytesToEncode));
+            } else {
+                item.definition.SetSavedValue("coupledLightsaberProps", null);
+            }
         }
+    }
+
+    [Serializable]
+    public class SavedLightsaber {
+        public string itemId;
+        public string kyberCrystals;
+        public string bladeLengths;
     }
 
     [Serializable]
@@ -443,14 +595,17 @@ namespace TOR {
         public float minLength;
         public float maxLength;
         public float extendDelta;
+        public float ignitionDuration;
         public bool isActive;
         public bool isUnstable;
         public MaterialPropertyBlock propBlock;
 
-        Transform saberBodyTrans;
+        public Transform saberBodyTrans;
 
-        public void Initialise(Item parent, string kyberCrystalOverride = null) {
+        public void Initialise(Item parent, float ignitionDuration, string kyberCrystalOverride = null, float bladeLengthOverride = 0) {
             this.parent = parent;
+            this.ignitionDuration = ignitionDuration;
+
             if (!string.IsNullOrEmpty(collisionRef)) {
                 collisionBlade = parent.definition.GetCustomReference(collisionRef).GetComponent<Collider>();
                 collisionBlade.enabled = true;
@@ -478,16 +633,12 @@ namespace TOR {
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.definition.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(whooshRef)) whooshBlade = parent.definition.GetCustomReference(whooshRef).GetComponent<Whoosh>();
 
-            maxLength = (bladeLength > 0f) ? (bladeLength / saberBodyTrans.parent.localScale.z * 0.1f) : saberBodyTrans.localScale.z;
+            float initialBladeLength = (bladeLengthOverride > 0) ? bladeLengthOverride : bladeLength;
+            SetBladeLength((initialBladeLength > 0f) ? (initialBladeLength / saberBodyTrans.parent.localScale.z * 0.1f) : saberBodyTrans.localScale.z);
+            extendDelta = -extendDelta;
 
             kyberCrystal = kyberCrystalOverride ?? kyberCrystal;
-            if (!string.IsNullOrEmpty(kyberCrystal)) {
-                var kyberCrystalData = Catalog.current.GetData<ItemData>(kyberCrystal, true);
-                if (kyberCrystalData == null) return;
-                var kyberCrystalObject = kyberCrystalData.Spawn(true);
-                if (!kyberCrystalObject.gameObject.activeInHierarchy) kyberCrystalObject.gameObject.SetActive(true);
-                AddCrystal(kyberCrystalObject.GetComponent<ItemKyberCrystal>());
-            }
+            AddCrystal(kyberCrystal);
 
             SetComponentState(false);
 
@@ -524,9 +675,14 @@ namespace TOR {
 
         public void NextPhase() {
             currentPhase = (currentPhase >= phaseLengths.Length - 1) ? -1 : currentPhase;
-            maxLength = phaseLengths[++currentPhase] / 10;
-            trail.height = maxLength * saberBodyTrans.parent.localScale.z;
+            SetBladeLength(phaseLengths[++currentPhase] * 0.1f);
+        }
+
+        public void SetBladeLength(float length) {
+            maxLength = length;
+            trail.height = length * saberBodyTrans.parent.localScale.z;
             CalculateUnstableParticleSize();
+            extendDelta = maxLength / ignitionDuration;
         }
 
         public void CalculateUnstableParticleSize() {
@@ -535,6 +691,15 @@ namespace TOR {
                 main.startLifetimeMultiplier = 33.333f * maxLength * saberBodyTrans.parent.localScale.z;
                 var shape = unstableParticles.GetComponentInChildren<ParticleSystem>().shape;
                 shape.scale = new Vector3(shape.scale.x, maxLength, shape.scale.y);
+            }
+        }
+
+        public void AddCrystal(string kyberCrystalId) {
+            if (!string.IsNullOrEmpty(kyberCrystalId)) {
+                var kyberCrystalData = Catalog.current.GetData<ItemData>(kyberCrystalId, true);
+                if (kyberCrystalData == null) return;
+                var kyberCrystalObject = kyberCrystalData.Spawn(true);
+                AddCrystal(kyberCrystalObject.GetComponent<ItemKyberCrystal>());
             }
         }
 
@@ -653,7 +818,7 @@ namespace TOR {
         }
 
         public void UpdateBladeDirection() {
-            extendDelta = (!isActive || currentLength > maxLength) ? -Mathf.Abs(extendDelta) : Mathf.Abs(extendDelta);
+            extendDelta = (!isActive | currentLength > maxLength) ? -Mathf.Abs(extendDelta) : Mathf.Abs(extendDelta);
         }
 
         public void UpdateSize() {

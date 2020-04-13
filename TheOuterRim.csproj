@@ -59,6 +59,10 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.ParticleSystemModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>

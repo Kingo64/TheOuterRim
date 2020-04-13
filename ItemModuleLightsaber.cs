@@ -13,7 +13,11 @@ namespace TOR {
         public float ignitionDuration = 0.1f;
         public bool startActive;
         public float throwSpeed;
-        public LightsaberBlade[] lightsaberBlades = { new LightsaberBlade() };
+        public LightsaberBlade[] lightsaberBlades;
+
+        // coupling
+        public bool hasCoupler;
+        public string[] couplingWhitelist;
 
         // controls
         public string primaryGripPrimaryAction = "";
