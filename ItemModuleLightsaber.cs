@@ -1,4 +1,4 @@
-﻿using BS;
+﻿using ThunderRoad;
 using UnityEngine;
 
 namespace TOR {
@@ -37,7 +37,7 @@ namespace TOR {
             if (canThrow) canThrow = TORGlobalSettings.SaberThrowable;
             fastCollisionSpeed = TORGlobalSettings.SaberExpensiveCollisionsMinVelocity;
             throwSpeed = TORGlobalSettings.SaberThrowMinVelocity;
-            controlHoldTime = TORGlobalSettings.SaberControlsHoldDuration;
+            controlHoldTime = TORGlobalSettings.ControlsHoldDuration;
         }
     }
 }

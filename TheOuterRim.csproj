@@ -46,7 +46,19 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="Unity.RenderPipelines.Core.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Unity.RenderPipelines.Core.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.RenderPipelines.Universal.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
+    <Reference Include="UnityEngine.AIModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.AIModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.AnimationModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
@@ -70,13 +82,25 @@
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.TerrainModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.TerrainModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ItemBlasterPowerCell.cs" />
+    <Compile Include="ItemComlink.cs" />
+    <Compile Include="ItemBactaStim.cs" />
+    <Compile Include="ItemThermalDetonator.cs" />
     <Compile Include="ItemLightsaberTool.cs" />
+    <Compile Include="ItemModuleThermalDetonator.cs" />
+    <Compile Include="ItemModuleBlasterPowerCell.cs" />
+    <Compile Include="ItemModuleComlink.cs" />
+    <Compile Include="ItemModuleBactaStim.cs" />
     <Compile Include="ItemModuleLightsaberTool.cs" />
     <Compile Include="ItemTaunt.cs" />
     <Compile Include="ItemBinoculars.cs" />
@@ -92,6 +116,10 @@
     <Compile Include="ItemModuleKyberCrystal.cs" />
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
+    <Compile Include="LevelModuleCreaturePainter.cs" />
+    <Compile Include="LevelModuleFixCreatureEvent.cs" />
+    <Compile Include="LevelModuleKamino.cs" />
+    <Compile Include="LevelModuleFelucia.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="LevelModuleMapOptimiser.cs" />
     <Compile Include="TORGlobalSettings.cs" />

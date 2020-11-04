@@ -1,4 +1,4 @@
-﻿using BS;
+﻿using ThunderRoad;
 using UnityEngine;
 
 namespace TOR {
@@ -24,15 +24,6 @@ namespace TOR {
         Material originalScopeMaterialR;
         RenderTexture renderScopeTextureR;
 
-        public bool holdingGunGripLeft;
-        public bool holdingGunGripRight;
-        public bool holdingForeGripLeft;
-        public bool holdingForeGripRight;
-        public bool holdingScopeGripLeft;
-        public bool holdingScopeGripRight;
-        public bool holdingSecondaryGripLeft;
-        public bool holdingSecondaryGripRight;
-
         int currentScopeZoom;
 
         protected void Awake() {
@@ -45,40 +36,28 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
 
-            SetupScopeLeft(item.definition.GetCustomReference(module.leftScopeID), item.definition.GetCustomReference(module.leftScopeCameraID).GetComponent<Camera>());
-            SetupScopeRight(item.definition.GetCustomReference(module.rightScopeID), item.definition.GetCustomReference(module.rightScopeCameraID).GetComponent<Camera>());
+            SetupScope(item.definition.GetCustomReference(module.leftScopeID), item.definition.GetCustomReference(module.leftScopeCameraID).GetComponent<Camera>(), ref scopeL, ref scopeCameraL, ref originalScopeMaterialL, ref scopeMaterialL, ref renderScopeTextureL);
+            SetupScope(item.definition.GetCustomReference(module.rightScopeID), item.definition.GetCustomReference(module.rightScopeCameraID).GetComponent<Camera>(), ref scopeR, ref scopeCameraR, ref originalScopeMaterialR, ref scopeMaterialR, ref renderScopeTextureR);
             if (!string.IsNullOrEmpty(module.zoomSoundsID)) zoomSounds = item.definition.GetCustomReference(module.zoomSoundsID).GetComponents<AudioSource>();
         }
 
-        void SetupScopeLeft(Transform scopeTransform, Camera scopeCamera) {
+        void SetupScope(Transform scopeTransform, Camera scopeCamera, ref Renderer scope, ref Camera storedCamera, ref Material originalScopeMaterial, ref Material scopeMaterial, ref RenderTexture renderTexture) {
             if (scopeTransform != null) {
-                scopeL = scopeTransform.GetComponent<Renderer>();
-                originalScopeMaterialL = scopeL.materials[0];
-                scopeMaterialL = scopeL.materials[1];
-                scopeL.materials = new Material[] { originalScopeMaterialL };
+                scope = scopeTransform.GetComponent<Renderer>();
+                originalScopeMaterial = scopeL.materials[0];
+                scopeMaterial = scope.materials[1];
+                scope.materials = new Material[] { originalScopeMaterial };
 
-                scopeCameraL = scopeCamera;
+                scopeCamera.enabled = false;
+                storedCamera = scopeCamera;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
-                renderScopeTextureL = new RenderTexture(module.scopeResolution[0], module.scopeResolution[1], module.scopeDepth, RenderTextureFormat.Default);
-                renderScopeTextureL.Create();
-                scopeCamera.targetTexture = renderScopeTextureL;
-                scopeMaterialL.SetTexture("_BaseMap", renderScopeTextureL);
-            }
-        }
-
-        void SetupScopeRight(Transform scopeTransform, Camera scopeCamera) {
-            if (scopeTransform != null) {
-                scopeR = scopeTransform.GetComponent<Renderer>();
-                originalScopeMaterialR = scopeR.materials[0];
-                scopeMaterialR = scopeR.materials[1];
-                scopeR.materials = new Material[] { originalScopeMaterialR };
-
-                scopeCameraR = scopeCamera;
-                scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
-                renderScopeTextureR = new RenderTexture(module.scopeResolution[0], module.scopeResolution[1], module.scopeDepth, RenderTextureFormat.Default);
-                renderScopeTextureR.Create();
-                scopeCamera.targetTexture = renderScopeTextureR;
-                scopeMaterialR.SetTexture("_BaseMap", renderScopeTextureR);
+                renderTexture = new RenderTexture(
+                    module.scopeResolution != null ? module.scopeResolution[0] : TORGlobalSettings.BlasterScopeResolution[0],
+                    module.scopeResolution != null ? module.scopeResolution[1] : TORGlobalSettings.BlasterScopeResolution[1],
+                    module.scopeDepth, RenderTextureFormat.Default);
+                renderTexture.Create();
+                scopeCamera.targetTexture = renderTexture;
+                scopeMaterial.SetTexture("_BaseMap", renderTexture);
             }
         }
 
@@ -88,35 +67,37 @@ namespace TOR {
             scope.material = material;
         }
 
-        void CycleScope() {
+        void CycleScope(Interactor interactor = null) {
             if (scopeL == null || scopeCameraL == null || scopeR == null || scopeCameraR == null) return;
             currentScopeZoom = (currentScopeZoom >= module.scopeZoom.Length - 1) ? -1 : currentScopeZoom;
             currentScopeZoom++;
             scopeCameraL.fieldOfView = module.scopeZoom[currentScopeZoom];
             scopeCameraR.fieldOfView = module.scopeZoom[currentScopeZoom];
             if (zoomSounds != null) Utils.PlayRandomSound(zoomSounds);
+            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        void CycleScopeBack() {
+        void CycleScopeBack(Interactor interactor = null) {
             if (scopeL == null || scopeCameraL == null || scopeR == null || scopeCameraR == null) return;
             currentScopeZoom = (currentScopeZoom <= 0) ? module.scopeZoom.Length : currentScopeZoom;
             currentScopeZoom--;
             scopeCameraL.fieldOfView = module.scopeZoom[currentScopeZoom];
             scopeCameraR.fieldOfView = module.scopeZoom[currentScopeZoom];
             if (zoomSounds != null) Utils.PlayRandomSound(zoomSounds);
+            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        public void ExecuteAction(string action) {
+        public void ExecuteAction(string action, Interactor interactor = null) {
             if (action == "cycleScope") {
-                CycleScope();
+                CycleScope(interactor);
             } else if (action == "cycleScopeBack") {
-                CycleScopeBack();
+                CycleScopeBack(interactor);
             }
         }
 
         public void OnGrabEvent(Handle handle, Interactor interactor) {
             // toggle scope for performance reasons
-            if (interactor.playerHand == Player.local.handRight || interactor.playerHand == Player.local.handLeft) {
+            if (interactor.playerHand) {
                 SetScopeRender(scopeL, scopeCameraL, scopeMaterialL, true);
                 SetScopeRender(scopeR, scopeCameraR, scopeMaterialR, true);
             }
@@ -130,11 +111,11 @@ namespace TOR {
 
         public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
             if (action == Interactable.Action.UseStart) {
-                if (interactor.side == Side.Right) ExecuteAction(module.rightGripPrimaryAction);
-                else ExecuteAction(module.leftGripPrimaryAction);
+                if (interactor.side == Side.Right) ExecuteAction(module.rightGripPrimaryAction, interactor);
+                else ExecuteAction(module.leftGripPrimaryAction, interactor);
             } else if (action == Interactable.Action.AlternateUseStart) {
-                if (interactor.side == Side.Right) ExecuteAction(module.rightGripSecondaryAction);
-                else ExecuteAction(module.leftGripSecondaryAction);
+                if (interactor.side == Side.Right) ExecuteAction(module.rightGripSecondaryAction, interactor);
+                else ExecuteAction(module.leftGripSecondaryAction, interactor);
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using BS;
+﻿using ThunderRoad;
 using UnityEngine;
 
 namespace TOR {
@@ -15,24 +15,21 @@ namespace TOR {
                     comp.SetProps("WaveSelector");
                 }
             }
+            EventManager.onPlayerSpawned += OnPlayerSpawned;
             initialized = true;
+        }
+
+        void OnPlayerSpawned(Player player) {
+            torOptimiser = new GameObject("TOR_Optimiser", typeof(SphereCollider)) {
+                layer = 8
+            };
+            torOptimiser.GetComponent<SphereCollider>().isTrigger = true;
+            torOptimiser.transform.parent = player.transform;
+            torOptimiser.transform.localPosition = Vector3.zero;
         }
 
         public override void OnLevelUnloaded(LevelDefinition levelDefinition) {
             initialized = false;
-        }
-
-        public override void Update(LevelDefinition levelDefinition) {
-            if (torOptimiser == null) {
-                if (Player.local) {
-                    torOptimiser = new GameObject("TOR_Optimiser", typeof(SphereCollider)) {
-                        layer = 8
-                    };
-                    torOptimiser.GetComponent<SphereCollider>().isTrigger = true;
-                    torOptimiser.transform.parent = Player.local.transform;
-                    torOptimiser.transform.localPosition = Vector3.zero;
-                }
-            }
         }
     }
 
@@ -49,7 +46,7 @@ namespace TOR {
             var optimiseCollider = transform.Find("OptimiseCollider");
             if (optimiseCollider != null) {
                 triggerCollider = optimiseCollider.GetComponent<Collider>();
-                book = transform.FindDeepChild(selector).gameObject;
+                book = transform.Find(selector).gameObject;
                 if (selector == "ItemSpawner") {
                     inventory = book.GetComponent<Inventory>();
                 }

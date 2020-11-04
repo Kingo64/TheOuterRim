@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using BS;
+using ThunderRoad;
 
 namespace TOR {
     public class ItemKyberCrystal : MonoBehaviour {
@@ -30,13 +30,27 @@ namespace TOR {
             mesh.SetPropertyBlock(propBlock);
 
             itemTrans = item.transform;
+
+            for (int i = 0, l = item.definition.collisionHandlers.Count; i < l; i++) {
+                item.definition.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            }
+
+        }
+
+        void CollisionHandler(ref CollisionStruct collisionInstance) {
+            try {
+                if (collisionInstance.sourceColliderGroup.name == "KyberCrystalCollision" && collisionInstance.targetColliderGroup.name == "CollisionHilt") {
+                    collisionInstance.targetColliderGroup.transform.root.SendMessage("TryAddCrystal", this);
+                }
+            }
+            catch { }
         }
 
         public float getClosestHandDistance() {
             if (!leftHandTrans) leftHandTrans = Player.local.handLeft.transform;
             if (!rightHandTrans) rightHandTrans = Player.local.handRight.transform;
-            var distanceToHandLeft = Vector3.Distance(itemTrans.position, leftHandTrans.position);
-            var distanceToHandRight = Vector3.Distance(itemTrans.position, rightHandTrans.position);
+            var distanceToHandLeft = Vector3.SqrMagnitude(itemTrans.position - leftHandTrans.position);
+            var distanceToHandRight = Vector3.SqrMagnitude(itemTrans.position - rightHandTrans.position);
             return (distanceToHandLeft < distanceToHandRight) ? distanceToHandLeft : distanceToHandRight;
         }
 

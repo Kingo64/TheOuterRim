@@ -1,4 +1,4 @@
-﻿using BS;
+﻿using ThunderRoad;
 
 namespace TOR {
     public class ItemModuleBinoculars : ItemModule {
@@ -17,7 +17,7 @@ namespace TOR {
         
         // scope
         public int scopeDepth;
-        public int[] scopeResolution = { 512, 512 };
+        public int[] scopeResolution;
         public float[] scopeZoom = { 10f, 6f, 18f };
 
         public override void OnItemLoaded(Item item) {

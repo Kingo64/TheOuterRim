@@ -1,4 +1,5 @@
-﻿using BS;
+﻿using System.Collections.Generic;
+using ThunderRoad;
 using UnityEngine;
 
 namespace TOR {
@@ -12,6 +13,19 @@ namespace TOR {
                 catch {
                     Debug.LogWarning("The Outer Rim: Couldn't find AudioMixerGroup 'Effect'.");
                 }
+            }
+        }
+
+        public static class HapticIntensity {
+            public const float Minor = 0.3f;
+            public const float Moderate = 0.6f;
+            public const float Major = 1f;
+        };
+
+        public static void PlayHaptic(bool left, bool right, float intensity) {
+            if (intensity > 0) {
+                if (left) PlayerControl.GetHand(Side.Left).HapticShort(intensity);
+                if (right) PlayerControl.GetHand(Side.Right).HapticShort(intensity);
             }
         }
 
@@ -33,6 +47,73 @@ namespace TOR {
                 var randomSource = sounds[Random.Range(0, sounds.Length)];
                 randomSource.PlayOneShot(randomSource.clip, volume <= 0 ? randomSource.volume : volume);
             }
+        }
+
+        public static void PlaySound(AudioSource source, AudioContainer audioContainer) {
+            if (source != null && audioContainer != null) {
+                source.clip = audioContainer.PickAudioClip();
+                source.Play();
+            }
+        }
+
+        public static Color UpdateHue(Color color, float hue) {
+            Color.RGBToHSV(color, out float h, out float s, out float v);
+            var newColour = Color.HSVToRGB(hue, s, v);
+            newColour.a = color.a;
+            return newColour;
+        }
+    }
+
+    public class CollisionIgnoreHandler : MonoBehaviour {
+        public List<Item> ignoredItems = new List<Item>();
+        public Item item;
+
+        public void ClearIgnoredCollisions() {
+            foreach (var target in ignoredItems) {
+                if (!target) continue;
+                SetCollision(target, false);
+            }
+            ignoredItems.Clear();
+        }
+
+        public void IgnoreCollision(Item target) {
+            SetCollision(target, true);
+            ignoredItems.Add(target);
+        }
+
+        public void SetCollision(Item target, bool ignore) {
+            foreach (ColliderGroup colliderGroup in item.definition.colliderGroups) {
+                foreach (Collider sourceCollider in colliderGroup.colliders) {
+                    foreach (ColliderGroup colliderGroup2 in target.definition.colliderGroups) {
+                        foreach (Collider targetCollider in colliderGroup2.colliders) {
+                            Physics.IgnoreCollision(sourceCollider, targetCollider, ignore);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public class SkyController : MonoBehaviour {
+        public float speed = 0.2f;
+        public float maxX = 1.1f;
+        public float maxZ = 1.1f;
+        public float minX = 0.9f;
+        public float minZ = 0.9f;
+        public float xSpeed = -0.001f;
+        public float zSpeed = 0.002f;
+
+        // Update is called once per frame
+        void Update() {
+            var ls = transform.localScale;
+            transform.Rotate(Vector3.up * speed * Time.deltaTime);
+            if ((ls.x > maxX && xSpeed > 0) || (ls.x < minX && xSpeed < 0)) {
+                xSpeed *= -1;
+            }
+            if ((ls.z > maxZ && zSpeed > 0) || (ls.z < minZ && zSpeed < 0)) {
+                zSpeed *= -1;
+            }
+            transform.localScale = new Vector3(ls.x + (xSpeed * Time.deltaTime), ls.y, ls.z + (zSpeed * Time.deltaTime));
         }
     }
 }
