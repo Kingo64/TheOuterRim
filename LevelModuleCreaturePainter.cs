@@ -1,72 +1,85 @@
 ﻿using ThunderRoad;
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
-using UnityEngine.SceneManagement;
 
 namespace TOR {
     public class LevelModuleCreaturePainter : LevelModule {
-        GameObject creatureObserver;
         public float checkInterval = 1f;
 
-        public override void OnLevelLoaded(LevelDefinition levelDefinition) {
-            SceneManager.sceneLoaded += (scene, mode) => SetupObserver();
-            SceneManager.sceneUnloaded += (scene) => Object.Destroy(creatureObserver);
-            SetupObserver();
-            initialized = true;
+        public override IEnumerator OnLoadCoroutine(Level level) {
+            EventManager.onCreatureSpawn += OnCreatureSpawn;
+            yield break;
         }
 
-        public override void OnLevelUnloaded(LevelDefinition levelDefinition) {
-            initialized = false;
+        public override void OnUnload(Level level) {
+            base.OnUnload(level);
+            EventManager.onCreatureSpawn -= OnCreatureSpawn;
         }
 
-        void SetupObserver() {
-            creatureObserver = new GameObject();
-            creatureObserver.AddComponent<CreaturePainter>().loopDelay = new WaitForSeconds(checkInterval);
-        }
-    }
-
-    public class CreaturePainter : MonoBehaviour {
-        Coroutine observer;
-        HashSet<int> creatures = new HashSet<int>();
-        public WaitForSeconds loopDelay;
-
-        void Awake() {
-            observer = StartCoroutine(Observe());
+        bool IsSkin(string name) {
+            name = name.ToLower();
+            return name.Contains("head") || name.Contains("humanmale_hands") || name.Contains("humanfemale_hands") || name.Contains("body");
         }
 
-        void Destroy() {
-            StopAllCoroutines();
+        bool IsHair(string name) {
+            name = name.ToLower();
+            return name.Contains("brow") || name.Contains("hair");
         }
 
-        IEnumerator Observe() {
-            while (true) {
-                yield return loopDelay;
-                foreach (var creature in Creature.list) {
-                    if (!creatures.Contains(creature.GetInstanceID())) {
-                        creatures.Add(creature.GetInstanceID());
-                        if (creature.data.hashId == 121048391 || creature.data.hashId == -2046070811) {
-                            creature.OnRagdollAttachEvent += (ragdoll) => SetupMaterials(ragdoll.creature);
-                            SetupMaterials(creature);
+        void OnCreatureSpawn(Creature creature) {
+            if (Constants.CREATURE_IDS.ContainsKey(creature.data.hashId)) {
+                if (creature.manikinParts) {
+                    creature.manikinParts.PartsCompletedEvent += delegate () {
+                        var creatureId = Constants.CREATURE_IDS[creature.data.hashId];
+                        if (creatureId == "ForceSensitiveMale" || creatureId == "ForceSensitiveFemale") {
+                            var skinColour = new Color(Random.Range(0.7f, 1), Random.Range(0.7f, 1), Random.Range(0.7f, 1));
+                            var hairColour = (Random.Range(0, 1) > 0.5f) ? new Color(Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f)) : Color.clear;
+
+                            foreach (var rendererData in creature.renderers) {
+                                foreach (Material material in rendererData.renderer.materials) {
+                                    if (IsSkin(material.name)) {
+                                        material.SetColor("_BaseColor", skinColour);
+                                    }
+                                    if (IsHair(material.name) && hairColour != Color.clear) {
+                                        material.SetColor("_BaseColor", hairColour);
+                                    }
+                                }
+                            }
+                        } else if (creatureId == "Gamorrean") {
+                            var skinColour = new Color(0.55f, 0.6f, 0.3f);
+                            foreach (var rendererData in creature.renderers) {
+                                foreach (Material material in rendererData.renderer.materials) {
+                                    if (IsSkin(material.name)) {
+                                        material.SetColor("_BaseColor", skinColour);
+                                    }
+                                }
+                            }
+                        } else if (creatureId == "TuskenRaider") {
+                            var colour = new Color(0.55f, 0.6f, 0.4f);
+                            foreach (var rendererData in creature.renderers) {
+                                foreach (Material material in rendererData.renderer.materials) {
+                                    material.SetColor("_BaseColor", colour);
+                                }
+                            }
+                        } else if (creatureId == "CloneTrooper" || creatureId == "Stormtrooper") {
+                            var colour = creatureId == "Stormtrooper" ? new Color(0.728f, 0.708f, 0.662f) : new Color(0.8f, 0.8f, 0.8f);
+                            foreach (var rendererData in creature.renderers) {
+                                foreach (Material material in rendererData.renderer.materials) {
+                                    if ((!material.name.Contains("Eye") && !material.name.Contains("Mouth") && !IsSkin(material.name) && !IsHair(material.name)) || material.name.ToLower().Contains("hand") || material.name.ToLower().Contains("body")) {
+                                        material.SetTexture("_BaseMap", null);
+                                        material.SetTexture("_BumpMap", null);
+                                        material.SetTexture("_MainTex", null);
+                                        material.SetTexture("_MetallicGlossMap", null);
+                                        material.SetTexture("_SpecGlossMap", null);
+                                        material.SetFloat("_Metallic", 0);
+                                        material.SetFloat("_Smoothness", 0.4f);
+                                        material.SetColor("_BaseColor", colour);
+                                        material.DisableKeyword("_METALLICSPECGLOSSMAP");
+                                    }
+                                }
+                            }
                         }
-                    }
-                }
-            }
-        }
-
-        void SetupMaterials(Creature creature) {
-            var colour = creature.data.hashId == 121048391 ? new Color(0.728f, 0.708f, 0.662f) : new Color(0.8f, 0.8f, 0.8f); 
-            foreach (Material material in creature.bodyMeshRenderer.materials) {
-                if (!material.name.Contains("Eye") && !material.name.Contains("Brow") && !material.name.Contains("Hair") && !material.name.Contains("Skin")) {
-                    material.SetTexture("_BaseMap", null);
-                    material.SetTexture("_BumpMap", null);
-                    material.SetTexture("_MainTex", null);
-                    material.SetTexture("_MetallicGlossMap", null);
-                    material.SetTexture("_SpecGlossMap", null);
-                    material.SetFloat("_Metallic", 0);
-                    material.SetFloat("_Smoothness", 0.4f);
-                    material.SetColor("_BaseColor", colour);
-                    material.DisableKeyword("_METALLICSPECGLOSSMAP");
+                    };
                 }
             }
         }

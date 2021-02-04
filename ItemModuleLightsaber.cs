@@ -34,10 +34,10 @@ namespace TOR {
         }
 
         private void LoadGlobalSettings() {
-            if (canThrow) canThrow = TORGlobalSettings.SaberThrowable;
-            fastCollisionSpeed = TORGlobalSettings.SaberExpensiveCollisionsMinVelocity;
-            throwSpeed = TORGlobalSettings.SaberThrowMinVelocity;
-            controlHoldTime = TORGlobalSettings.ControlsHoldDuration;
+            if (canThrow) canThrow = GlobalSettings.SaberThrowable;
+            fastCollisionSpeed = GlobalSettings.SaberExpensiveCollisionsMinVelocity;
+            throwSpeed = GlobalSettings.SaberThrowMinVelocity;
+            controlHoldTime = GlobalSettings.ControlsHoldDuration;
         }
     }
 }

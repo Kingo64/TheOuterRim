@@ -33,11 +33,11 @@ namespace TOR {
         public EffectData whoosh;
         public string whooshFX;
 
-        public override void OnItemDataRefresh() {
-            base.OnItemDataRefresh();
-            if (!string.IsNullOrEmpty(idleSound)) idleSoundAsset = CatalogData.GetPrefab<AudioContainer>("", idleSound);
-            if (!string.IsNullOrEmpty(startSound)) startSoundAsset = CatalogData.GetPrefab<AudioContainer>("", startSound);
-            if (!string.IsNullOrEmpty(stopSound)) stopSoundAsset = CatalogData.GetPrefab<AudioContainer>("", stopSound);
+        public override void OnItemDataRefresh(ItemPhysic data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(idleSound)) Catalog.LoadAssetAsync<AudioContainer>(idleSound, ac => idleSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, ac => startSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, ac => stopSoundAsset = ac, null);
             if (!string.IsNullOrEmpty(whooshFX)) whoosh = Catalog.GetData<EffectData>(whooshFX, true);
         }
 

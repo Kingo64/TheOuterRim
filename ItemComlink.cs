@@ -29,8 +29,8 @@ namespace TOR {
 
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
-        Interactor leftInteractor;
-        Interactor rightInteractor;
+        RagdollHand leftInteractor;
+        RagdollHand rightInteractor;
 
         List<SpawnLocation> spawnLocations;
 
@@ -43,24 +43,24 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnSnapEvent += OnSnapEvent;
 
-            idleSound = item.definition.GetCustomReference("IdleSound").GetComponent<AudioSource>();
-            pingSound = item.definition.GetCustomReference("PingSound").GetComponent<AudioSource>();
-            startSound = item.definition.GetCustomReference("StartSound").GetComponent<AudioSource>();
-            stopSound = item.definition.GetCustomReference("StopSound").GetComponent<AudioSource>();
-            useSound = item.definition.GetCustomReference("UseSound").GetComponent<AudioSource>();
+            idleSound = item.GetCustomReference("IdleSound").GetComponent<AudioSource>();
+            pingSound = item.GetCustomReference("PingSound").GetComponent<AudioSource>();
+            startSound = item.GetCustomReference("StartSound").GetComponent<AudioSource>();
+            stopSound = item.GetCustomReference("StopSound").GetComponent<AudioSource>();
+            useSound = item.GetCustomReference("UseSound").GetComponent<AudioSource>();
 
-            hologram = item.definition.GetCustomReference("Hologram").gameObject;
-            hologramLight = item.definition.GetCustomReference("HologramLight").GetComponent<MeshRenderer>();
-            hologramLogo = item.definition.GetCustomReference("HologramLogo").GetComponent<MeshRenderer>();
-            light = item.definition.GetCustomReference("Light").GetComponent<Light>();
-            text = item.definition.GetCustomReference("Text").GetComponent<Text>();
-            materials = item.definition.GetCustomReference("Materials").GetComponent<MeshRenderer>().materials;
+            hologram = item.GetCustomReference("Hologram").gameObject;
+            hologramLight = item.GetCustomReference("HologramLight").GetComponent<MeshRenderer>();
+            hologramLogo = item.GetCustomReference("HologramLogo").GetComponent<MeshRenderer>();
+            light = item.GetCustomReference("Light").GetComponent<Light>();
+            text = item.GetCustomReference("Text").GetComponent<Text>();
+            materials = item.GetCustomReference("Materials").GetComponent<MeshRenderer>().materials;
 
             hologram.SetActive(false);
             spawnLocations = new List<SpawnLocation>(FindObjectsOfType<SpawnLocation>());
 
-            item.definition.TryGetSavedValue("faction", out string tempFaction);
-            item.definition.TryGetSavedValue("target", out string tempTarget);
+            item.TryGetSavedValue("faction", out string tempFaction);
+            item.TryGetSavedValue("target", out string tempTarget);
             int.TryParse(tempFaction, out currentFaction);
             int.TryParse(tempTarget, out currentTarget);
 
@@ -71,24 +71,24 @@ namespace TOR {
             SetColour();
         }
 
-        public void OnGrabEvent(Handle handle, Interactor interactor) {
+        public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             hologram.SetActive(true);
             startSound.Play();
             idleSound.Play();
         }
 
-        public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
+        public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             hologram.SetActive(false);
             stopSound.Play();
             idleSound.Stop();
         }
 
-        public void OnSnapEvent(ObjectHolder holder) {
-            item.definition.SetSavedValue("faction", currentFaction.ToString());
-            item.definition.SetSavedValue("target", currentTarget.ToString());
+        public void OnSnapEvent(Holder holder) {
+            item.SetSavedValue("faction", currentFaction.ToString());
+            item.SetSavedValue("target", currentTarget.ToString());
         }
 
-        public void ExecuteAction(string action, Interactor interactor = null) {
+        public void ExecuteAction(string action, RagdollHand interactor = null) {
             if (action == "nextFaction") {
                 CycleFaction(interactor, true);
             } else if (action == "prevFaction") {
@@ -102,7 +102,7 @@ namespace TOR {
             }
         }
 
-        public void CycleFaction(Interactor interactor = null, bool inc = true) {
+        public void CycleFaction(RagdollHand interactor = null, bool inc = true) {
             if (inc) currentFaction = (currentFaction >= module.factions.Count - 1) ? 0 : currentFaction + 1;
             else currentFaction = (currentFaction <= 0) ? module.factions.Count - 1 : currentFaction - 1;
             factionData = module.factions[currentFaction];
@@ -112,7 +112,7 @@ namespace TOR {
             useSound.Play();
         }
 
-        public void CycleTarget(Interactor interactor = null, bool inc = true) {
+        public void CycleTarget(RagdollHand interactor = null, bool inc = true) {
             if (inc) currentTarget = (currentTarget >= module.reinforcements.Count - 1) ? 0 : currentTarget + 1;
             else currentTarget = (currentTarget <= 0) ? module.reinforcements.Count - 1 : currentTarget - 1;
             reinforcementData = module.reinforcements[currentTarget];
@@ -158,19 +158,20 @@ namespace TOR {
             }
 
             if (closestSpawn != null && creatureTable != null) {
-                var spawnedCreature = creatureTable.Pick().Spawn(closestSpawn.transform.position, closestSpawn.transform.rotation, true);
-                if (factionData.factionId != -999) spawnedCreature.SetFaction(factionData.factionId);
+                StartCoroutine(creatureTable.Pick().SpawnCoroutine(closestSpawn.transform.position, closestSpawn.transform.rotation, null, delegate (Creature value) {
+                    if (factionData.factionId != -999) value.SetFaction(factionData.factionId);
+                }, true));
                 Utils.PlayHaptic(leftInteractor, rightInteractor, Utils.HapticIntensity.Moderate);
                 pingSound.Play();
             }
         }
 
-        public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
+        public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
             // If priamry hold action available
             if (!string.IsNullOrEmpty(module.gripPrimaryActionHold)) {
                 // start primary control timer
                 if (action == Interactable.Action.UseStart) {
-                    primaryControlHoldTime = TORGlobalSettings.ControlsHoldDuration;
+                    primaryControlHoldTime = GlobalSettings.ControlsHoldDuration;
                 } else if (action == Interactable.Action.UseStop) {
                     // if not held for long run standard action
                     if (primaryControlHoldTime > 0 && primaryControlHoldTime > (primaryControlHoldTime / 2)) {
@@ -184,7 +185,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.gripSecondaryActionHold)) {
                 // start secondary control timer
                 if (action == Interactable.Action.AlternateUseStart) {
-                    secondaryControlHoldTime = TORGlobalSettings.ControlsHoldDuration;
+                    secondaryControlHoldTime = GlobalSettings.ControlsHoldDuration;
                 } else if (action == Interactable.Action.AlternateUseStop) {
                     // if not held for long run standard action
                     if (secondaryControlHoldTime > 0 && secondaryControlHoldTime > (secondaryControlHoldTime / 2)) {

@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TOR</RootNamespace>
     <AssemblyName>TheOuterRim</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -31,8 +32,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Assembly-CSharp">
+    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="chabuk.manikinmono, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
+    <Reference Include="IngameDebugConsole.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\IngameDebugConsole.Runtime.dll</HintPath>
     </Reference>
     <Reference Include="Sirenix.Serialization, Version=2.0.17.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -53,6 +60,9 @@
     <Reference Include="Unity.RenderPipelines.Universal.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.ResourceManager">
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Unity.ResourceManager.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
     <Reference Include="UnityEngine.AIModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -117,18 +127,18 @@
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
     <Compile Include="LevelModuleCreaturePainter.cs" />
+    <Compile Include="LevelModuleFixLightmapper.cs" />
     <Compile Include="LevelModuleFixCreatureEvent.cs" />
     <Compile Include="LevelModuleKamino.cs" />
     <Compile Include="LevelModuleFelucia.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="LevelModuleMapOptimiser.cs" />
-    <Compile Include="TORGlobalSettings.cs" />
+    <Compile Include="GlobalSettings.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>IF EXIST "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\The Outer Rim" (
-copy "$(TargetPath)" "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\The Outer Rim\TheOuterRim.dll" /Y
+    <PostBuildEvent>IF EXIST "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\Mods\The Outer Rim" (
+copy "$(TargetPath)" "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\Mods\The Outer Rim\TheOuterRim.dll" /Y
 )</PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -9,15 +9,14 @@ namespace TOR {
         GameObject creatureObserver;
         public float checkInterval = 0.5f;
 
-        public override void OnLevelLoaded(LevelDefinition levelDefinition) {
+        public override IEnumerator OnLoadCoroutine(Level level) {
             creatureObserver = new GameObject();
             creatureObserver.AddComponent<CreatureObserver>().loopDelay = new WaitForSeconds(checkInterval);
-            initialized = true;
+            yield break;
         }
 
-        public override void OnLevelUnloaded(LevelDefinition levelDefinition) {
+        public override void OnUnload(Level level) {
             creatureObserver = null;
-            initialized = false;
         }
 
     }
@@ -42,11 +41,11 @@ namespace TOR {
                 yield return loopDelay;
                 var toAdd = Creature.list.Except(creatures);
                 if (toAdd.Any()) {
-                    var player = Player.local?.body;
+                    var player = Player.local.creature;
                     if (player != null) {
                         foreach (Creature creature in toAdd) {
-                            if (creature != Creature.player && !creature.body.gameObject.GetComponent<CreatureZoneController>()) {
-                                creature.body.gameObject.AddComponent<CreatureZoneController>();
+                            if (creature != player && !creature.gameObject.GetComponent<CreatureZoneController>()) {
+                                creature.gameObject.AddComponent<CreatureZoneController>();
                             }
                         }
                         creatures = Creature.list.ToList();
@@ -65,7 +64,6 @@ namespace TOR {
             };
             trigger.transform.parent = transform;
             trigger.transform.position = transform.position;
-            // trigger.AddComponent<Rigidbody>().isKinematic = true;
             trigger.AddComponent<SphereCollider>().isTrigger = true;
         }
     }

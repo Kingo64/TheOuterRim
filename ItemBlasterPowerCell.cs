@@ -14,11 +14,11 @@ namespace TOR {
         protected void Awake() {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlasterPowerCell>();
-            audio = item.definition.GetCustomReference("Particle").GetComponent<AudioSource>();
-            particle = item.definition.GetCustomReference("Particle").GetComponent<ParticleSystem>();
+            audio = item.GetCustomReference("Particle").GetComponent<AudioSource>();
+            particle = item.GetCustomReference("Particle").GetComponent<ParticleSystem>();
 
-            for (int i = 0, l = item.definition.collisionHandlers.Count; i < l; i++) {
-                item.definition.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
+                item.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
             }
 
             item.OnGrabEvent += OnGrabEvent;
@@ -26,7 +26,7 @@ namespace TOR {
 
             var boltModule = Catalog.GetData<ItemPhysic>(module.projectileID, true).GetModule<ItemModuleBlasterBolt>();
             if (boltModule != null) {
-                var mesh = item.definition.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
+                var mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
                 mesh.materials[0].SetColor("_Color", Utils.UpdateHue(mesh.materials[0].GetColor("_Color"), boltModule.boltHue));
 
                 if (particle) {
@@ -36,12 +36,12 @@ namespace TOR {
             }
         }
 
-        public void OnGrabEvent(Handle handle, Interactor interactor) {
+        public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             holdingRight |= interactor.playerHand == Player.local.handRight;
             holdingLeft |= interactor.playerHand == Player.local.handLeft;
         }
 
-        public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
+        public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             holdingRight &= interactor.playerHand != Player.local.handRight;
             holdingLeft &= interactor.playerHand == Player.local.handLeft;
         }

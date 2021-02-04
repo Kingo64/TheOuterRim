@@ -80,7 +80,7 @@ namespace TOR {
         // charged fire settings
         public float chargeTime = 1f;
         public bool chargeMultishot = true;
-        
+
         // sounds
         public AudioContainer altFireSoundAsset; public string altFireSoundPath; public string altFireSoundID;
         public AudioContainer altFireSoundAsset2; public string altFireSoundPath2; public string altFireSoundID2;
@@ -144,47 +144,47 @@ namespace TOR {
         public float aiShootDistanceMult = 1.0f;
         public bool aiMeleeEnabled;
 
-        public override void OnItemDataRefresh() {
-            base.OnItemDataRefresh();
-            if (!string.IsNullOrEmpty(altFireSoundPath)) altFireSoundAsset = CatalogData.GetPrefab<AudioContainer>("", altFireSoundPath);
-            if (!string.IsNullOrEmpty(altFireSoundPath2)) altFireSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", altFireSoundPath2);
+        public override void OnItemDataRefresh(ItemPhysic data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(altFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath, ac => altFireSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(altFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath2, ac => altFireSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(chargeFireSoundPath)) chargeFireSoundAsset = CatalogData.GetPrefab<AudioContainer>("", chargeFireSoundPath);
-            if (!string.IsNullOrEmpty(chargeFireSoundPath2)) chargeFireSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", chargeFireSoundPath2);
-            if (!string.IsNullOrEmpty(chargeFireSoundPath3)) chargeFireSoundAsset3 = CatalogData.GetPrefab<AudioContainer>("", chargeFireSoundPath3);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath, ac => chargeFireSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath2, ac => chargeFireSoundAsset2 = ac, null);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath3, ac => chargeFireSoundAsset3 = ac, null);
 
-            if (!string.IsNullOrEmpty(chargeSoundPath)) chargeSoundAsset = CatalogData.GetPrefab<AudioContainer>("", chargeSoundPath);
-            if (!string.IsNullOrEmpty(chargeSoundPath2)) chargeSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", chargeSoundPath2);
+            if (!string.IsNullOrEmpty(chargeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath, ac => chargeSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(chargeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath2, ac => chargeSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(chargeReadySoundPath)) chargeReadySoundAsset = CatalogData.GetPrefab<AudioContainer>("", chargeReadySoundPath);
-            if (!string.IsNullOrEmpty(chargeReadySoundPath2)) chargeReadySoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", chargeReadySoundPath2);
-            
-            if (!string.IsNullOrEmpty(chargeStartSoundPath)) chargeStartSoundAsset = CatalogData.GetPrefab<AudioContainer>("", chargeStartSoundPath);
-            if (!string.IsNullOrEmpty(chargeStartSoundPath2)) chargeStartSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", chargeStartSoundPath2);
+            if (!string.IsNullOrEmpty(chargeReadySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath, ac => chargeReadySoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(chargeReadySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath2, ac => chargeReadySoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(emptySoundPath)) emptySoundAsset = CatalogData.GetPrefab<AudioContainer>("", emptySoundPath);
-            if (!string.IsNullOrEmpty(emptySoundPath2)) emptySoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", emptySoundPath2);
+            if (!string.IsNullOrEmpty(chargeStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath, ac => chargeStartSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(chargeStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath2, ac => chargeStartSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(fireSoundPath)) fireSoundAsset = CatalogData.GetPrefab<AudioContainer>("", fireSoundPath);
-            if (!string.IsNullOrEmpty(fireSoundPath2)) fireSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", fireSoundPath2);
-            if (!string.IsNullOrEmpty(fireSoundPath3)) fireSoundAsset3 = CatalogData.GetPrefab<AudioContainer>("", fireSoundPath3);
+            if (!string.IsNullOrEmpty(emptySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath, ac => emptySoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(emptySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath2, ac => emptySoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(fireModeSoundPath)) fireModeSoundAsset = CatalogData.GetPrefab<AudioContainer>("", fireModeSoundPath);
-            if (!string.IsNullOrEmpty(fireModeSoundPath2)) fireModeSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", fireModeSoundPath2);
+            if (!string.IsNullOrEmpty(fireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath, ac => fireSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(fireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath2, ac => fireSoundAsset2 = ac, null);
+            if (!string.IsNullOrEmpty(fireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath3, ac => fireSoundAsset3 = ac, null);
 
-            if (!string.IsNullOrEmpty(overheatSoundPath)) overheatSoundAsset = CatalogData.GetPrefab<AudioContainer>("", overheatSoundPath);
-            if (!string.IsNullOrEmpty(overheatSoundPath2)) overheatSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", overheatSoundPath2);
+            if (!string.IsNullOrEmpty(fireModeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath, ac => fireModeSoundAsset= ac, null);
+            if (!string.IsNullOrEmpty(fireModeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath2, ac => fireModeSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(preFireSoundPath)) preFireSoundAsset = CatalogData.GetPrefab<AudioContainer>("", preFireSoundPath);
-            if (!string.IsNullOrEmpty(preFireSoundPath2)) preFireSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", preFireSoundPath2);
+            if (!string.IsNullOrEmpty(overheatSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath, ac => overheatSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(overheatSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath2, ac => overheatSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(reloadSoundPath)) reloadSoundAsset = CatalogData.GetPrefab<AudioContainer>("", reloadSoundPath);
-            if (!string.IsNullOrEmpty(reloadSoundPath2)) reloadSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", reloadSoundPath2);
+            if (!string.IsNullOrEmpty(preFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath, ac => preFireSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(preFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath2, ac => preFireSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(reloadEndSoundPath)) reloadEndSoundAsset = CatalogData.GetPrefab<AudioContainer>("", reloadEndSoundPath);
-            if (!string.IsNullOrEmpty(reloadEndSoundPath2)) reloadEndSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", reloadEndSoundPath2);
+            if (!string.IsNullOrEmpty(reloadSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath, ac => reloadSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(reloadSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath2, ac => reloadSoundAsset2 = ac, null);
 
-            if (!string.IsNullOrEmpty(scopeReticle)) scopeReticleTexture = CatalogData.GetPrefab<Texture2D>("", scopeReticle);
+            if (!string.IsNullOrEmpty(reloadEndSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath, ac => reloadEndSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(reloadEndSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath2, ac => reloadEndSoundAsset2 = ac, null);
+
+            if (!string.IsNullOrEmpty(scopeReticle)) Catalog.LoadAssetAsync<Texture2D>(scopeReticle, texture => scopeReticleTexture = texture, null);
         }
 
         public override void OnItemLoaded(Item item) {

@@ -17,10 +17,10 @@ namespace TOR {
         public string explosionSound2;
         public AudioContainer explosionSoundAsset2;
 
-        public override void OnItemDataRefresh() {
-            base.OnItemDataRefresh();
-            if (!string.IsNullOrEmpty(explosionSound)) explosionSoundAsset = CatalogData.GetPrefab<AudioContainer>("", explosionSound);
-            if (!string.IsNullOrEmpty(explosionSound2)) explosionSoundAsset2 = CatalogData.GetPrefab<AudioContainer>("", explosionSound2);
+        public override void OnItemDataRefresh(ItemPhysic data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(explosionSound)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound, ac => explosionSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(explosionSound2)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound2, ac => explosionSoundAsset2 = ac, null);
         }
 
         public override void OnItemLoaded(Item item) {

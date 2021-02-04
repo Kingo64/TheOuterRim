@@ -23,7 +23,7 @@ namespace TOR {
             coreColour = new Color(module.coreColour[0], module.coreColour[1], module.coreColour[2], module.coreColour[3]);
             glowColour = new Color(module.glowColour[0], module.glowColour[1], module.glowColour[2], module.glowColour[3]);
 
-            mesh = item.definition.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
+            mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
             propBlock = new MaterialPropertyBlock();
             mesh.GetPropertyBlock(propBlock);
             propBlock.SetColor("_BaseColor", coreColour);
@@ -31,8 +31,8 @@ namespace TOR {
 
             itemTrans = item.transform;
 
-            for (int i = 0, l = item.definition.collisionHandlers.Count; i < l; i++) {
-                item.definition.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
+                item.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
             }
 
         }

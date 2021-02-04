@@ -16,6 +16,12 @@ namespace TOR {
             }
         }
 
+        public static float GetElevation(Transform origin, Transform target) {
+            float horizontalDist = Vector3.Distance(origin.transform.position, new Vector3(target.transform.position.x, origin.transform.position.y, target.transform.position.z));
+            float verticalDist = target.transform.position.y - origin.transform.position.y;
+            return Mathf.Atan(verticalDist / horizontalDist) * Mathf.Rad2Deg;
+        }
+
         public static class HapticIntensity {
             public const float Minor = 0.3f;
             public const float Moderate = 0.6f;
@@ -57,7 +63,7 @@ namespace TOR {
         }
 
         public static Color UpdateHue(Color color, float hue) {
-            Color.RGBToHSV(color, out float h, out float s, out float v);
+            Color.RGBToHSV(color, out float _, out float s, out float v);
             var newColour = Color.HSVToRGB(hue, s, v);
             newColour.a = color.a;
             return newColour;
@@ -82,9 +88,9 @@ namespace TOR {
         }
 
         public void SetCollision(Item target, bool ignore) {
-            foreach (ColliderGroup colliderGroup in item.definition.colliderGroups) {
+            foreach (ColliderGroup colliderGroup in item.colliderGroups) {
                 foreach (Collider sourceCollider in colliderGroup.colliders) {
-                    foreach (ColliderGroup colliderGroup2 in target.definition.colliderGroups) {
+                    foreach (ColliderGroup colliderGroup2 in target.colliderGroups) {
                         foreach (Collider targetCollider in colliderGroup2.colliders) {
                             Physics.IgnoreCollision(sourceCollider, targetCollider, ignore);
                         }

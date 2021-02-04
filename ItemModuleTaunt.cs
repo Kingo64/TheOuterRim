@@ -15,10 +15,10 @@ namespace TOR {
         public string gripPrimaryAction = "";
         public string gripSecondaryAction = "playTaunt";
 
-        public override void OnItemDataRefresh() {
-            base.OnItemDataRefresh();
-            if (!string.IsNullOrEmpty(tauntSound)) tauntAsset = CatalogData.GetPrefab<AudioContainer>("", tauntSound);
-            if (!string.IsNullOrEmpty(tauntDropSound)) tauntDropAsset = CatalogData.GetPrefab<AudioContainer>("", tauntDropSound);
+        public override void OnItemDataRefresh(ItemPhysic data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(tauntSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntSound, ac => tauntAsset = ac, null);
+            if (!string.IsNullOrEmpty(tauntDropSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntDropSound, ac => tauntDropAsset = ac, null);
         }
 
         public override void OnItemLoaded(Item item)

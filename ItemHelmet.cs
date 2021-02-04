@@ -25,18 +25,18 @@ namespace TOR {
 
             item.OnHeldActionEvent += OnHeldAction;
 
-            if (!string.IsNullOrEmpty(module.lightSoundID)) lightSound = item.definition.GetCustomReference(module.lightSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.playSoundID)) playSound = item.definition.GetCustomReference(module.playSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.toggleSoundID)) toggleSound = item.definition.GetCustomReference(module.toggleSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.light1ID)) light1 = item.definition.GetCustomReference(module.light1ID).GetComponent<Light>();
-            if (!string.IsNullOrEmpty(module.light2ID)) light2 = item.definition.GetCustomReference(module.light2ID).GetComponent<Light>();
-            if (!string.IsNullOrEmpty(module.light1ID)) light1Sprite = item.definition.GetCustomReference(module.light1ID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.light2ID)) light2Sprite = item.definition.GetCustomReference(module.light2ID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.primaryModelID)) primaryModel = item.definition.GetCustomReference(module.primaryModelID).GetComponentsInChildren<MeshRenderer>();
-            if (!string.IsNullOrEmpty(module.secondaryModelID)) secondaryModel = item.definition.GetCustomReference(module.secondaryModelID).GetComponentsInChildren<MeshRenderer>();
+            if (!string.IsNullOrEmpty(module.lightSoundID)) lightSound = item.GetCustomReference(module.lightSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.playSoundID)) playSound = item.GetCustomReference(module.playSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.toggleSoundID)) toggleSound = item.GetCustomReference(module.toggleSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.light1ID)) light1 = item.GetCustomReference(module.light1ID).GetComponent<Light>();
+            if (!string.IsNullOrEmpty(module.light2ID)) light2 = item.GetCustomReference(module.light2ID).GetComponent<Light>();
+            if (!string.IsNullOrEmpty(module.light1ID)) light1Sprite = item.GetCustomReference(module.light1ID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.light2ID)) light2Sprite = item.GetCustomReference(module.light2ID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.primaryModelID)) primaryModel = item.GetCustomReference(module.primaryModelID).GetComponentsInChildren<MeshRenderer>();
+            if (!string.IsNullOrEmpty(module.secondaryModelID)) secondaryModel = item.GetCustomReference(module.secondaryModelID).GetComponentsInChildren<MeshRenderer>();
         }
 
-        public void ExecuteAction(string action, Interactor interactor = null) {
+        public void ExecuteAction(string action, RagdollHand interactor = null) {
             if (action == "playSound") {
                 playSound.Play();
                 if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
@@ -49,7 +49,7 @@ namespace TOR {
             }
         }
 
-        public void CycleModels(Interactor interactor = null) {
+        public void CycleModels(RagdollHand interactor = null) {
             modelState++;
             if (modelState > 2) modelState = 0;
             primaryModel.ToList().ForEach(m => m.enabled = (modelState == 0 || modelState == 1));
@@ -57,13 +57,13 @@ namespace TOR {
             if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        public void ToggleSound(Interactor interactor = null) {
+        public void ToggleSound(RagdollHand interactor = null) {
             if (toggleSound.isPlaying) toggleSound.Stop();
             else toggleSound.Play();
             if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        public void ToggleLight(Interactor interactor = null) {
+        public void ToggleLight(RagdollHand interactor = null) {
             if (lightSound) lightSound.Play();
             if (light1) {
                 light1.enabled = !light1.enabled;
@@ -80,7 +80,7 @@ namespace TOR {
             }
         }
 
-        public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
+        public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
             if (action == Interactable.Action.UseStart) {
                 if (interactor.side == Side.Right) ExecuteAction(module.rightGripPrimaryAction, interactor);
                 else ExecuteAction(module.leftGripPrimaryAction, interactor);

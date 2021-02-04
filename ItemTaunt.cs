@@ -18,8 +18,8 @@ namespace TOR {
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
 
-            if (!string.IsNullOrEmpty(module.gripID)) grip = item.definition.GetCustomReference(module.gripID).GetComponent<Handle>();
-            if (!string.IsNullOrEmpty(module.tauntID)) tauntSource = item.definition.GetCustomReference(module.tauntID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.gripID)) grip = item.GetCustomReference(module.gripID).GetComponent<Handle>();
+            if (!string.IsNullOrEmpty(module.tauntID)) tauntSource = item.GetCustomReference(module.tauntID).GetComponent<AudioSource>();
 
             if (grip == null) grip = item.mainHandleRight;
         }
@@ -39,17 +39,17 @@ namespace TOR {
             }
         }
 
-        public void OnGrabEvent(Handle handle, Interactor interactor) {
+        public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value < module.aiTauntChance)
                 PlayTaunt(module.tauntAsset);
         }
 
-        public void OnUngrabEvent(Handle handle, Interactor interactor, bool thrown) {
+        public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool thrown) {
             if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value < module.aiTauntChance)
                 PlayTaunt(module.tauntDropAsset);
         }
 
-        public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
+        public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
             if (handle == grip) {
                 if (action == Interactable.Action.UseStart) {
                     ExecuteAction(module.gripPrimaryAction);

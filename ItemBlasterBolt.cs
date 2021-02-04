@@ -2,6 +2,7 @@
 using ThunderRoad;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace TOR {
     [RequireComponent(typeof(CollisionIgnoreHandler))]
@@ -18,7 +19,7 @@ namespace TOR {
         float despawnTime;
         int ricochets;
 
-        FastList<DamagerData> originalDamagers = new FastList<DamagerData>();
+        List<DamagerData> originalDamagers = new List<DamagerData>();
 
         protected void Awake() {
             item = GetComponent<Item>();
@@ -30,8 +31,8 @@ namespace TOR {
             body.freezeRotation = module.lockRotation;
 
             if (!string.IsNullOrEmpty(module.effectID)) {
-                trail = item.definition.GetCustomReference(module.effectID).GetComponent<TrailRenderer>();
-                light = item.definition.GetCustomReference(module.effectID).GetComponent<Light>();
+                trail = item.GetCustomReference(module.effectID).GetComponent<TrailRenderer>();
+                light = item.GetCustomReference(module.effectID).GetComponent<Light>();
 
                 if (light != null) {
                     light.color = Utils.UpdateHue(light.color, module.boltHue);
@@ -42,7 +43,7 @@ namespace TOR {
                 }
             }
 
-            foreach (CollisionHandler collisionHandler in item.definition.collisionHandlers) {
+            foreach (CollisionHandler collisionHandler in item.collisionHandlers) {
                 foreach (Damager damager in collisionHandler.damagers) {
                     originalDamagers.Add(damager.data);
                 }
@@ -90,11 +91,11 @@ namespace TOR {
         }
 
         void DeflectAssist() {
-            if (TORGlobalSettings.lightsaberColliders.Count > 0) {
+            if (GlobalSettings.LightsaberColliders.Count > 0) {
                 List<int> toRemove = null;
                 var currentPos = body.transform.position;
                 var hasBeenAssisted = false;
-                foreach (KeyValuePair<int, Collider[]> colliders in TORGlobalSettings.lightsaberColliders) {
+                foreach (KeyValuePair<int, Collider[]> colliders in GlobalSettings.LightsaberColliders) {
                     if (hasBeenAssisted) return;
                     foreach (var collider in colliders.Value) {
                         if (!collider) {
@@ -104,9 +105,9 @@ namespace TOR {
                         }
                         if (collider.enabled) {
                             var closest = collider.ClosestPoint(currentPos);
-                            if (Mathf.Abs((currentPos - closest).sqrMagnitude) < TORGlobalSettings.SaberDeflectAssistDistance) {
+                            if (Mathf.Abs((currentPos - closest).sqrMagnitude) < GlobalSettings.SaberDeflectAssistDistance) {
                                 hasBeenAssisted = true;
-                                if (TORGlobalSettings.SaberDeflectAssistAlwaysReturn) {
+                                if (GlobalSettings.SaberDeflectAssistAlwaysReturn) {
                                     body.velocity *= -1;
                                 } else {
                                     if (Time.timeScale >= 1 ) body.position = closest;
@@ -118,7 +119,7 @@ namespace TOR {
                 }
                 if (toRemove != null) {
                     foreach (var key in toRemove) {
-                        TORGlobalSettings.lightsaberColliders.Remove(key);
+                        GlobalSettings.LightsaberColliders.Remove(key);
                     }
                 }
             }
@@ -126,7 +127,7 @@ namespace TOR {
 
         void ResetDamagers() {
             var i = 0;
-            foreach (CollisionHandler collisionHandler in item.definition.collisionHandlers) {
+            foreach (CollisionHandler collisionHandler in item.collisionHandlers) {
                 foreach (Damager damager in collisionHandler.damagers) {
                     damager.data = originalDamagers[i++];
                 }
@@ -150,38 +151,84 @@ namespace TOR {
             despawnTime -= Time.deltaTime;
             markForDeletion |= despawnTime <= 0;
 
-            if (TORGlobalSettings.SaberDeflectAssist) DeflectAssist();
+            if (GlobalSettings.SaberDeflectAssist) DeflectAssist();
         }
     }
 
     public class StunGlow : MonoBehaviour {
         public float hue = 0.62f;
-        Material[] bodyMaterials;
+        Dictionary<int, Material[]> originalMaterials = new Dictionary<int, Material[]>();
+        MeshRenderer[] hatRenderers;
         Creature creature;
+        Material stunMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
 
         void Awake() {
             if (GetComponents<StunGlow>().Length > 1) {
                 Destroy(this);
             } else {
                 creature = GetComponent<Creature>();
-                bodyMaterials = creature.bodyMeshRenderer.materials;
-                Material[] tempMaterials = creature.bodyMeshRenderer.materials;
+                if (creature) {
+                    stunMaterial.EnableKeyword("_EMISSION");
+                    stunMaterial.SetColor("_EmissionColor", Color.HSVToRGB(hue, 1f, 0.75f) * 4);
 
-                var newMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                newMat.EnableKeyword("_EMISSION");
-                newMat.SetColor("_EmissionColor", Color.HSVToRGB(hue, 1f, 0.75f) * 4);
-                    
-                for (int i = 0, l = creature.bodyMeshRenderer.materials.Length; i < l; i++) {
-                    tempMaterials[i] = newMat;
+                    foreach (var rendererData in creature.renderers) {
+                        originalMaterials.Add(rendererData.GetHashCode(), rendererData.renderer.materials);
+                    }
+                    AssignMaterials(creature.renderers);
+
+                    var holster = creature.equipment.GetHolster(GlobalSettings.HAT_HOLDER_NAME);
+                    if (holster && holster.holdObjects.Count > 0) {
+                        hatRenderers = holster.holdObjects[0].GetComponentsInChildren<MeshRenderer>();
+                        foreach (var mesh in hatRenderers) {
+                            originalMaterials.Add(mesh.GetHashCode(), mesh.materials);
+                        }
+                        AssignMaterials(hatRenderers);
+                    }
                 }
-                creature.bodyMeshRenderer.materials = tempMaterials;
                 Destroy(this, 0.1f);
             }
         }
 
         void OnDestroy() {
-            if (creature && bodyMaterials != null) {
-                creature.bodyMeshRenderer.materials = bodyMaterials;
+            if (creature) {
+                RestoreMaterials(creature.renderers);
+                if (hatRenderers != null) RestoreMaterials(hatRenderers);
+            }
+        }
+
+        void AssignMaterials(MeshRenderer[] renderers) {
+            for (int i = 0, l = renderers.Length; i < l; i++) {
+                Material[] tempMaterials = renderers[i].materials;
+                for (int j = 0, k = tempMaterials.Length; j < k; j++) {
+                    tempMaterials[j] = stunMaterial;
+                }
+                renderers[i].materials = tempMaterials;
+            }
+        }
+
+        void AssignMaterials(List<Creature.RendererData> renderers) {
+            for (int i = 0, l = renderers.Count; i < l; i++) {
+                Material[] tempMaterials = renderers[i].renderer.materials;
+                for (int j = 0, k = tempMaterials.Length; j < k; j++) {
+                    tempMaterials[j] = stunMaterial;
+                }
+                renderers[i].renderer.materials = tempMaterials;
+            }
+        }
+
+        void RestoreMaterials(MeshRenderer[] renderers) {
+            for (int i = 0, l = renderers.Length; i < l; i++) {
+                if (originalMaterials.TryGetValue(renderers[i].GetHashCode(), out Material[] original)) {
+                    renderers[i].materials = original;
+                }
+            }
+        }
+
+        void RestoreMaterials(List<Creature.RendererData> renderers) {
+            for (int i = 0, l = renderers.Count; i < l; i++) {
+                if (originalMaterials.TryGetValue(renderers[i].GetHashCode(), out Material[] original)) {
+                    renderers[i].renderer.materials = original;
+                }
             }
         }
     }

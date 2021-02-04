@@ -8,8 +8,7 @@ namespace TOR {
     public class ItemThermalDetonator : MonoBehaviour {
         protected Item item;
         protected ItemModuleThermalDetonator module;
-
-        MaterialPropertyBlock propBlock = new MaterialPropertyBlock();
+        readonly MaterialPropertyBlock propBlock = new MaterialPropertyBlock();
         Renderer renderer;
         Animator animator;
         ParticleSystem particles;
@@ -31,20 +30,18 @@ namespace TOR {
         float detonateTime;
         float beepTime;
         bool[] lastBeep = { false, false, false };
-        System.Random rand = new System.Random();
+        readonly System.Random rand = new System.Random();
 
-        static Dictionary<HumanBodyBones, float> validBones = new Dictionary<HumanBodyBones, float> {
-            { HumanBodyBones.Neck, 0.9f },
-            { HumanBodyBones.LeftHand, 0.6f },
-            { HumanBodyBones.RightHand, 0.6f },
-            { HumanBodyBones.LeftLowerArm, 0.7f },
-            { HumanBodyBones.RightLowerArm, 0.7f },
-            { HumanBodyBones.LeftUpperArm, 0.8f },
-            { HumanBodyBones.RightUpperArm, 0.8f },
-            { HumanBodyBones.LeftFoot, 0.6f },
-            { HumanBodyBones.RightFoot, 0.6f },
-            { HumanBodyBones.LeftLowerLeg, 0.8f },
-            { HumanBodyBones.RightLowerLeg, 0.8f }
+        static readonly Dictionary<RagdollPart.Type, float> validParts = new Dictionary<RagdollPart.Type, float> {
+            { RagdollPart.Type.Head, 0.9f },
+            { RagdollPart.Type.LeftHand, 0.6f },
+            { RagdollPart.Type.RightHand, 0.6f },
+            { RagdollPart.Type.LeftArm, 0.7f },
+            { RagdollPart.Type.RightArm, 0.8f },
+            { RagdollPart.Type.LeftFoot, 0.6f },
+            { RagdollPart.Type.RightFoot, 0.6f },
+            { RagdollPart.Type.LeftLeg, 0.8f },
+            { RagdollPart.Type.RightLeg, 0.8f }
         };
 
         protected void Awake() {
@@ -57,26 +54,26 @@ namespace TOR {
             item.OnTelekinesisGrabEvent += OnTelekinesisGrabEvent;
             item.OnTelekinesisReleaseEvent += OnTelekinesisReleaseEvent;
 
-            animator = item.definition.GetCustomReference("Animator").GetComponent<Animator>();
-            armedSound = item.definition.GetCustomReference("ArmedSound").GetComponent<AudioSource>();
-            idleSound = item.definition.GetCustomReference("IdleSound").GetComponent<AudioSource>();
-            beepSound1 = item.definition.GetCustomReference("BeepSound1").GetComponent<AudioSource>();
-            beepSound2 = item.definition.GetCustomReference("BeepSound2").GetComponent<AudioSource>();
-            beepSound3 = item.definition.GetCustomReference("BeepSound3").GetComponent<AudioSource>();
-            explosionSound = item.definition.GetCustomReference("ExplosionSound").GetComponent<AudioSource>();
-            explosionSound2 = item.definition.GetCustomReference("ExplosionSound2").GetComponent<AudioSource>();
-            particles = item.definition.GetCustomReference("Explosion").GetComponent<ParticleSystem>();
-            renderer = item.definition.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
+            animator = item.GetCustomReference("Animator").GetComponent<Animator>();
+            armedSound = item.GetCustomReference("ArmedSound").GetComponent<AudioSource>();
+            idleSound = item.GetCustomReference("IdleSound").GetComponent<AudioSource>();
+            beepSound1 = item.GetCustomReference("BeepSound1").GetComponent<AudioSource>();
+            beepSound2 = item.GetCustomReference("BeepSound2").GetComponent<AudioSource>();
+            beepSound3 = item.GetCustomReference("BeepSound3").GetComponent<AudioSource>();
+            explosionSound = item.GetCustomReference("ExplosionSound").GetComponent<AudioSource>();
+            explosionSound2 = item.GetCustomReference("ExplosionSound2").GetComponent<AudioSource>();
+            particles = item.GetCustomReference("Explosion").GetComponent<ParticleSystem>();
+            renderer = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
 
             obstacle = GetComponent<NavMeshObstacle>();
             obstacle.radius = module.radius;
         }
 
-        public void OnGrabEvent(Handle handle, Interactor interactor) {
+        public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             if (isArmed) detonateTime = 0;
         }
 
-        public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
+        public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             if (isArmed) detonateTime = module.detonateTime;
         }
 
@@ -88,7 +85,7 @@ namespace TOR {
             telekinesis = teleGrabber;
         }
 
-        public void ExecuteAction(string action, Interactor interactor = null) {
+        public void ExecuteAction(string action, RagdollHand interactor = null) {
             if (action == "arm") {
                 Arm(interactor);
             } else if (action == "toggleSlider") {
@@ -96,12 +93,12 @@ namespace TOR {
             }
         }
 
-        public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
+        public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
             // If priamry hold action available
             if (!string.IsNullOrEmpty(module.gripPrimaryActionHold)) {
                 // start primary control timer
                 if (action == Interactable.Action.UseStart) {
-                    primaryControlHoldTime = TORGlobalSettings.ControlsHoldDuration;
+                    primaryControlHoldTime = GlobalSettings.ControlsHoldDuration;
                 } else if (action == Interactable.Action.UseStop) {
                     // if not held for long run standard action
                     if (primaryControlHoldTime > 0 && primaryControlHoldTime > (primaryControlHoldTime / 2)) {
@@ -115,7 +112,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.gripSecondaryActionHold)) {
                 // start secondary control timer
                 if (action == Interactable.Action.AlternateUseStart) {
-                    secondaryControlHoldTime = TORGlobalSettings.ControlsHoldDuration;
+                    secondaryControlHoldTime = GlobalSettings.ControlsHoldDuration;
                 } else if (action == Interactable.Action.AlternateUseStop) {
                     // if not held for long run standard action
                     if (secondaryControlHoldTime > 0 && secondaryControlHoldTime > (secondaryControlHoldTime / 2)) {
@@ -126,7 +123,7 @@ namespace TOR {
             } else if (action == Interactable.Action.AlternateUseStart) ExecuteAction(module.gripSecondaryAction, interactor);
         }
 
-        public void Arm(Interactor interactor = null) {
+        public void Arm(RagdollHand interactor = null) {
             if (isOpen) {
                 isArmed = !isArmed;
                 if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
@@ -149,7 +146,7 @@ namespace TOR {
             var pos = transform.position;
             var colliders = Physics.OverlapSphere(pos, module.radius);
             var damage = new CollisionStruct(new DamageStruct(DamageType.Energy, module.damage), null, null);
-            var creatures = new FastList<Creature>();
+            var creatures = new List<Creature>();
             var layerMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
             var creatureMask = ~((1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
 
@@ -164,11 +161,11 @@ namespace TOR {
                     rb.AddExplosionForce(module.impuse * multiplier, pos, module.radius, 1.0f);
                     var creature = hit.transform.GetComponentInParent<Creature>();
                     if (creature) {
-                        if (creature != Player.local.body.creature) {
+                        if (creature != Player.local.creature) {
                             var rp = hit.GetComponent<RagdollPart>() ?? hit.GetComponentInParent<RagdollPart>();
-                            if (rp && rp.partData != null && validBones.ContainsKey(rp.partData.bone) && validBones[rp.partData.bone] < multiplier) {
+                            if (rp && rp.sliceAllowed && validParts.ContainsKey(rp.type) && validParts[rp.type] < multiplier) {
                                 try {
-                                    creature.ragdoll.Slice(rp.partData.bone);
+                                    rp.Slice();
                                 }
                                 catch { }
                             }
@@ -176,7 +173,7 @@ namespace TOR {
                         if (!creatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
                             creatures.Add(creature);
                             damage.damageStruct.damage = module.damage * multiplier;
-                            creature.health.Damage(ref damage);
+                            creature.Damage(ref damage);
                         }
                     }
                 }
@@ -191,7 +188,7 @@ namespace TOR {
             item.Despawn(1.5f);
         }
 
-        public void ToggleSlider(Interactor interactor = null) {
+        public void ToggleSlider(RagdollHand interactor = null) {
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
             isOpen = !isOpen;
             animator.SetTrigger(isOpen ? "open" : "close");
@@ -224,6 +221,7 @@ namespace TOR {
             if (beep[0]) beepSound1.Play();
             if (beep[1]) beepSound2.Play();
             if (beep[2]) beepSound3.Play();
+            lastBeep = beep;
         }
 
         void Update() {

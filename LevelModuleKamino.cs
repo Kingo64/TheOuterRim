@@ -1,18 +1,17 @@
 ﻿using ThunderRoad;
 using UnityEngine;
-using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 namespace TOR {
     public class LevelModuleKamino : LevelModule {
         public bool rainEnabled = true;
         public float rainDensity = 1f;
+        public bool rainPhysics = true;
         Transform rainTrans;
         RainController rainController;
-        List<Zone> weatherOn = new List<Zone>();
-        List<Zone> weatherOff = new List<Zone>();
 
-        public override void OnLevelLoaded(LevelDefinition levelDefinition) {
+        public override IEnumerator OnLoadCoroutine(Level levelDefinition) {
             rainTrans = levelDefinition.customReferences.Find(x => x.name == "Rain").transforms[0];
 
             if (rainEnabled) {
@@ -21,6 +20,11 @@ namespace TOR {
                 foreach (var emitter in emitters) {
                     var emission = emitter.emission;
                     emission.rateOverTime = new ParticleSystem.MinMaxCurve(emission.rateOverTime.constantMin * Mathf.Abs(rainDensity), emission.rateOverTime.constantMax * Mathf.Abs(rainDensity));
+
+                    if (!rainPhysics) {
+                        var col = emitter.collision;
+                        col.enabled = false;
+                    }
                 }
             } else {
                 var objs = Object.FindObjectsOfType(typeof(GameObject)).Select(g => g as GameObject).Where(g => g.name.Contains("Rain Surface"));
@@ -28,8 +32,8 @@ namespace TOR {
                 rainTrans.gameObject.SetActive(false);
             }
             levelDefinition.customReferences.Find(x => x.name == "Sky").transforms[0].gameObject.AddComponent<SkyController>();
-            EventManager.onPlayerSpawned += OnPlayerSpawned;
-            initialized = true;
+            EventManager.onPlayerSpawn += OnPlayerSpawned;
+            yield break;
         }
 
         void OnPlayerSpawned(Player player) {
@@ -38,9 +42,8 @@ namespace TOR {
             }
         }
 
-        public override void OnLevelUnloaded(LevelDefinition levelDefinition) {
-            EventManager.onPlayerSpawned -= OnPlayerSpawned;
-            initialized = false;
+        public override void OnUnload(Level level) {
+            EventManager.onPlayerSpawn -= OnPlayerSpawned;
         }
 
     }

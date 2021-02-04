@@ -2,6 +2,7 @@
 using UnityEngine.UI;
 using ThunderRoad;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace TOR {
     public class ItemBactaStim : MonoBehaviour {
@@ -19,38 +20,59 @@ namespace TOR {
         AudioSource injectSound;
         AudioSource rechargeSound;
 
-        HashSet<ColliderGroup> playerColliders = new HashSet<ColliderGroup>();
+        HashSet<Collider> playerColliders = new HashSet<Collider>();
 
         protected void Awake() {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBactaStim>();
 
-            for (int i = 0, l = item.definition.collisionHandlers.Count; i < l; i++) {
-                item.definition.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
+                item.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
             }
 
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
 
-            tip = item.definition.GetCustomReference("Tip").GetComponent<Collider>();
-            light = item.definition.GetCustomReference("Light").GetComponent<Light>();
-            text = item.definition.GetCustomReference("Text").GetComponent<Text>();
-            injectSound = item.definition.GetCustomReference("InjectSound").GetComponent<AudioSource>();
-            rechargeSound = item.definition.GetCustomReference("RechargeSound").GetComponent<AudioSource>();
+            tip = item.GetCustomReference("Tip").GetComponent<Collider>();
+            light = item.GetCustomReference("Light").GetComponent<Light>();
+            text = item.GetCustomReference("Text").GetComponent<Text>();
+            injectSound = item.GetCustomReference("InjectSound").GetComponent<AudioSource>();
+            rechargeSound = item.GetCustomReference("RechargeSound").GetComponent<AudioSource>();
 
             light.enabled = false;
             text.enabled = false;
+
+            var coroutine = GetPlayerColliders();
+            StartCoroutine(coroutine);
         }
 
-        public void OnGrabEvent(Handle handle, Interactor interactor) {
-            healer = interactor.bodyHand.body.creature;
+        private IEnumerator GetPlayerColliders() {
+            while (Player.local && playerColliders.Count < 1) {
+                try {
+                    playerColliders.UnionWith(Player.local.handLeft.ragdollHand.colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.local.handRight.ragdollHand.colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.Neck).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.LeftArm).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.RightArm).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.LeftLeg).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.RightLeg).colliderGroup.colliders);
+                    yield break;
+                }
+                catch { }
+                yield return new WaitForSeconds(1f);
+            }
+            yield break;
+        }
+
+        public void OnGrabEvent(Handle handle, RagdollHand interactor) {
+            healer = interactor.creature;
             holdingRight |= interactor.playerHand == Player.local.handRight;
             holdingLeft |= interactor.playerHand == Player.local.handLeft;
             light.enabled = true;
             text.enabled = true;
         }
 
-        public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
+        public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             healer = null;
             holdingRight &= interactor.playerHand == Player.local.handRight;
             holdingLeft &= interactor.playerHand == Player.local.handLeft;
@@ -59,12 +81,8 @@ namespace TOR {
         }
 
         void CollisionHandler(ref CollisionStruct collisionInstance) {
-            if (collisionInstance.sourceCollider == tip || collisionInstance.targetCollider == tip) {
+            if (item.IsHanded(null) && (collisionInstance.sourceCollider == tip || collisionInstance.targetCollider == tip)) {
                 if (currentCharge >= 100) {
-                    if (playerColliders.Contains(collisionInstance.targetColliderGroup) || playerColliders.Contains(collisionInstance.sourceColliderGroup)) {
-                        Heal(Player.local.body.creature);
-                        return;
-                    }
                     var ragdollPart = collisionInstance.targetColliderGroup?.collisionHandler?.ragdollPart ?? collisionInstance.sourceColliderGroup?.collisionHandler?.ragdollPart;
                     if (ragdollPart) {
                         var creature = ragdollPart.ragdoll.creature;
@@ -75,8 +93,14 @@ namespace TOR {
             }
         }
 
+        void OnTriggerEnter(Collider other) {
+            if (currentCharge >= 100 && playerColliders.Contains(other)) {
+               Heal(Player.local.creature);
+            }
+        }
+
         void Heal(Creature creature) {
-            if (creature && currentCharge >= 100) {
+            if (creature && currentCharge >= 100 && creature.currentHealth < creature.maxHealth) {
                 injectSound.Play();
                 BactaStimHeal heal = creature.gameObject.AddComponent<BactaStimHeal>();
                 heal.healAmount = module.healAmount;
@@ -89,14 +113,6 @@ namespace TOR {
         }
 
         void Update() {
-            if (Player.local && playerColliders.Count < 1) {
-                try {
-                    playerColliders.UnionWith(Player.local.GetHand(Side.Left).itemHand.item.definition.colliderGroups);
-                    playerColliders.UnionWith(Player.local.GetHand(Side.Right).itemHand.item.definition.colliderGroups);
-                }
-                catch { }
-            }
-
             if (currentCharge < 100) {
                 currentCharge = Mathf.Clamp(currentCharge + (module.chargeRate * Time.deltaTime), 0, 100);
                 text.text = Mathf.RoundToInt(currentCharge).ToString();
@@ -114,8 +130,8 @@ namespace TOR {
         float duration;
 
         void Update() {
-            if (creature == null || creature.state == Creature.State.Dead || duration >= healDuration || creature.health.currentHealth >= creature.health.maxHealth) Destroy(this);
-            creature.health.Heal(healAmount * Time.deltaTime, healer);
+            if (creature == null || creature.state == Creature.State.Dead || duration >= healDuration || creature.currentHealth >= creature.maxHealth) Destroy(this);
+            creature.Heal(healAmount * Time.deltaTime, healer);
             duration += Time.deltaTime;
         }
     }

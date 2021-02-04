@@ -11,19 +11,19 @@ namespace TOR {
         Terrain terrain;
         Transform pollenTrans;
 
-        public override void OnLevelLoaded(LevelDefinition levelDefinition) {
-            EventManager.onPlayerSpawned += OnPlayerSpawned;
-            pollenTrans = levelDefinition.customReferences.Find(x => x.name == "Pollen").transforms[0];
-            var springs = levelDefinition.customReferences.Find(x => x.name == "Springs").transforms[0];
+        public override IEnumerator OnLoadCoroutine(Level level) {
+            EventManager.onPlayerSpawn += OnPlayerSpawned;
+            pollenTrans = level.customReferences.Find(x => x.name == "Pollen").transforms[0];
+            var springs = level.customReferences.Find(x => x.name == "Springs").transforms[0];
             foreach (Transform child in springs) {
                 child.gameObject.AddComponent<SpringController>();
             }
-            var sky = levelDefinition.customReferences.Find(x => x.name == "Sky").transforms[0].gameObject.AddComponent<SkyController>();
+            var sky = level.customReferences.Find(x => x.name == "Sky").transforms[0].gameObject.AddComponent<SkyController>();
             sky.speed = 0.25f;
-            terrain = levelDefinition.customReferences.Find(x => x.name == "Terrain").transforms[0].GetComponent<Terrain>();
+            terrain = level.customReferences.Find(x => x.name == "Terrain").transforms[0].GetComponent<Terrain>();
             terrain.detailObjectDensity = Mathf.Clamp(grassDensity, 0, 1);
             terrain.detailObjectDistance = Mathf.Abs(grassDistance);
-            initialized = true;
+            yield break;
         }
 
         void OnPlayerSpawned(Player player) {
@@ -35,9 +35,8 @@ namespace TOR {
             }
         }
 
-        public override void OnLevelUnloaded(LevelDefinition levelDefinition) {
-            EventManager.onPlayerSpawned -= OnPlayerSpawned;
-            initialized = false;
+        public override void OnUnload(Level level) {
+            EventManager.onPlayerSpawn -= OnPlayerSpawned;
         }
     }
 
@@ -46,7 +45,7 @@ namespace TOR {
         AudioSource[] sounds;
         GameObject zone;
         float waitTime;
-        float radius = 0.5f;
+        readonly float radius = 0.5f;
 
         void Awake() {
             var steam = transform.Find("Steam");

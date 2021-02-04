@@ -15,9 +15,9 @@ namespace TOR {
         public List<ItemComlink.FactionData> factions = new List<ItemComlink.FactionData>();
         public List<ItemComlink.ReinforcementData> reinforcements = new List<ItemComlink.ReinforcementData>();
 
-        public override void OnItemDataRefresh() {
-            base.OnItemDataRefresh();
-            if (!string.IsNullOrEmpty(useSound)) useSoundAsset = CatalogData.GetPrefab<AudioContainer>("", useSound);
+        public override void OnItemDataRefresh(ItemPhysic data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(useSound)) Catalog.LoadAssetAsync<AudioContainer>(useSound, ac => useSoundAsset = ac, null);
         }
 
         public override void OnItemLoaded(Item item) {

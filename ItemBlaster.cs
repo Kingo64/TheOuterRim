@@ -2,6 +2,7 @@
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 namespace TOR {
     public class ItemBlaster : MonoBehaviour {
@@ -9,9 +10,9 @@ namespace TOR {
         protected ItemModuleBlaster module;
 
         protected Rigidbody body;
-        protected Interactor rightInteractor;
-        protected Interactor leftInteractor;
-        public Interactor overrideInteractor;
+        protected RagdollHand rightInteractor;
+        protected RagdollHand leftInteractor;
+        public RagdollHand overrideInteractor;
         protected AudioSource altFireSound;
         protected AudioSource altFireSound2;
         protected AudioSource chargeFireSound;
@@ -117,7 +118,6 @@ namespace TOR {
         float aiOriginalMeleeDistMult;
         float aiOriginalParryDetectionRadius;
         float aiOriginalParryMaxDist;
-        float aiElevationSpeed;
         const int aiMask = ~(1 << 0);
 
         protected void Awake() {
@@ -126,44 +126,44 @@ namespace TOR {
             body = GetComponent<Rigidbody>();
 
             // setup custom references
-            if (!string.IsNullOrEmpty(module.altFireSoundID)) altFireSound = item.definition.GetCustomReference(module.altFireSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.altFireSoundID2)) altFireSound2 = item.definition.GetCustomReference(module.altFireSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeFireSoundID)) chargeFireSound = item.definition.GetCustomReference(module.chargeFireSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeFireSoundID2)) chargeFireSound2 = item.definition.GetCustomReference(module.chargeFireSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeFireSoundID3)) chargeFireSound3 = item.definition.GetCustomReference(module.chargeFireSoundID3).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeSoundID)) chargeSound = item.definition.GetCustomReference(module.chargeSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeSoundID2)) chargeSound2 = item.definition.GetCustomReference(module.chargeSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeReadySoundID)) chargeReadySound = item.definition.GetCustomReference(module.chargeReadySoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeReadySoundID2)) chargeReadySound2 = item.definition.GetCustomReference(module.chargeReadySoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeStartSoundID)) chargeStartSound = item.definition.GetCustomReference(module.chargeStartSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.chargeStartSoundID2)) chargeStartSound2 = item.definition.GetCustomReference(module.chargeStartSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.emptySoundID)) emptySound = item.definition.GetCustomReference(module.emptySoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.emptySoundID2)) emptySound2 = item.definition.GetCustomReference(module.emptySoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.fireSoundID)) fireSound = item.definition.GetCustomReference(module.fireSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.fireSoundID2)) fireSound2 = item.definition.GetCustomReference(module.fireSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.fireSoundID3)) fireSound3 = item.definition.GetCustomReference(module.fireSoundID3).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.fireModeSoundID)) fireModeSound = item.definition.GetCustomReference(module.fireModeSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.fireModeSoundID2)) fireModeSound2 = item.definition.GetCustomReference(module.fireModeSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.overheatSoundID)) overheatSound = item.definition.GetCustomReference(module.overheatSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.overheatSoundID2)) overheatSound2 = item.definition.GetCustomReference(module.overheatSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.preFireSoundID)) preFireSound = item.definition.GetCustomReference(module.preFireSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.preFireSoundID2)) preFireSound2 = item.definition.GetCustomReference(module.preFireSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.reloadSoundID)) reloadSound = item.definition.GetCustomReference(module.reloadSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.reloadSoundID2)) reloadSound2 = item.definition.GetCustomReference(module.reloadSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.reloadEndSoundID)) reloadEndSound = item.definition.GetCustomReference(module.reloadEndSoundID).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.reloadEndSoundID2)) reloadEndSound2 = item.definition.GetCustomReference(module.reloadEndSoundID2).GetComponent<AudioSource>();
-            if (!string.IsNullOrEmpty(module.altFireEffectID)) altFireEffect = item.definition.GetCustomReference(module.altFireEffectID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.ammoDisplayID)) ammoDisplay = item.definition.GetCustomReference(module.ammoDisplayID).GetComponent<Text>();
-            if (!string.IsNullOrEmpty(module.chargeEffectID)) chargeEffect = item.definition.GetCustomReference(module.chargeEffectID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.fireEffectID)) fireEffect = item.definition.GetCustomReference(module.fireEffectID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.preFireEffectID)) preFireEffect = item.definition.GetCustomReference(module.preFireEffectID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.overheatEffectID)) overheatEffect = item.definition.GetCustomReference(module.overheatEffectID).GetComponent<ParticleSystem>();
-            if (!string.IsNullOrEmpty(module.gunGripID)) gunGrip = item.definition.GetCustomReference(module.gunGripID).GetComponent<Handle>();
-            if (!string.IsNullOrEmpty(module.foreGripID)) foreGrip = item.definition.GetCustomReference(module.foreGripID).GetComponent<Handle>();
-            if (!string.IsNullOrEmpty(module.scopeGripID)) scopeGrip = item.definition.GetCustomReference(module.scopeGripID).GetComponent<Handle>();
-            if (!string.IsNullOrEmpty(module.secondaryGripID)) secondaryGrip = item.definition.GetCustomReference(module.secondaryGripID).GetComponent<Handle>();
+            if (!string.IsNullOrEmpty(module.altFireSoundID)) altFireSound = item.GetCustomReference(module.altFireSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.altFireSoundID2)) altFireSound2 = item.GetCustomReference(module.altFireSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeFireSoundID)) chargeFireSound = item.GetCustomReference(module.chargeFireSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeFireSoundID2)) chargeFireSound2 = item.GetCustomReference(module.chargeFireSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeFireSoundID3)) chargeFireSound3 = item.GetCustomReference(module.chargeFireSoundID3).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeSoundID)) chargeSound = item.GetCustomReference(module.chargeSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeSoundID2)) chargeSound2 = item.GetCustomReference(module.chargeSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeReadySoundID)) chargeReadySound = item.GetCustomReference(module.chargeReadySoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeReadySoundID2)) chargeReadySound2 = item.GetCustomReference(module.chargeReadySoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeStartSoundID)) chargeStartSound = item.GetCustomReference(module.chargeStartSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.chargeStartSoundID2)) chargeStartSound2 = item.GetCustomReference(module.chargeStartSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.emptySoundID)) emptySound = item.GetCustomReference(module.emptySoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.emptySoundID2)) emptySound2 = item.GetCustomReference(module.emptySoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.fireSoundID)) fireSound = item.GetCustomReference(module.fireSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.fireSoundID2)) fireSound2 = item.GetCustomReference(module.fireSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.fireSoundID3)) fireSound3 = item.GetCustomReference(module.fireSoundID3).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.fireModeSoundID)) fireModeSound = item.GetCustomReference(module.fireModeSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.fireModeSoundID2)) fireModeSound2 = item.GetCustomReference(module.fireModeSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.overheatSoundID)) overheatSound = item.GetCustomReference(module.overheatSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.overheatSoundID2)) overheatSound2 = item.GetCustomReference(module.overheatSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.preFireSoundID)) preFireSound = item.GetCustomReference(module.preFireSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.preFireSoundID2)) preFireSound2 = item.GetCustomReference(module.preFireSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.reloadSoundID)) reloadSound = item.GetCustomReference(module.reloadSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.reloadSoundID2)) reloadSound2 = item.GetCustomReference(module.reloadSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.reloadEndSoundID)) reloadEndSound = item.GetCustomReference(module.reloadEndSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.reloadEndSoundID2)) reloadEndSound2 = item.GetCustomReference(module.reloadEndSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.altFireEffectID)) altFireEffect = item.GetCustomReference(module.altFireEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.ammoDisplayID)) ammoDisplay = item.GetCustomReference(module.ammoDisplayID).GetComponent<Text>();
+            if (!string.IsNullOrEmpty(module.chargeEffectID)) chargeEffect = item.GetCustomReference(module.chargeEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.fireEffectID)) fireEffect = item.GetCustomReference(module.fireEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.preFireEffectID)) preFireEffect = item.GetCustomReference(module.preFireEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.overheatEffectID)) overheatEffect = item.GetCustomReference(module.overheatEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.gunGripID)) gunGrip = item.GetCustomReference(module.gunGripID).GetComponent<Handle>();
+            if (!string.IsNullOrEmpty(module.foreGripID)) foreGrip = item.GetCustomReference(module.foreGripID).GetComponent<Handle>();
+            if (!string.IsNullOrEmpty(module.scopeGripID)) scopeGrip = item.GetCustomReference(module.scopeGripID).GetComponent<Handle>();
+            if (!string.IsNullOrEmpty(module.secondaryGripID)) secondaryGrip = item.GetCustomReference(module.secondaryGripID).GetComponent<Handle>();
             if (module.bulletSpawnIDs != null) {
-                bulletSpawns = module.bulletSpawnIDs.Select(id => item.definition.GetCustomReference(id)).ToArray();
+                bulletSpawns = module.bulletSpawnIDs.Select(id => item.GetCustomReference(id)).ToArray();
             }
 
             // setup item events
@@ -193,25 +193,25 @@ namespace TOR {
             }
 
             if (chargeEffect) {
-                chargeEffectTrans = item.definition.GetCustomReference(module.chargeEffectID);
+                chargeEffectTrans = item.GetCustomReference(module.chargeEffectID);
                 originalChargeEffectScale = chargeEffectTrans.localScale;
             }
 
-            item.definition.TryGetSavedValue("ammo", out string foundAmmo);
+            item.TryGetSavedValue("ammo", out string foundAmmo);
             if (!int.TryParse(foundAmmo, out ammoLeft)) {
                 ammoLeft = module.magazineSize;
                 UpdateAmmoDisplay();
             }
 
-            item.definition.TryGetSavedValue("altFire", out string foundAltFire);
+            item.TryGetSavedValue("altFire", out string foundAltFire);
             bool.TryParse(foundAltFire, out altFireEnabled);
-            item.definition.TryGetSavedValue("firerate", out string foundFirerate);
+            item.TryGetSavedValue("firerate", out string foundFirerate);
             int.TryParse(foundFirerate, out currentFirerateIndex);
-            item.definition.TryGetSavedValue("firemode", out string foundFiremode);
+            item.TryGetSavedValue("firemode", out string foundFiremode);
             int.TryParse(foundFiremode, out currentFiremodeIndex);
-            item.definition.TryGetSavedValue("scopeZoom", out string foundScopeZoom);
+            item.TryGetSavedValue("scopeZoom", out string foundScopeZoom);
             int.TryParse(foundScopeZoom, out currentScopeZoom);
-            item.definition.TryGetSavedValue("projectileID", out string foundProjectile);
+            item.TryGetSavedValue("projectileID", out string foundProjectile);
 
             if (!string.IsNullOrEmpty(module.projectileID)) projectileData = Catalog.GetData<ItemPhysic>(!string.IsNullOrEmpty(foundProjectile) ? foundProjectile : module.projectileID, true);
             if (projectileData != null) boltModule = projectileData.GetModule<ItemModuleBlasterBolt>();
@@ -230,7 +230,6 @@ namespace TOR {
             currentFirerate = module.gunRPM[currentFirerateIndex];
             currentInstability = module.handlingBaseAccuracy;
             aiBurstAmount = Mathf.Abs(module.fireModes.Max());
-            aiElevationSpeed = 10 / Mathf.Sqrt(item.data.mass);
 
             UpdateFireEffectColour();
         }
@@ -253,7 +252,7 @@ namespace TOR {
             if (module.fireEffectUseBoltHue && fireEffect) {
                 var activeBoltModule = GetActiveBoltModule();
                 if (activeBoltModule == null) return;
-                var fireEffectTrans = item.definition.GetCustomReference(module.fireEffectID);
+                var fireEffectTrans = item.GetCustomReference(module.fireEffectID);
                 _UpdateFireEffectColour(fireEffectTrans, activeBoltModule.boltHue);
                 _updateRecursively(fireEffectTrans, activeBoltModule.boltHue);
 
@@ -286,19 +285,18 @@ namespace TOR {
 
         void SetupScope() {
             if (module.hasScope == false) return;
-            var scopeTransform = item.definition.GetCustomReference(module.scopeID);
+            var scopeTransform = item.GetCustomReference(module.scopeID);
             if (scopeTransform) {
                 scope = scopeTransform.GetComponent<Renderer>();
                 originalScopeMaterial = scope.materials[0];
                 scopeMaterial = scope.materials[1];
                 scope.materials = new Material[] { originalScopeMaterial };
-
-                scopeCamera = item.definition.GetCustomReference(module.scopeCameraID).GetComponent<Camera>();
+                scopeCamera = item.GetCustomReference(module.scopeCameraID).GetComponent<Camera>();
                 scopeCamera.enabled = false;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
                 renderScopeTexture = new RenderTexture(
-                    module.scopeResolution != null ? module.scopeResolution[0] : TORGlobalSettings.BlasterScopeResolution[0],
-                    module.scopeResolution != null ? module.scopeResolution[1] : TORGlobalSettings.BlasterScopeResolution[1],
+                    module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution[0],
+                    module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution[1],
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
                 renderScopeTexture.Create();
                 scopeCamera.targetTexture = renderScopeTexture;
@@ -334,7 +332,7 @@ namespace TOR {
             scope.material = originalScopeMaterial;
         }
 
-        void CycleFiremode(Interactor interactor = null) {
+        void CycleFiremode(RagdollHand interactor = null) {
             if (module.fireModes.Length > 1) {
                 currentFiremodeIndex = (currentFiremodeIndex >= module.fireModes.Length - 1) ? -1 : currentFiremodeIndex;
                 currentFiremode = module.fireModes[++currentFiremodeIndex];
@@ -344,7 +342,7 @@ namespace TOR {
             }
         }
 
-        void CycleFirerate(Interactor interactor = null) {
+        void CycleFirerate(RagdollHand interactor = null) {
             if (module.gunRPM.Length > 1) {
                 currentFirerateIndex = (currentFirerateIndex >= module.gunRPM.Length - 1) ? -1 : currentFirerateIndex;
                 currentFirerate = module.gunRPM[++currentFirerateIndex];
@@ -354,7 +352,7 @@ namespace TOR {
             }
         }
 
-        void CycleScope(Interactor interactor = null) {
+        void CycleScope(RagdollHand interactor = null) {
             if (scope == null || scopeCamera == null) return;
             currentScopeZoom = (currentScopeZoom >= module.scopeZoom.Length - 1) ? -1 : currentScopeZoom;
             scopeCamera.fieldOfView = module.scopeZoom[++currentScopeZoom];
@@ -363,7 +361,7 @@ namespace TOR {
             if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        void ResetScope(Interactor interactor = null) {
+        void ResetScope(RagdollHand interactor = null) {
             if (scope == null || scopeCamera == null) return;
             currentScopeZoom = 0;
             scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
@@ -372,7 +370,7 @@ namespace TOR {
             if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        void ToggleAltFire(Interactor interactor = null) {
+        void ToggleAltFire(RagdollHand interactor = null) {
             ChargedFireStop();
             altFireEnabled = !altFireEnabled;
             UpdateFireEffectColour();
@@ -387,25 +385,25 @@ namespace TOR {
             if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
         }
 
-        public void OnGrabEvent(Handle handle, Interactor interactor) {
+        public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             // toggle scope for performance reasons
             if (module.hasScope && interactor.playerHand) EnableScopeRender();
         }
 
-        public void OnUngrabEvent(Handle handle, Interactor interactor, bool throwing) {
+        public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             // toggle scope for performance reasons
             if (module.hasScope) DisableScopeRender();
         }
         
-        public void OnSnapEvent(ObjectHolder holder) {
-            item.definition.SetSavedValue("ammo", ammoLeft.ToString());
-            item.definition.SetSavedValue("firemode", currentFiremodeIndex.ToString());
-            item.definition.SetSavedValue("firerate", currentFirerateIndex.ToString());
-            item.definition.SetSavedValue("altFire", altFireEnabled.ToString());
-            if (module.hasScope) item.definition.SetSavedValue("scopeZoom", currentScopeZoom.ToString());
+        public void OnSnapEvent(Holder holder) {
+            item.SetSavedValue("ammo", ammoLeft.ToString());
+            item.SetSavedValue("firemode", currentFiremodeIndex.ToString());
+            item.SetSavedValue("firerate", currentFirerateIndex.ToString());
+            item.SetSavedValue("altFire", altFireEnabled.ToString());
+            if (module.hasScope) item.SetSavedValue("scopeZoom", currentScopeZoom.ToString());
         }
 
-        public void ExecuteAction(string action, Interactor interactor = null) {
+        public void ExecuteAction(string action, RagdollHand interactor = null) {
             if (action == "cycleScope") CycleScope(interactor);
             else if (action == "cycleFiremode") CycleFiremode(interactor);
             else if (action == "cycleFirerate") CycleFirerate(interactor);
@@ -421,7 +419,7 @@ namespace TOR {
             else if (action == "toggleAltFire") ToggleAltFire(interactor);
         }
 
-        public void OnHeldAction(Interactor interactor, Handle handle, Interactable.Action action) {
+        public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
             if (handle == gunGrip) {
                 HandleControl(interactor, action, true, module.gunGripPrimaryAction, module.gunGripPrimaryActionHold, ref gunGripControlPrimaryHoldTime);
                 HandleControl(interactor, action, false, module.gunGripSecondaryAction, module.gunGripSecondaryActionHold, ref gunGripControlSecondaryHoldTime);
@@ -445,7 +443,7 @@ namespace TOR {
             }
         }
 
-        public void HandleControl(Interactor interactor, Interactable.Action action, bool isPrimary, string controlAction, string controlActionHold, ref float controlHoldTime) {
+        public void HandleControl(RagdollHand interactor, Interactable.Action action, bool isPrimary, string controlAction, string controlActionHold, ref float controlHoldTime) {
             var startAction = isPrimary ? Interactable.Action.UseStart : Interactable.Action.AlternateUseStart;
             var stopAction = isPrimary ? Interactable.Action.UseStop : Interactable.Action.AlternateUseStop;
 
@@ -465,7 +463,7 @@ namespace TOR {
 
             if (!string.IsNullOrEmpty(controlActionHold)) {
                 if (action == startAction) {
-                    controlHoldTime = TORGlobalSettings.ControlsHoldDuration;
+                    controlHoldTime = GlobalSettings.ControlsHoldDuration;
                 } else if (action == stopAction) {
                     if (controlHoldTime > 0 && controlHoldTime > (controlHoldTime / 2)) {
                         ExecuteAction(controlAction, interactor);
@@ -477,13 +475,13 @@ namespace TOR {
             }
         }
 
-        public void OnGripGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             holdingGunGripRight = interactor.playerHand == Player.local.handRight;
             holdingGunGripLeft = interactor.playerHand == Player.local.handLeft;
 
             if (!holdingGunGripLeft && !holdingGunGripRight) {
-                currentAI = interactor.bodyHand.body.creature;
-                currentAIBrain = (BrainHuman)currentAI.brain;
+                currentAI = interactor.creature;
+                currentAIBrain = (BrainHuman)currentAI.brain.instance;
                 aiOriginalMeleeEnabled = currentAIBrain.meleeEnabled;
                 if (aiOriginalMeleeEnabled) {
                     aiOriginalMeleeDistMult = currentAIBrain.meleeMax;
@@ -502,7 +500,7 @@ namespace TOR {
             }
         }
 
-        public void OnGripUnGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingGunGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingGunGripLeft = false;
 
@@ -514,45 +512,45 @@ namespace TOR {
                     currentAIBrain.parryMaxDistance = aiOriginalParryMaxDist;
                 }
                 if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    currentAI.body.handLeft.interactor.TryRelease();
+                    currentAI.handLeft.TryRelease();
                 }
                 currentAI = null;
             }
             ChargedFireStop();
         }
 
-        public void OnForeGripGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnForeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             holdingForeGripRight = interactor.playerHand == Player.local.handRight;
             holdingForeGripLeft = interactor.playerHand == Player.local.handLeft;
         }
 
-        public void OnForeGripUnGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnForeGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingForeGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingForeGripLeft = false;
 
-            if (currentAI && !currentAI.body.handLeft.interactor.grabbedHandle) {
+            if (currentAI && !currentAI.handLeft.grabbedHandle) {
                 if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
                     aiGrabForegripTime = 1.0f;
                 }
             }
         }
 
-        public void OnScopeGripGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnScopeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             holdingScopeGripRight = interactor.playerHand == Player.local.handRight;
             holdingScopeGripLeft = interactor.playerHand == Player.local.handLeft;
         }
 
-        public void OnScopeGripUnGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnScopeGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingScopeGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingScopeGripLeft = false;
         }
 
-        public void OnSecondaryGripGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnSecondaryGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             holdingSecondaryGripRight = interactor.playerHand == Player.local.handRight;
             holdingSecondaryGripLeft = interactor.playerHand == Player.local.handLeft;
         }
 
-        public void OnSecondaryGripUnGrabbed(Interactor interactor, Handle handle, EventTime eventTime) {
+        public void OnSecondaryGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingSecondaryGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingSecondaryGripLeft = false;
         }
@@ -591,53 +589,53 @@ namespace TOR {
             if (activeProjectileData == null) return;
 
             Transform[] spawns = module.multishot || (isChargedFire && module.chargeMultishot) ? bulletSpawns : new Transform[] { bulletSpawns[0] };
-            FastList<Item> projectileClones = spawns.Length > 1 ? new FastList<Item>() : null;
+            List<Item> projectileClones = spawns.Length > 1 ? new List<Item>() : null;
             foreach (var bulletSpawn in spawns) {
-                var projectile = activeProjectileData.Spawn(true);
-                if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
-                var ignoreHandler = projectile.gameObject.GetComponent<CollisionIgnoreHandler>();
-                if (!ignoreHandler) ignoreHandler = projectile.gameObject.AddComponent<CollisionIgnoreHandler>();
-                ignoreHandler.item = projectile;
-                ignoreHandler.IgnoreCollision(item);
-                if (projectileClones != null) {
-                    if (projectileClones.Count > 0) {
-                        foreach (var toIgnore in projectileClones) {
-                            ignoreHandler.IgnoreCollision(toIgnore);
+                activeProjectileData.SpawnAsync(projectile => {
+                    if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
+                    var ignoreHandler = projectile.gameObject.GetComponent<CollisionIgnoreHandler>();
+                    if (!ignoreHandler) ignoreHandler = projectile.gameObject.AddComponent<CollisionIgnoreHandler>();
+                    ignoreHandler.item = projectile;
+                    ignoreHandler.IgnoreCollision(item);
+                    if (projectileClones != null) {
+                        if (projectileClones.Count > 0) {
+                            foreach (var toIgnore in projectileClones) {
+                                ignoreHandler.IgnoreCollision(toIgnore);
+                            }
+                        }
+                        projectileClones.Add(projectile);
+                    }
+                    try {
+                        var shooter = gunGrip.handlers.First();
+                        foreach (var pt in projectile.parryTargets) {
+                            pt.owner = shooter.creature;
+                            if (!ParryTarget.list.Contains(pt)) ParryTarget.list.Add(pt);
+                        }
+                        projectile.lastHandler = shooter;
+                    }
+                    catch { }
+
+                    foreach (CollisionHandler collisionHandler in projectile.collisionHandlers) {
+                        var useGravity = altFireEnabled ? boltAltModule.useGravity : boltModule.useGravity;
+                        collisionHandler.SetPhysicModifier(this, 0, useGravity ? 1 : 0);
+
+                        foreach (Damager damager in collisionHandler.damagers) {
+                            var activeDamager = GetActiveBoltDamagerData();
+                            if (activeDamager != null) {
+                                damager.data = activeDamager;
+                            }
                         }
                     }
-                    projectileClones.Add(projectile);
-                }
-                try {
-                    var shooter = gunGrip.handlers.First();
-                    foreach (var pt in projectile.parryTargets) {
-                        pt.owner = shooter.bodyHand.body.creature;
-                        if (!ParryTarget.list.Contains(pt)) ParryTarget.list.Add(pt);
-                    }
-                    projectile.lastHandler = shooter;
-                }
-                catch { }
 
-                foreach (CollisionHandler collisionHandler in projectile.definition.collisionHandlers) {
-                    var useGravity = altFireEnabled ? boltAltModule.useGravity : boltModule.useGravity;
-                    collisionHandler.SetPhysicModifier(this, 0, useGravity ? 1 : 0);
-
-                    foreach (Damager damager in collisionHandler.damagers) {
-                        var activeDamager = GetActiveBoltDamagerData();
-                        if (activeDamager != null) {
-                            damager.data = activeDamager;
-                        }
-                    }
-                }
-               
-                // match new projectile inertia with current gun motion inertia
-                var projTransform = projectile.transform;
-                projTransform.position = bulletSpawn.position;
-                projTransform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
-                var projectileBody = projectile.GetComponent<Rigidbody>();
-                projectileBody.velocity = body.velocity;
-                projectile.Throw(1f);
-                projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
-
+                    // match new projectile inertia with current gun motion inertia
+                    var projTransform = projectile.transform;
+                    projTransform.position = bulletSpawn.position;
+                    projTransform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
+                    var projectileBody = projectile.GetComponent<Rigidbody>();
+                    projectileBody.velocity = body.velocity;
+                    projectile.Throw(1f);
+                    projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
+                });
             }
 
             // Apply haptic feedback
@@ -689,7 +687,7 @@ namespace TOR {
             }
         }
 
-        void ChargedFireStart(Interactor interactor = null) {
+        void ChargedFireStart(RagdollHand interactor = null) {
             if (ammoLeft == 0 || isOverheated) {
                 Utils.PlaySound(emptySound, module.emptySoundAsset);
                 Utils.PlaySound(emptySound2, module.emptySoundAsset2);
@@ -751,8 +749,8 @@ namespace TOR {
             }
         }
 
-        void Reload(Interactor interactor = null) {
-            if (!isReloading && !(TORGlobalSettings.BlasterRequireRefill && hasRefillPort && currentAI == null)) {
+        void Reload(RagdollHand interactor = null) {
+            if (!isReloading && !(GlobalSettings.BlasterRequireRefill && hasRefillPort && currentAI == null)) {
                 isReloading = true;
                 ammoLeft = 0;
                 shotsLeftInBurst = 0;
@@ -777,12 +775,12 @@ namespace TOR {
             Utils.PlaySound(reloadEndSound, module.reloadEndSoundAsset);
             Utils.PlaySound(reloadEndSound2, module.reloadEndSoundAsset2);
             Utils.PlayHaptic(holdingGunGripLeft, holdingGunGripRight, Utils.HapticIntensity.Moderate);
-            item.definition.SetSavedValue("ammo", ammoLeft.ToString());
+            item.SetSavedValue("ammo", ammoLeft.ToString());
         }
 
         void RechargeFromPowerCell(string newProjectile) {
             if (!string.IsNullOrEmpty(newProjectile)) {
-                item.definition.SetSavedValue("projectileID", newProjectile);
+                item.SetSavedValue("projectileID", newProjectile);
                 projectileData = Catalog.GetData<ItemPhysic>(newProjectile, true);
                 if (projectileData != null) boltModule = projectileData.GetModule<ItemModuleBlasterBolt>();
                 ChargedFireStop();
@@ -801,7 +799,7 @@ namespace TOR {
         void AIShoot() {
             if (currentAI && currentAIBrain != null && currentAIBrain.targetCreature) {
                 if (!module.aiMeleeEnabled) {
-                    var reach = gunGrip.definition.reach + 3f;
+                    var reach = gunGrip.reach + 3f;
                     currentAIBrain.meleeEnabled = Vector3.SqrMagnitude(body.position - currentAIBrain.targetCreature.transform.position) <= reach * reach;
                 }
                 var aiAimAngle = CalculateInaccuracy(bulletSpawns[0].forward);
@@ -811,7 +809,7 @@ namespace TOR {
                     if (materialHash == 1740652790 || materialHash == 1655722809) {
                         var handles = hit.collider.transform.root.GetComponentsInChildren<Handle>();
                         var handedHandle = handles.FirstOrDefault(handle => handle.IsHanded());
-                        if (handedHandle) target = handedHandle.handlers[0].bodyHand.body.creature;
+                        if (handedHandle) target = handedHandle.handlers[0].creature;
                     } else {
                         target = hit.collider.transform.GetComponentInChildren<Creature>();
                     }
@@ -845,9 +843,9 @@ namespace TOR {
             if (holdTime > 0) {
                 holdTime -= Time.deltaTime;
                 if (holdTime <= 0) {
-                    Interactor interactor = null;
-                    if (holdingLeft) interactor = Player.local.handLeft.bodyHand.interactor;
-                    if (holdingRight) interactor = Player.local.handRight.bodyHand.interactor;
+                    RagdollHand interactor = null;
+                    if (holdingLeft) interactor = Player.local.handLeft.ragdollHand;
+                    if (holdingRight) interactor = Player.local.handRight.ragdollHand;
                     ExecuteAction(action, interactor);
                 }
             }
@@ -918,7 +916,7 @@ namespace TOR {
                     ReloadComplete();
                 }
                 // start reloading if auto and out of ammo
-                else if (ammoLeft == 0 && (module.automaticReload || TORGlobalSettings.BlasterAutomaticReload || currentAI) && !isReloading) Reload();
+                else if (ammoLeft == 0 && (module.automaticReload || GlobalSettings.BlasterAutomaticReload || currentAI) && !isReloading) Reload();
             }
 
             if (chargeTime > 0) {
@@ -939,17 +937,15 @@ namespace TOR {
             if (aiGrabForegripTime > 0) {
                 aiGrabForegripTime -= Time.deltaTime;
                 if (aiGrabForegripTime <= 0 && currentAI) {
-                    currentAI.body.handLeft.interactor.TryRelease();
-                    currentAI.body.handLeft.interactor.Grab(foreGrip);
+                    currentAI.handLeft.TryRelease();
+                    currentAI.handLeft.Grab(foreGrip);
                 }
             }
 
-            if (currentAI && currentAIBrain != null && currentAIBrain.targetCreature && currentAIBrain.defenseCollider) {
-                if (currentAI.state == Creature.State.Alive && !currentAI.IsAnimatorBusy()) {
-                    var pivot = currentAIBrain.defenseCollider.transform;
-                    var direction = (currentAIBrain.targetCreature.transform.position - pivot.position).normalized;
-                    pivot.rotation = Quaternion.Slerp(pivot.rotation, Quaternion.LookRotation(direction), Time.deltaTime * aiElevationSpeed);
-                }
+            if (currentAI && currentAIBrain != null && currentAIBrain.targetCreature) {
+                var pivot = currentAIBrain.defenseCollider.transform;
+                float elevation = Utils.GetElevation(pivot, currentAI.brain.instance.targetCreature.transform);
+                pivot.localEulerAngles = new Vector3(-elevation / 3, pivot.localEulerAngles.y, pivot.localEulerAngles.z);
             }
         }
     }
