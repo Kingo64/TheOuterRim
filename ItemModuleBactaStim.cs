@@ -8,7 +8,7 @@ namespace TOR {
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemBactaStim>();
+            Utils.AddModule<ItemBactaStim>(item.gameObject);
         }
     }
 }

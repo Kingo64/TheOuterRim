@@ -22,7 +22,7 @@ namespace TOR {
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemBinoculars>();
+            Utils.AddModule<ItemBinoculars>(item.gameObject);
         }
     }
 }

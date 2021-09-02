@@ -47,9 +47,13 @@ namespace TOR {
         public static float SaberDeflectAssistDistance { get; private set; }
         public float saberDeflectAssistDistance = 0.2f;
 
-        [Description("Deflect assist will attempt to return bolts to their originating positions"), Category("Lightsabers")]
+        [Description("Deflect assist will attempt to return bolts to the shooter"), Category("Lightsabers")]
         public static bool SaberDeflectAssistAlwaysReturn { get; private set; }
         public bool saberDeflectAssistAlwaysReturn;
+
+        [Description("Saber NPCs will be able to return bolts to the shooter - The regular 'Always Return' must also be enabled"), Category("Lightsabers")]
+        public static bool SaberDeflectAssistAlwaysReturnNPC { get; private set; }
+        public bool saberDeflectAssistAlwaysReturnNPC;
 
         [Description("Reduces instances of lightsabers passing through each other. It uses Unity's most accurate collision detection system available."), Category("Lightsabers")]
         public static bool SaberExpensiveCollisions { get; private set; }
@@ -140,6 +144,7 @@ namespace TOR {
             SaberDeflectAssist = saberDeflectAssist;
             SaberDeflectAssistDistance = Mathf.Abs(saberDeflectAssistDistance);
             SaberDeflectAssistAlwaysReturn = saberDeflectAssistAlwaysReturn;
+            SaberDeflectAssistAlwaysReturnNPC = saberDeflectAssistAlwaysReturnNPC;
             SaberExpensiveCollisions = saberExpensiveCollisions;
             SaberExpensiveCollisionsMinVelocity = Mathf.Abs(saberExpensiveCollisionsMinVelocity);
             SaberNPCAttackSpeed = Mathf.Max(saberNPCAttackSpeed, 0.01f);
@@ -150,6 +155,7 @@ namespace TOR {
             SaberTrailDuration = Mathf.Abs(saberTrailDuration);
             SaberTrailMinVelocity = Mathf.Abs(saberTrailMinVelocity);
             UseLegacyHelmets = useLegacyHelmets;
+
             Debug.Log("The Outer Rim: Settings file loaded successfully");
         }
 
@@ -169,6 +175,7 @@ namespace TOR {
             DebugLogConsole.AddCommand("tor_saber_deflect_assist", GetDescription("SaberDeflectAssist"), (bool enabled) => saberDeflectAssist = SaberDeflectAssist = enabled);
             DebugLogConsole.AddCommand("tor_saber_deflect_assist_distance", GetDescription("SaberDeflectAssistDistance"), (float distance) => saberDeflectAssistDistance = SaberDeflectAssistDistance = distance);
             DebugLogConsole.AddCommand("tor_saber_deflect_assist_always_return", GetDescription("SaberDeflectAssistAlwaysReturn"), (bool enabled) => saberDeflectAssistAlwaysReturn = SaberDeflectAssistAlwaysReturn = enabled);
+            DebugLogConsole.AddCommand("tor_saber_deflect_assist_always_return_npc", GetDescription("SaberDeflectAssistAlwaysReturnNPC"), (bool enabled) => saberDeflectAssistAlwaysReturnNPC = SaberDeflectAssistAlwaysReturnNPC = enabled);
             DebugLogConsole.AddCommand("tor_saber_expensive_collisions", GetDescription("SaberExpensiveCollisions"), (bool enabled) => saberExpensiveCollisions = SaberExpensiveCollisions = enabled);
             DebugLogConsole.AddCommand("tor_saber_expensive_collisions_min_velocity", GetDescription("SaberExpensiveCollisionsMinVelocity"), (float velocity) => saberExpensiveCollisionsMinVelocity = SaberExpensiveCollisionsMinVelocity = velocity);
             DebugLogConsole.AddCommand("tor_saber_npc_attack_speed", GetDescription("SaberNPCAttackSpeed"), (float speed) => saberNPCAttackSpeed = SaberNPCAttackSpeed = speed);
@@ -208,7 +215,7 @@ namespace TOR {
                 SetupHelmet(creature, Catalog.GetData<HolderData>(HAT_HOLDER_NAME, true));
                 var holder = creature.equipment.holders.Find(x => x.name == HAT_HOLDER_NAME);
                 if (holder && holder.HasSlotFree()) {
-                    foreach (ContainerData.Content content in GameManager.playerData.inventory) {
+                    foreach (ContainerData.Content content in Player.characterData.inventory) {
                         if (content.TryGetCustomValue(SavedValueID.Holder.ToString(), out string savedHolder)) {
                             if (savedHolder == HAT_HOLDER_NAME) {
                                 content.Spawn(delegate (Item item) { if (item) holder.Snap(item, true); }, true);
@@ -223,7 +230,7 @@ namespace TOR {
             Debug.Log("The Outer Rim: Configuring pooled creatures");
             var holderNPCHead = Catalog.GetData<HolderData>("HolderNPCHead", true);
             foreach (var id in Constants.CREATURE_IDS.Keys) {
-                var pool = CatalogPooler.pools.Find((CatalogPooler.Pool p) => p.id == id);
+                var pool = CreatureData.pools.Find((CreatureData.Pool p) => p.id == id);
                 if (pool != null) {
                     foreach (var obj in pool.list) {
                         var pooledCreature = obj.GetComponent<Creature>();
@@ -253,8 +260,8 @@ namespace TOR {
             { -1363703833, "ForceSensitiveMale" },
             { -145168602, "ForceSensitiveFemale" },
             { 121048391, "Stormtrooper" },
-            { 190647430, "Gamorrean" },
-            { 519019616, "TuskenRaider" }
+            //{ 190647430, "Gamorrean" },
+            //{ 519019616, "TuskenRaider" }
         };
     }
 }

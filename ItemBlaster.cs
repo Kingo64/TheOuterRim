@@ -39,12 +39,19 @@ namespace TOR {
         protected AudioSource reloadSound2;
         protected AudioSource reloadEndSound;
         protected AudioSource reloadEndSound2;
+        protected AudioSource spinStartSound;
+        protected AudioSource spinStartSound2;
+        protected AudioSource spinLoopSound;
+        protected AudioSource spinLoopSound2;
+        protected AudioSource spinStopSound;
+        protected AudioSource spinStopSound2;
         protected ParticleSystem altFireEffect;
         protected Text ammoDisplay;
         protected ParticleSystem chargeEffect;
         protected ParticleSystem fireEffect;
         protected ParticleSystem preFireEffect;
         protected ParticleSystem overheatEffect;
+        protected Animator spinAnimator;
 
         protected Transform[] bulletSpawns;
         public Handle gunGrip;
@@ -69,8 +76,8 @@ namespace TOR {
         public bool holdingSecondaryGripLeft;
         public bool holdingSecondaryGripRight;
 
-        ItemPhysic projectileData;
-        ItemPhysic projectileAltData;
+        ItemData projectileData;
+        ItemData projectileAltData;
         ItemModuleBlasterBolt boltModule;
         ItemModuleBlasterBolt boltAltModule;
         DamagerData boltDamager;
@@ -90,10 +97,12 @@ namespace TOR {
         float fireDelayTime;
         float fireTime;
         float reloadTime;
+        float spinTime;
         bool isChargedFire;
         bool isDelayingFire;
         bool isOverheated;
         bool isReloading;
+        bool isSpinning;
         bool altFireEnabled;
         Transform chargeEffectTrans;
         Vector3 originalChargeEffectScale;
@@ -118,12 +127,17 @@ namespace TOR {
         float aiOriginalMeleeDistMult;
         float aiOriginalParryDetectionRadius;
         float aiOriginalParryMaxDist;
+        ItemModuleAI.WeaponHandling aiOriginalWeaponHandling;
         const int aiMask = ~(1 << 0);
+
+        ItemModuleAI moduleAI;
 
         protected void Awake() {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlaster>();
             body = GetComponent<Rigidbody>();
+
+            moduleAI = item.data.GetModule<ItemModuleAI>();
 
             // setup custom references
             if (!string.IsNullOrEmpty(module.altFireSoundID)) altFireSound = item.GetCustomReference(module.altFireSoundID).GetComponent<AudioSource>();
@@ -152,12 +166,21 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.reloadSoundID2)) reloadSound2 = item.GetCustomReference(module.reloadSoundID2).GetComponent<AudioSource>();
             if (!string.IsNullOrEmpty(module.reloadEndSoundID)) reloadEndSound = item.GetCustomReference(module.reloadEndSoundID).GetComponent<AudioSource>();
             if (!string.IsNullOrEmpty(module.reloadEndSoundID2)) reloadEndSound2 = item.GetCustomReference(module.reloadEndSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.spinStartSoundID)) spinStartSound = item.GetCustomReference(module.spinStartSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.spinStartSoundID2)) spinStartSound2 = item.GetCustomReference(module.spinStartSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.spinLoopSoundID)) spinLoopSound = item.GetCustomReference(module.spinLoopSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.spinLoopSoundID2)) spinLoopSound2 = item.GetCustomReference(module.spinLoopSoundID2).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.spinStopSoundID)) spinStopSound = item.GetCustomReference(module.spinStopSoundID).GetComponent<AudioSource>();
+            if (!string.IsNullOrEmpty(module.spinStopSoundID2)) spinStopSound2 = item.GetCustomReference(module.spinStopSoundID2).GetComponent<AudioSource>();
+
             if (!string.IsNullOrEmpty(module.altFireEffectID)) altFireEffect = item.GetCustomReference(module.altFireEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.ammoDisplayID)) ammoDisplay = item.GetCustomReference(module.ammoDisplayID).GetComponent<Text>();
             if (!string.IsNullOrEmpty(module.chargeEffectID)) chargeEffect = item.GetCustomReference(module.chargeEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.fireEffectID)) fireEffect = item.GetCustomReference(module.fireEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.preFireEffectID)) preFireEffect = item.GetCustomReference(module.preFireEffectID).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(module.overheatEffectID)) overheatEffect = item.GetCustomReference(module.overheatEffectID).GetComponent<ParticleSystem>();
+            if (!string.IsNullOrEmpty(module.spinAnimatorID)) spinAnimator = item.GetCustomReference(module.spinAnimatorID).GetComponent<Animator>();
+
             if (!string.IsNullOrEmpty(module.gunGripID)) gunGrip = item.GetCustomReference(module.gunGripID).GetComponent<Handle>();
             if (!string.IsNullOrEmpty(module.foreGripID)) foreGrip = item.GetCustomReference(module.foreGripID).GetComponent<Handle>();
             if (!string.IsNullOrEmpty(module.scopeGripID)) scopeGrip = item.GetCustomReference(module.scopeGripID).GetComponent<Handle>();
@@ -213,10 +236,10 @@ namespace TOR {
             int.TryParse(foundScopeZoom, out currentScopeZoom);
             item.TryGetSavedValue("projectileID", out string foundProjectile);
 
-            if (!string.IsNullOrEmpty(module.projectileID)) projectileData = Catalog.GetData<ItemPhysic>(!string.IsNullOrEmpty(foundProjectile) ? foundProjectile : module.projectileID, true);
+            if (!string.IsNullOrEmpty(module.projectileID)) projectileData = Catalog.GetData<ItemData>(!string.IsNullOrEmpty(foundProjectile) ? foundProjectile : module.projectileID, true);
             if (projectileData != null) boltModule = projectileData.GetModule<ItemModuleBlasterBolt>();
 
-            if (!string.IsNullOrEmpty(module.altFireProjectileID)) projectileAltData = Catalog.GetData<ItemPhysic>(module.altFireProjectileID, true);
+            if (!string.IsNullOrEmpty(module.altFireProjectileID)) projectileAltData = Catalog.GetData<ItemData>(module.altFireProjectileID, true);
             if (projectileAltData != null) boltAltModule = projectileAltData.GetModule<ItemModuleBlasterBolt>();
 
             if (!string.IsNullOrEmpty(module.overrideBoltDamager)) boltDamager = Catalog.GetData<DamagerData>(module.overrideBoltDamager, true);
@@ -230,6 +253,8 @@ namespace TOR {
             currentFirerate = module.gunRPM[currentFirerateIndex];
             currentInstability = module.handlingBaseAccuracy;
             aiBurstAmount = Mathf.Abs(module.fireModes.Max());
+            aiOriginalWeaponHandling = moduleAI.weaponHandling;
+            moduleAI.weaponHandling = ItemModuleAI.WeaponHandling.OneHanded;
 
             UpdateFireEffectColour();
         }
@@ -244,7 +269,7 @@ namespace TOR {
             return altFireEnabled ? boltAltModule : boltModule;
         }
 
-        ItemPhysic GetActiveProjectile() {
+        ItemData GetActiveProjectile() {
             return altFireEnabled ? projectileAltData : projectileData;
         }
         
@@ -416,6 +441,7 @@ namespace TOR {
                 }
             } else if (action == "reload") Reload(interactor);
             else if (action == "resetScope") ResetScope(interactor);
+            else if (action == "spinBarrel") SpinStart(interactor);
             else if (action == "toggleAltFire") ToggleAltFire(interactor);
         }
 
@@ -458,6 +484,8 @@ namespace TOR {
                 }
                 if (controlActionHold == "chargedFire") {
                     ChargedFireStop();
+                } else if (controlActionHold == "spinBarrel") {
+                    SpinStop();
                 }
             }
 
@@ -494,8 +522,8 @@ namespace TOR {
                         currentAIBrain.parryMaxDistance = (currentAIBrain.bowDist + 1f) * module.aiShootDistanceMult;
                     }
                 }
-                if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    aiGrabForegripTime = 1.0f;
+                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+                    aiGrabForegripTime = 0.5f;
                 }
             }
         }
@@ -511,12 +539,13 @@ namespace TOR {
                     currentAIBrain.parryDetectionRadius = aiOriginalParryDetectionRadius;
                     currentAIBrain.parryMaxDistance = aiOriginalParryMaxDist;
                 }
-                if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
                     currentAI.handLeft.TryRelease();
                 }
                 currentAI = null;
             }
             ChargedFireStop();
+            SpinStop();
         }
 
         public void OnForeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
@@ -529,8 +558,8 @@ namespace TOR {
             else if (interactor.playerHand == Player.local.handLeft) holdingForeGripLeft = false;
 
             if (currentAI && !currentAI.handLeft.grabbedHandle) {
-                if (item.data.moduleAI.weaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    aiGrabForegripTime = 1.0f;
+                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+                    aiGrabForegripTime = 0.5f;
                 }
             }
         }
@@ -574,6 +603,10 @@ namespace TOR {
         }
 
         public void Fire() {
+            if (module.spinTime > 0) {
+                currentFirerate = module.gunRPM[currentFirerateIndex] * GetSpinSpeed();
+            }
+
             if (ammoLeft == 0 || isOverheated) {
                 Utils.PlaySound(emptySound, module.emptySoundAsset);
                 Utils.PlaySound(emptySound2, module.emptySoundAsset2);
@@ -730,6 +763,24 @@ namespace TOR {
             chargeTime = 0;
         }
 
+        void SpinStart(RagdollHand interactor = null) {
+            isSpinning = true;
+            Utils.PlaySound(spinStartSound, module.spinStartSoundAsset);
+            Utils.PlaySound(spinStartSound2, module.spinStartSoundAsset2);
+        }
+
+        void SpinStop() {
+            if (isSpinning) {
+                Utils.PlaySound(spinStopSound, module.spinStopSoundAsset);
+                Utils.PlaySound(spinStopSound2, module.spinStopSoundAsset2);
+            }
+            isSpinning = false;
+        }
+
+        float GetSpinSpeed() {
+            return Mathf.SmoothStep(0, module.spinSpeedMax, spinTime / module.spinTime);
+        }
+
         void ApplyRecoil() {
             // Add angular + positional recoil to the gun
             if (module.recoilAngle != null) {
@@ -778,10 +829,11 @@ namespace TOR {
             item.SetSavedValue("ammo", ammoLeft.ToString());
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called from BlasterPowerCell")]
         void RechargeFromPowerCell(string newProjectile) {
             if (!string.IsNullOrEmpty(newProjectile)) {
                 item.SetSavedValue("projectileID", newProjectile);
-                projectileData = Catalog.GetData<ItemPhysic>(newProjectile, true);
+                projectileData = Catalog.GetData<ItemData>(newProjectile, true);
                 if (projectileData != null) boltModule = projectileData.GetModule<ItemModuleBlasterBolt>();
                 ChargedFireStop();
                 UpdateFireEffectColour();
@@ -802,7 +854,7 @@ namespace TOR {
                     var reach = gunGrip.reach + 3f;
                     currentAIBrain.meleeEnabled = Vector3.SqrMagnitude(body.position - currentAIBrain.targetCreature.transform.position) <= reach * reach;
                 }
-                var aiAimAngle = CalculateInaccuracy(bulletSpawns[0].forward);
+                var aiAimAngle = CalculateInaccuracy(bulletSpawns[0].forward, false);
                 if (Physics.Raycast(bulletSpawns[0].position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius, aiMask, QueryTriggerInteraction.Ignore)) {
                     Creature target = null;
                     var materialHash = Animator.StringToHash(hit.collider.material.name);
@@ -819,16 +871,20 @@ namespace TOR {
                             shotsLeftInBurst = aiBurstAmount;
                             Fire();
                             aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
+                            if (Random.Range(0f, 1f) < currentAI.data.audioAttackChance) {
+                            if (Random.Range(0f, 1f) < 0.3f) currentAI.speak.PlaySound(CreatureSpeak.Type.AttackMeleeStrong);
+                            else currentAI.speak.PlaySound(CreatureSpeak.Type.AttackMelee);
+                        }
                     }
                 }
             }
         }
 
-        Vector3 CalculateInaccuracy(Vector3 initial) {
-            var baseInaccuracy = new Vector3(
+        Vector3 CalculateInaccuracy(Vector3 initial, bool addCurrent = true) {
+            var baseInaccuracy = addCurrent ? new Vector3(
                         initial.x + Random.Range(-currentInstability, currentInstability),
                         initial.y + Random.Range(-currentInstability, currentInstability),
-                        initial.z);
+                        initial.z) : initial;
             if (currentAIBrain == null) {
                 return baseInaccuracy;
             }
@@ -899,12 +955,18 @@ namespace TOR {
                             Utils.PlaySound(preFireSound, module.preFireSoundAsset);
                             Utils.PlaySound(preFireSound2, module.preFireSoundAsset2);
                             Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
-                        } else {
+                        } 
+                        else if (module.spinTime > 0) {
+                            if (GetSpinSpeed() >= module.spinSpeedMinToFire) {
+                                shotsLeftInBurst = currentFiremode;
+                                Fire();
+                            }
+                        }
+                        else {
                             shotsLeftInBurst = currentFiremode;
                             Fire();
                         }
-                    }
-                    else if (aiShootTime <= 0) { AIShoot(); }
+                    } else if (aiShootTime <= 0) { AIShoot(); }
                 }
             }
             if (telekinesis != null) telekinesis.SetSpinMode(false);
@@ -921,8 +983,8 @@ namespace TOR {
 
             if (chargeTime > 0) {
                 chargeTime -= Time.deltaTime;
-                var adjustedScale = Mathf.Lerp(originalChargeEffectScale.z, originalChargeEffectScale.z * 0.1f, chargeTime / module.chargeTime);
-                var adjustedVolume = Mathf.Lerp(1, 0.2f, chargeTime / module.chargeTime);
+                var adjustedScale = Mathf.SmoothStep(originalChargeEffectScale.z, originalChargeEffectScale.z * 0.1f, chargeTime / module.chargeTime);
+                var adjustedVolume = Mathf.SmoothStep(1, 0.2f, chargeTime / module.chargeTime);
                 chargeEffectTrans.localScale = new Vector3(adjustedScale, adjustedScale, adjustedScale);
                 if (chargeSound) chargeSound.volume = adjustedVolume;
                 if (chargeSound2) chargeSound2.volume = adjustedVolume;
@@ -933,19 +995,64 @@ namespace TOR {
                 }
             }
 
+            // handle spinning barrels
+            if (module.spinTime > 0) {
+                if (!isSpinning && spinTime > 0) {
+                    spinTime -= Time.deltaTime;
+                    if (spinTime <= 0) {
+                        if (spinLoopSound) spinLoopSound.Stop();
+                        if (spinLoopSound2) spinLoopSound2.Stop();
+                    }
+                }
+                if (isSpinning && spinTime < module.spinTime) {
+                    spinTime = Mathf.Clamp(spinTime + Time.deltaTime, 0, module.spinTime);
+                }
+
+                if (isSpinning) {
+                    if (spinLoopSound && !spinLoopSound.isPlaying) Utils.PlaySound(spinLoopSound, module.spinLoopSoundAsset);
+                    if (spinLoopSound2 && !spinLoopSound2.isPlaying) Utils.PlaySound(spinLoopSound2, module.spinLoopSoundAsset2);
+                    Utils.PlayHaptic(holdingGunGripLeft || holdingForeGripLeft, holdingGunGripRight || holdingForeGripRight, Utils.HapticIntensity.Minor);
+                }
+
+                var spinSpeed = GetSpinSpeed();
+                var spinVolume = Mathf.SmoothStep(0, module.spinSpeedMax, spinSpeed);
+                if (spinLoopSound) spinLoopSound.volume = spinVolume;
+                if (spinLoopSound2) spinLoopSound2.volume = spinVolume;
+
+                if (spinAnimator) {
+                    spinAnimator.SetFloat("speed", spinSpeed);
+                }
+            }
+
             // Run AI logic
             if (aiGrabForegripTime > 0) {
                 aiGrabForegripTime -= Time.deltaTime;
                 if (aiGrabForegripTime <= 0 && currentAI) {
                     currentAI.handLeft.TryRelease();
                     currentAI.handLeft.Grab(foreGrip);
+                    currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
+                    currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
                 }
             }
 
-            if (currentAI && currentAIBrain != null && currentAIBrain.targetCreature) {
-                var pivot = currentAIBrain.defenseCollider.transform;
-                float elevation = Utils.GetElevation(pivot, currentAI.brain.instance.targetCreature.transform);
-                pivot.localEulerAngles = new Vector3(-elevation / 3, pivot.localEulerAngles.y, pivot.localEulerAngles.z);
+            if (currentAI && currentAIBrain != null) {
+                if (currentAIBrain.targetCreature) {
+                    var pivot = currentAIBrain.defenseCollider.transform;
+                    float elevation = Utils.GetElevation(pivot, currentAI.brain.instance.targetCreature.transform);
+                    pivot.localEulerAngles = new Vector3(-elevation / 3, pivot.localEulerAngles.y, pivot.localEulerAngles.z);
+
+                    if (module.spinTime > 0) {
+                        if (!isSpinning) {
+                            SpinStart();
+                        }
+                        moduleAI.parryDefaultLeftRotation.x = 30 - (Utils.GetElevation(currentAI.transform, currentAIBrain.targetCreature.transform) * 1.6f);
+                    }
+                } else {
+                    if (module.spinTime > 0) {
+                        SpinStop();
+                        moduleAI.parryDefaultLeftRotation.x = 30;
+                    }
+                }
             }
         }
     }

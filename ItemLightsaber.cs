@@ -18,6 +18,7 @@ namespace TOR {
         bool isHolding;
         public bool isSnapped;
         bool isOpen;
+        float originalMass;
 
         RagdollHand leftInteractor;
         RagdollHand rightInteractor;
@@ -57,6 +58,7 @@ namespace TOR {
             module = item.data.GetModule<ItemModuleLightsaber>();
             body = item.GetComponent<Rigidbody>();
             itemTrans = item.transform;
+            originalMass = body.mass;
 
             if (!string.IsNullOrEmpty(module.animatorId)) animators = item.GetCustomReference(module.animatorId).GetComponentsInChildren<Animator>();
 
@@ -130,7 +132,12 @@ namespace TOR {
             else if (action == "turnOff") TurnOff();
         }
 
-        void DecreaseBladeLength(dynamic args) {
+        public struct AdjustBladeLength {
+            public bool allowDisarm;
+            public float lengthChange;
+        }
+
+        void DecreaseBladeLength(AdjustBladeLength args) {
             if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 if (blades[i].maxLength - args.lengthChange > 0) {
@@ -140,7 +147,7 @@ namespace TOR {
             StoreSaberState();
         }
 
-        void IncreaseBladeLength(dynamic args) {
+        void IncreaseBladeLength(AdjustBladeLength args) {
             if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 blades[i].SetBladeLength(blades[i].maxLength + args.lengthChange);
@@ -148,7 +155,7 @@ namespace TOR {
             StoreSaberState();
         }
 
-        void ResetBladeLength(dynamic args) {
+        void ResetBladeLength(AdjustBladeLength args) {
             if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 blades[i].SetBladeLength(module.lightsaberBlades[i].bladeLength / blades[i].saberBodyTrans.parent.localScale.z * 0.1f);
@@ -197,7 +204,7 @@ namespace TOR {
         }
 
         void SpawnCoupledItem(string itemId) {
-            Catalog.GetData<ItemPhysic>(itemId, true).SpawnAsync((Item item) => Couple(item));
+            Catalog.GetData<ItemData>(itemId, true).SpawnAsync((Item item) => Couple(item));
         }
 
         void ToggleAnimation(RagdollHand interactor = null) {
@@ -273,6 +280,7 @@ namespace TOR {
 
             // Turn on lightsaber automatically if NPC hand
             if (playerHand != Player.local.handRight && playerHand != Player.local.handLeft) {
+                if (body.mass == originalMass) body.mass *= 0.25f;
                 TurnOn();
                 var creature = interactor.creature;
                 if (!creature.gameObject.GetComponent<LightsaberNPCAnimator>()) {
@@ -296,6 +304,7 @@ namespace TOR {
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             // Turn off lightsaber automatically if NPC hand
             if (playerHand != Player.local.handRight && playerHand != Player.local.handLeft) {
+                body.mass = originalMass;
                 TurnOff();
                 var otherHandle = interactor.otherHand?.grabbedHandle;
                 if (!otherHandle || (otherHandle.item && !otherHandle.item.gameObject.GetComponent<ItemLightsaber>())) {
@@ -346,7 +355,7 @@ namespace TOR {
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
-            // If priamry hold action available
+            // If primary hold action available
             if (!string.IsNullOrEmpty(module.primaryGripPrimaryActionHold)) {
                 // start primary control timer
                 if (action == Interactable.Action.UseStart) {
@@ -447,9 +456,9 @@ namespace TOR {
             // Unpenetrate all currently penetrated objects - fixes glitchy physics
             foreach (var handler in item.collisionHandlers) {
                 for (int i = 0, l = handler.collisions.Count(); i < l; i++) {
-                    if (handler.collisions[i].damageStruct.penetration == DamageStruct.Penetration.Hit ||
-                        handler.collisions[i].damageStruct.penetration == DamageStruct.Penetration.Pressure) {
-                        handler.collisions[i].damageStruct.damager.UnPenetrateAll();
+                    var damageStruct = handler.collisions[i].damageStruct;
+                    if (damageStruct.penetration != DamageStruct.Penetration.None) {
+                        damageStruct.damager.UnPenetrateAll();
                         handler.collisions[i].active = false;
                     }
                 }
@@ -525,6 +534,7 @@ namespace TOR {
                 if (leftInteractor) thrustLeft = PlayerControl.GetHand(leftInteractor.side).useAxis;
                 if (rightInteractor) thrustRight = PlayerControl.GetHand(rightInteractor.side).useAxis;
                 float maxThrust = Mathf.Max(thrustLeft, thrustRight);
+                if (!playerBody) playerBody = Player.local.locomotion.rb;
                 playerBody.AddForce(itemTrans.right * Mathf.Lerp(module.helicopterThrust[0], module.helicopterThrust[1], maxThrust), ForceMode.Force);
 
                 for (int i = 0, l = animators.Count(); i < l; i++) {
@@ -651,6 +661,7 @@ namespace TOR {
         public MaterialPropertyBlock propBlock;
         float originalWhooshMaxVel;
         float originalWhooshMinVel;
+        bool trailRescaleZ;
 
         public Transform saberBodyTrans;
 
@@ -677,6 +688,8 @@ namespace TOR {
                     var trailTrans = saberBodyTrans.Find("Trail");
                     trail = trailTrans.gameObject.AddComponent<LightsaberTrail>();
                     trailMeshRenderer = trailTrans.gameObject.GetComponent<MeshRenderer>();
+
+                    trailRescaleZ = saberBodyTrans.parent != parent.transform;
                 }
             }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
@@ -751,7 +764,7 @@ namespace TOR {
 
         public void AddCrystal(string kyberCrystalId) {
             if (!string.IsNullOrEmpty(kyberCrystalId)) {
-                var kyberCrystalData = Catalog.GetData<ItemPhysic>(kyberCrystalId, true);
+                var kyberCrystalData = Catalog.GetData<ItemData>(kyberCrystalId, true);
                 if (kyberCrystalData == null) return;
                 kyberCrystalData.SpawnAsync((Item item) => {
                     AddCrystal(item.GetComponent<ItemKyberCrystal>());
@@ -828,13 +841,15 @@ namespace TOR {
                 var fxData = kyberCrystalObject.module.whoosh;
                 fxData.effectGroupData.globalMaxPitch *= audioPitch;
                 fxData.effectGroupData.globalMinPitch *= audioPitch;
-                ItemPhysic.Whoosh whoosh = new ItemPhysic.Whoosh {
+                ItemData.Whoosh whoosh = new ItemData.Whoosh {
                     minVelocity = whooshBlade.minVelocity,
                     maxVelocity = whooshBlade.maxVelocity,
                     stopOnSnap = whooshBlade.stopOnSnap,
                     trigger = whooshBlade.trigger
                 };
                 whooshBlade.Load(fxData, whoosh);
+                fxData.effectGroupData.globalMaxPitch /= audioPitch;
+                fxData.effectGroupData.globalMinPitch /= audioPitch;
             }
 
             kyberCrystal = kyberCrystalObject.item.data.id;
@@ -845,7 +860,7 @@ namespace TOR {
 
         public void RemoveCrystal() {
             if (!string.IsNullOrEmpty(kyberCrystal)) {
-                var kyberCrystalData = Catalog.GetData<ItemPhysic>(kyberCrystal, true);
+                var kyberCrystalData = Catalog.GetData<ItemData>(kyberCrystal, true);
                 if (kyberCrystalData == null) return;
                 kyberCrystalData.SpawnAsync(item => {
                     item.transform.position = crystalEject.position;
@@ -888,7 +903,7 @@ namespace TOR {
                 UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), maxLength, currentLength);
                 saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x, saberBodyTrans.localScale.y, currentLength);
-                if (trail) trail.height = currentLength * 10 * saberBodyTrans.parent.localScale.z;
+                if (trail) trail.height = currentLength * 10 * (trailRescaleZ ? saberBodyTrans.parent.localScale.z : 1f);
                 return;
             }
 
@@ -897,7 +912,7 @@ namespace TOR {
                 UpdateBladeDirection();
                 currentLength = Mathf.Clamp(currentLength + (extendDelta * Time.deltaTime), minLength, maxLength);
                 saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x, saberBodyTrans.localScale.y, currentLength);
-                if (trail) trail.height = currentLength * 10 * saberBodyTrans.parent.localScale.z;
+                if (trail) trail.height = currentLength * 10 * (trailRescaleZ ? saberBodyTrans.parent.localScale.z : 1f);
                 return;
             }
         }
@@ -1047,7 +1062,7 @@ namespace TOR {
             creature.OnKillEvent += OnKillEvent;
         }
 
-        void OnKillEvent(ref CollisionStruct collisionStruct, EventTime eventTime) {
+        void OnKillEvent(CollisionInstance collisionStruct, EventTime eventTime) {
             creature.OnKillEvent -= OnKillEvent;
             Destroy(this);
         }

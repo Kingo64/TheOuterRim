@@ -15,7 +15,7 @@ namespace TOR {
         public string gripPrimaryAction = "";
         public string gripSecondaryAction = "playTaunt";
 
-        public override void OnItemDataRefresh(ItemPhysic data) {
+        public override void OnItemDataRefresh(ItemData data) {
             base.OnItemDataRefresh(data);
             if (!string.IsNullOrEmpty(tauntSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntSound, ac => tauntAsset = ac, null);
             if (!string.IsNullOrEmpty(tauntDropSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntDropSound, ac => tauntDropAsset = ac, null);
@@ -24,7 +24,7 @@ namespace TOR {
         public override void OnItemLoaded(Item item)
         {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemTaunt>();
+            Utils.AddModule<ItemTaunt>(item.gameObject);
         }
     }
 }

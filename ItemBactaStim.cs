@@ -47,19 +47,22 @@ namespace TOR {
         }
 
         private IEnumerator GetPlayerColliders() {
+            while (!Player.local) {
+                yield return new WaitForSeconds(0.1f);
+            }
             while (Player.local && playerColliders.Count < 1) {
                 try {
                     playerColliders.UnionWith(Player.local.handLeft.ragdollHand.colliderGroup.colliders);
                     playerColliders.UnionWith(Player.local.handRight.ragdollHand.colliderGroup.colliders);
-                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.Neck).colliderGroup.colliders);
-                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.LeftArm).colliderGroup.colliders);
-                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.RightArm).colliderGroup.colliders);
-                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.LeftLeg).colliderGroup.colliders);
-                    playerColliders.UnionWith(Player.local.creature.ragdoll.GetPart(RagdollPart.Type.RightLeg).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.currentCreature.ragdoll.GetPart(RagdollPart.Type.Neck).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.currentCreature.ragdoll.GetPart(RagdollPart.Type.LeftArm).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.currentCreature.ragdoll.GetPart(RagdollPart.Type.RightArm).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.currentCreature.ragdoll.GetPart(RagdollPart.Type.LeftLeg).colliderGroup.colliders);
+                    playerColliders.UnionWith(Player.currentCreature.ragdoll.GetPart(RagdollPart.Type.RightLeg).colliderGroup.colliders);
                     yield break;
                 }
                 catch { }
-                yield return new WaitForSeconds(1f);
+                yield return new WaitForSeconds(0.1f);
             }
             yield break;
         }
@@ -80,8 +83,8 @@ namespace TOR {
             text.enabled = false;
         }
 
-        void CollisionHandler(ref CollisionStruct collisionInstance) {
-            if (item.IsHanded(null) && (collisionInstance.sourceCollider == tip || collisionInstance.targetCollider == tip)) {
+        void CollisionHandler(CollisionInstance collisionInstance) {
+            if ((collisionInstance.sourceCollider == tip || collisionInstance.targetCollider == tip)) {
                 if (currentCharge >= 100) {
                     var ragdollPart = collisionInstance.targetColliderGroup?.collisionHandler?.ragdollPart ?? collisionInstance.sourceColliderGroup?.collisionHandler?.ragdollPart;
                     if (ragdollPart) {
@@ -95,7 +98,7 @@ namespace TOR {
 
         void OnTriggerEnter(Collider other) {
             if (currentCharge >= 100 && playerColliders.Contains(other)) {
-               Heal(Player.local.creature);
+               Heal(Player.currentCreature);
             }
         }
 

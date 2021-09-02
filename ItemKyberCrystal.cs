@@ -37,7 +37,7 @@ namespace TOR {
 
         }
 
-        void CollisionHandler(ref CollisionStruct collisionInstance) {
+        void CollisionHandler(CollisionInstance collisionInstance) {
             try {
                 if (collisionInstance.sourceColliderGroup.name == "KyberCrystalCollision" && collisionInstance.targetColliderGroup.name == "CollisionHilt") {
                     collisionInstance.targetColliderGroup.transform.root.SendMessage("TryAddCrystal", this);
@@ -47,6 +47,7 @@ namespace TOR {
         }
 
         public float getClosestHandDistance() {
+            if (!Player.local) return float.MaxValue;
             if (!leftHandTrans) leftHandTrans = Player.local.handLeft.transform;
             if (!rightHandTrans) rightHandTrans = Player.local.handRight.transform;
             var distanceToHandLeft = Vector3.SqrMagnitude(itemTrans.position - leftHandTrans.position);

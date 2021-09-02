@@ -52,7 +52,7 @@ namespace TOR {
         public Transform target;
 
         void Update() {
-            transform.position = target.position;
+            if (target) transform.position = target.position;
         }
     }
 }

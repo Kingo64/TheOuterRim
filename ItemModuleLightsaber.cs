@@ -30,7 +30,7 @@ namespace TOR {
         {
             base.OnItemLoaded(item);
             LoadGlobalSettings();
-            item.gameObject.AddComponent<ItemLightsaber>();
+            Utils.AddModule<ItemLightsaber>(item.gameObject);
         }
 
         private void LoadGlobalSettings() {

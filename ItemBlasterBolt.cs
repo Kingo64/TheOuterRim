@@ -2,7 +2,6 @@
 using ThunderRoad;
 using System.Linq;
 using System.Collections.Generic;
-using System.Collections;
 
 namespace TOR {
     [RequireComponent(typeof(CollisionIgnoreHandler))]
@@ -17,6 +16,7 @@ namespace TOR {
         bool markForDeletion;
         bool destroyNextTick;
         float despawnTime;
+        float debounceTime;
         int ricochets;
 
         List<DamagerData> originalDamagers = new List<DamagerData>();
@@ -68,7 +68,7 @@ namespace TOR {
             markForDeletion = false;
         }
 
-        void CollisionHandler(ref CollisionStruct collisionInstance) {
+        void CollisionHandler(CollisionInstance collisionInstance) {
             bool bounced = false;
             if (ricochets != 0) {
                 bounced = (Vector3.Angle(body.velocity, -collisionInstance.contactNormal) - 90) < module.ricochetMaxAngle;
@@ -84,7 +84,12 @@ namespace TOR {
             if (module.applyGlow) {
                 var creature = collisionInstance.targetCollider.GetComponentInParent<Creature>();
                 if (creature) {
-                    creature.gameObject.AddComponent<StunGlow>().hue = module.boltHue;
+                    if (!StunGlow.stunMaterial) {
+                        StunGlow.stunMaterial = item.GetCustomReference("StunEffect").GetComponent<MeshRenderer>().materials[0];
+                    }
+                    var stunGlow = creature.gameObject.AddComponent<StunGlow>();
+                    stunGlow.hue = module.boltHue;
+                    stunGlow.Glow();
                 }
             }
             item.ResetObjectCollision();
@@ -107,8 +112,28 @@ namespace TOR {
                             var closest = collider.ClosestPoint(currentPos);
                             if (Mathf.Abs((currentPos - closest).sqrMagnitude) < GlobalSettings.SaberDeflectAssistDistance) {
                                 hasBeenAssisted = true;
-                                if (GlobalSettings.SaberDeflectAssistAlwaysReturn) {
-                                    body.velocity *= -1;
+                                var lastHandler = item.lastHandler;
+                                if (GlobalSettings.SaberDeflectAssistAlwaysReturn && (GlobalSettings.SaberDeflectAssistAlwaysReturnNPC || !lastHandler || lastHandler.creature != Player.currentCreature)) {
+                                    if (item.lastHandler) {
+                                        var direction = item.lastHandler.creature.ragdoll.GetPart(Utils.RandomEnum<RagdollPart.Type>()).transform.position - transform.position;
+                                        body.velocity = direction.normalized * body.velocity.magnitude;
+                                    } else {
+                                        body.velocity *= -1;
+                                    }
+                                    var blasterCollider = GetComponentInChildren<Collider>();
+                                    var collision = new CollisionInstance();
+                                    collision.sourceCollider = blasterCollider;
+                                    collision.targetCollider = collider;
+                                    collision.contactPoint = closest;
+                                    if (Physics.Linecast(transform.position, closest, out RaycastHit hit)) {
+                                        collision.contactNormal = hit.normal;
+                                    }
+                                    MaterialData.TryGetMaterials(Animator.StringToHash(blasterCollider.material.name), Animator.StringToHash(collider.material.name), out MaterialData sourceMaterial, out MaterialData targetMaterial);
+                                    if (collision.SpawnEffect(sourceMaterial, targetMaterial, false, out EffectInstance effect)) {
+                                        effect.SetIntensity(Random.Range(0.06f, 0.12f));
+                                        effect.Play();
+                                    }
+                                    debounceTime = 0.1f;
                                 } else {
                                     if (Time.timeScale >= 1 ) body.position = closest;
                                     body.velocity = (currentPos - closest).normalized * body.velocity.magnitude;
@@ -151,7 +176,10 @@ namespace TOR {
             despawnTime -= Time.deltaTime;
             markForDeletion |= despawnTime <= 0;
 
-            if (GlobalSettings.SaberDeflectAssist) DeflectAssist();
+            if (GlobalSettings.SaberDeflectAssist) {
+                if (debounceTime > 0) debounceTime -= Time.deltaTime;
+                else DeflectAssist();
+            }
         }
     }
 
@@ -160,33 +188,41 @@ namespace TOR {
         Dictionary<int, Material[]> originalMaterials = new Dictionary<int, Material[]>();
         MeshRenderer[] hatRenderers;
         Creature creature;
-        Material stunMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        public static Material stunMaterial;
 
         void Awake() {
             if (GetComponents<StunGlow>().Length > 1) {
                 Destroy(this);
-            } else {
-                creature = GetComponent<Creature>();
-                if (creature) {
-                    stunMaterial.EnableKeyword("_EMISSION");
-                    stunMaterial.SetColor("_EmissionColor", Color.HSVToRGB(hue, 1f, 0.75f) * 4);
-
-                    foreach (var rendererData in creature.renderers) {
-                        originalMaterials.Add(rendererData.GetHashCode(), rendererData.renderer.materials);
-                    }
-                    AssignMaterials(creature.renderers);
-
-                    var holster = creature.equipment.GetHolster(GlobalSettings.HAT_HOLDER_NAME);
-                    if (holster && holster.holdObjects.Count > 0) {
-                        hatRenderers = holster.holdObjects[0].GetComponentsInChildren<MeshRenderer>();
-                        foreach (var mesh in hatRenderers) {
-                            originalMaterials.Add(mesh.GetHashCode(), mesh.materials);
-                        }
-                        AssignMaterials(hatRenderers);
-                    }
-                }
-                Destroy(this, 0.1f);
             }
+        }
+
+        public void Glow() {
+            creature = GetComponent<Creature>();
+            if (creature) {
+                stunMaterial.SetColor("_EmissionColor", Color.HSVToRGB(hue, 1f, 0.75f) * 4);
+
+                foreach (var rendererData in creature.renderers) {
+                    originalMaterials.Add(rendererData.GetHashCode(), rendererData.renderer.materials);
+                }
+                AssignMaterials(creature.renderers);
+
+                var holster = creature.equipment.GetHolster(GlobalSettings.HAT_HOLDER_NAME);
+                if (holster && holster.items.Count > 0) {
+                    hatRenderers = holster.items[0].GetComponentsInChildren<MeshRenderer>();
+                    foreach (var mesh in hatRenderers) {
+                        originalMaterials.Add(mesh.GetHashCode(), mesh.materials);
+                    }
+                    AssignMaterials(hatRenderers);
+                }
+            }
+            if (creature.state == Creature.State.Alive) {
+                if (creature != Player.currentCreature) creature.ragdoll.SetState(Ragdoll.State.Destabilized);
+                else {
+                    Player.currentCreature.handLeft.TryRelease();
+                    Player.currentCreature.handRight.TryRelease();
+                }
+            }
+            Destroy(this, 0.1f);
         }
 
         void OnDestroy() {

@@ -3,6 +3,7 @@ using ThunderRoad;
 using System;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace TOR {
     public class ItemComlink : MonoBehaviour {
@@ -158,8 +159,12 @@ namespace TOR {
             }
 
             if (closestSpawn != null && creatureTable != null) {
-                StartCoroutine(creatureTable.Pick().SpawnCoroutine(closestSpawn.transform.position, closestSpawn.transform.rotation, null, delegate (Creature value) {
-                    if (factionData.factionId != -999) value.SetFaction(factionData.factionId);
+                StartCoroutine((creatureTable.Pick().Clone() as CreatureData).SpawnCoroutine(closestSpawn.transform.position, closestSpawn.transform.rotation, null, delegate (Creature creature) {
+                    if (factionData.factionId != -999) creature.SetFaction(factionData.factionId);
+                    if (creature.factionId == Player.currentCreature.factionId) {
+                        AllyBehaviour ally = creature.gameObject.AddComponent<AllyBehaviour>();
+                        ally.creature = creature;
+                    }
                 }, true));
                 Utils.PlayHaptic(leftInteractor, rightInteractor, Utils.HapticIntensity.Moderate);
                 pingSound.Play();
@@ -167,7 +172,7 @@ namespace TOR {
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
-            // If priamry hold action available
+            // If primary hold action available
             if (!string.IsNullOrEmpty(module.gripPrimaryActionHold)) {
                 // start primary control timer
                 if (action == Interactable.Action.UseStart) {
@@ -242,6 +247,46 @@ namespace TOR {
             Rebel,
             Republic,
             Sith 
+        }
+    }
+
+    public class AllyBehaviour : MonoBehaviour {
+        public Creature creature;
+        public IEnumerator follow;
+
+        void Awake() {
+            creature = creature ?? GetComponent<Creature>();
+            if (!creature) {
+                Destroy(this);
+            }
+            var behaviours = GetComponents<AllyBehaviour>();
+            foreach (var behaviour in behaviours) {
+                if (behaviour != this) {
+                    Destroy(behaviour);
+                }
+            }
+        }
+
+        void OnEnable() {
+            ((BrainHuman)creature.brain.instance).canLeave = false;
+            follow = Follow();
+            StartCoroutine(follow);
+        }
+
+        void OnDisable() {
+            if (follow != null) StopCoroutine(follow);
+            Destroy(this);
+        }
+
+        private IEnumerator Follow() {
+            while (creature) {
+                if (creature.brain.instance.isActive) {
+                    creature.brain.TryAction(new ActionMove(Player.currentCreature.transform) {
+                        reachDistance = 3f
+                    });
+                }
+                yield return new WaitForSeconds(creature.brain.actionCycleSpeed);
+            }
         }
     }
 }

@@ -17,7 +17,7 @@ namespace TOR {
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemBlasterBolt>();
+            Utils.AddModule<ItemBlasterBolt>(item.gameObject);
         }
     }
 }

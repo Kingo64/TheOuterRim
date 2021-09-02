@@ -66,6 +66,7 @@ namespace TOR {
         public string projectileID;
         public string scopeID;
         public string scopeCameraID;
+        public string spinAnimatorID;
 
         // grips
         public string foreGripID;
@@ -80,6 +81,11 @@ namespace TOR {
         // charged fire settings
         public float chargeTime = 1f;
         public bool chargeMultishot = true;
+
+        // spin up settings
+        public float spinTime;
+        public float spinSpeedMax = 1.5f;
+        public float spinSpeedMinToFire = 1f;
 
         // sounds
         public AudioContainer altFireSoundAsset; public string altFireSoundPath; public string altFireSoundID;
@@ -120,6 +126,15 @@ namespace TOR {
         public AudioContainer reloadEndSoundAsset; public string reloadEndSoundPath; public string reloadEndSoundID;
         public AudioContainer reloadEndSoundAsset2; public string reloadEndSoundPath2; public string reloadEndSoundID2;
 
+        public AudioContainer spinStartSoundAsset; public string spinStartSoundPath; public string spinStartSoundID;
+        public AudioContainer spinStartSoundAsset2; public string spinStartSoundPath2; public string spinStartSoundID2;
+
+        public AudioContainer spinLoopSoundAsset; public string spinLoopSoundPath; public string spinLoopSoundID;
+        public AudioContainer spinLoopSoundAsset2; public string spinLoopSoundPath2; public string spinLoopSoundID2;
+
+        public AudioContainer spinStopSoundAsset; public string spinStopSoundPath; public string spinStopSoundID;
+        public AudioContainer spinStopSoundAsset2; public string spinStopSoundPath2; public string spinStopSoundID2;
+
         // particles
         public bool fireEffectUseBoltHue;
         public bool altFireEffectDetachFromParent = true;
@@ -144,7 +159,7 @@ namespace TOR {
         public float aiShootDistanceMult = 1.0f;
         public bool aiMeleeEnabled;
 
-        public override void OnItemDataRefresh(ItemPhysic data) {
+        public override void OnItemDataRefresh(ItemData data) {
             base.OnItemDataRefresh(data);
             if (!string.IsNullOrEmpty(altFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath, ac => altFireSoundAsset = ac, null);
             if (!string.IsNullOrEmpty(altFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath2, ac => altFireSoundAsset2 = ac, null);
@@ -184,12 +199,21 @@ namespace TOR {
             if (!string.IsNullOrEmpty(reloadEndSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath, ac => reloadEndSoundAsset = ac, null);
             if (!string.IsNullOrEmpty(reloadEndSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath2, ac => reloadEndSoundAsset2 = ac, null);
 
+            if (!string.IsNullOrEmpty(spinStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath, ac => spinStartSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(spinStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath2, ac => spinStartSoundAsset2 = ac, null);
+
+            if (!string.IsNullOrEmpty(spinLoopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath, ac => spinLoopSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(spinLoopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath2, ac => spinLoopSoundAsset2 = ac, null);
+
+            if (!string.IsNullOrEmpty(spinStopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath, ac => spinStopSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(spinStopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath2, ac => spinStopSoundAsset2 = ac, null);
+
             if (!string.IsNullOrEmpty(scopeReticle)) Catalog.LoadAssetAsync<Texture2D>(scopeReticle, texture => scopeReticleTexture = texture, null);
         }
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemBlaster>();
+            Utils.AddModule<ItemBlaster>(item.gameObject);
         }
     }
 }

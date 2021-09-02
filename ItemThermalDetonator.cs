@@ -94,7 +94,7 @@ namespace TOR {
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {
-            // If priamry hold action available
+            // If primary hold action available
             if (!string.IsNullOrEmpty(module.gripPrimaryActionHold)) {
                 // start primary control timer
                 if (action == Interactable.Action.UseStart) {
@@ -145,7 +145,7 @@ namespace TOR {
         public void Detonate() {
             var pos = transform.position;
             var colliders = Physics.OverlapSphere(pos, module.radius);
-            var damage = new CollisionStruct(new DamageStruct(DamageType.Energy, module.damage), null, null);
+            var damage = new CollisionInstance(new DamageStruct(DamageType.Energy, module.damage), null, null);
             var creatures = new List<Creature>();
             var layerMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
             var creatureMask = ~((1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
@@ -161,7 +161,7 @@ namespace TOR {
                     rb.AddExplosionForce(module.impuse * multiplier, pos, module.radius, 1.0f);
                     var creature = hit.transform.GetComponentInParent<Creature>();
                     if (creature) {
-                        if (creature != Player.local.creature) {
+                        if (creature != Player.currentCreature) {
                             var rp = hit.GetComponent<RagdollPart>() ?? hit.GetComponentInParent<RagdollPart>();
                             if (rp && rp.sliceAllowed && validParts.ContainsKey(rp.type) && validParts[rp.type] < multiplier) {
                                 try {
@@ -173,7 +173,7 @@ namespace TOR {
                         if (!creatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
                             creatures.Add(creature);
                             damage.damageStruct.damage = module.damage * multiplier;
-                            creature.Damage(ref damage);
+                            creature.Damage(damage);
                         }
                     }
                 }

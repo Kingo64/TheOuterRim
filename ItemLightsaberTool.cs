@@ -39,14 +39,16 @@ namespace TOR {
             holdingLeft &= interactor.playerHand == Player.local.handLeft;
         }
 
-        void CollisionHandler(ref CollisionStruct collisionInstance) {
+        void CollisionHandler(CollisionInstance collisionInstance) {
             try {
                 if (collisionInstance.sourceColliderGroup.name == "CollisionLightsaberTool" && collisionInstance.targetColliderGroup.name == "CollisionHilt") {
                     if (currentMode == 0) {
                         collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode], module.allowDisarm);
                     } else {
-                        float lengthChange = module.lengthChange * 0.1f;
-                        collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode], new { module.allowDisarm, lengthChange });
+                        collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode], new ItemLightsaber.AdjustBladeLength() {
+                            allowDisarm = module.allowDisarm,
+                            lengthChange = module.lengthChange * 0.1f
+                        });
                     }
                     Utils.PlayHaptic(holdingLeft, holdingRight, Utils.HapticIntensity.Major);
                 }

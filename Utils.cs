@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace TOR {
     class Utils {
+        public static void AddModule<T>(GameObject gameObject) {
+            if (!gameObject.TryGetComponent(typeof(T), out _)) {
+                gameObject.AddComponent(typeof(T));
+            }
+        }
+
         public static void ApplyStandardMixer(AudioSource[] audioSource) {
             if (audioSource != null) {
                 try {
@@ -60,6 +66,12 @@ namespace TOR {
                 source.clip = audioContainer.PickAudioClip();
                 source.Play();
             }
+        }
+
+        static System.Random random = new System.Random();
+        public static T RandomEnum<T>() {
+            var v = System.Enum.GetValues(typeof(T));
+            return (T)v.GetValue(random.Next(v.Length));
         }
 
         public static Color UpdateHue(Color color, float hue) {

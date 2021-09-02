@@ -24,10 +24,10 @@ namespace TOR {
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
 
-            var boltModule = Catalog.GetData<ItemPhysic>(module.projectileID, true).GetModule<ItemModuleBlasterBolt>();
+            var boltModule = Catalog.GetData<ItemData>(module.projectileID, true).GetModule<ItemModuleBlasterBolt>();
             if (boltModule != null) {
                 var mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
-                mesh.materials[0].SetColor("_Color", Utils.UpdateHue(mesh.materials[0].GetColor("_Color"), boltModule.boltHue));
+                mesh.materials[0].SetColor("_BaseColor", Utils.UpdateHue(mesh.materials[0].GetColor("_BaseColor"), boltModule.boltHue));
 
                 if (particle) {
                     var main = particle.main;
@@ -46,7 +46,7 @@ namespace TOR {
             holdingLeft &= interactor.playerHand == Player.local.handLeft;
         }
 
-        void CollisionHandler(ref CollisionStruct collisionInstance) {
+        void CollisionHandler(CollisionInstance collisionInstance) {
             try {
                 if (collisionInstance.sourceColliderGroup.name == "CollisionBlasterPowerCell" && collisionInstance.targetColliderGroup.name == "CollisionBlasterRefill") {
                     collisionInstance.targetColliderGroup.transform.root.SendMessage("RechargeFromPowerCell", module.projectileID);

@@ -11,7 +11,7 @@ namespace TOR {
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemLightsaberTool>();
+            Utils.AddModule<ItemLightsaberTool>(item.gameObject);
         }
     }
 }

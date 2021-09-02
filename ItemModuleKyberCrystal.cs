@@ -33,7 +33,7 @@ namespace TOR {
         public EffectData whoosh;
         public string whooshFX;
 
-        public override void OnItemDataRefresh(ItemPhysic data) {
+        public override void OnItemDataRefresh(ItemData data) {
             base.OnItemDataRefresh(data);
             if (!string.IsNullOrEmpty(idleSound)) Catalog.LoadAssetAsync<AudioContainer>(idleSound, ac => idleSoundAsset = ac, null);
             if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, ac => startSoundAsset = ac, null);
@@ -44,7 +44,7 @@ namespace TOR {
         public override void OnItemLoaded(Item item)
         {
             base.OnItemLoaded(item);
-            item.gameObject.AddComponent<ItemKyberCrystal>();
+            Utils.AddModule<ItemKyberCrystal>(item.gameObject);
         }
     }
 }
