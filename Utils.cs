@@ -34,7 +34,13 @@ namespace TOR {
             public const float Major = 1f;
         };
 
-        public static void PlayHaptic(bool left, bool right, float intensity) {
+        public static void PlayHaptic(RagdollHand interactor = null, float intensity = HapticIntensity.Minor) {
+            if (intensity > 0 && interactor) {
+                PlayerControl.GetHand(interactor.side).HapticShort(intensity);
+            }
+        }
+
+        public static void PlayHaptic(bool left, bool right, float intensity = HapticIntensity.Minor) {
             if (intensity > 0) {
                 if (left) PlayerControl.GetHand(Side.Left).HapticShort(intensity);
                 if (right) PlayerControl.GetHand(Side.Right).HapticShort(intensity);
@@ -54,17 +60,55 @@ namespace TOR {
             }
         }
 
-        public static void PlayRandomSound(AudioSource[] sounds, float volume = 0) {
+        public static void PlayRandomSound(AudioSource[] sounds, float volume = 0, Creature sourceCreature = null) {
             if (sounds != null) {
                 var randomSource = sounds[Random.Range(0, sounds.Length)];
                 randomSource.PlayOneShot(randomSource.clip, volume <= 0 ? randomSource.volume : volume);
+                NoiseManager.AddNoise(randomSource.transform.position, volume <= 0 ? randomSource.volume : volume, sourceCreature);
             }
         }
 
-        public static void PlaySound(AudioSource source, AudioContainer audioContainer) {
-            if (source != null && audioContainer != null) {
-                source.clip = audioContainer.PickAudioClip();
+        public static void PlaySound(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
+            if (source != null) {
+                if (audioContainer != null) source.clip = audioContainer.PickAudioClip();
                 source.Play();
+                NoiseManager.AddNoise(source.transform.position, source.volume, sourceCreature);
+            }
+        }
+
+        public static void PlaySound(AudioSource source, AudioContainer audioContainer, Item item = null) {
+            PlaySound(source, audioContainer, item?.lastHandler?.creature);
+        }
+
+        public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
+            if (source != null) {
+                if (audioContainer != null) source.clip = audioContainer.PickAudioClip();
+                source.Play();
+                return NoiseManager.AddLoopNoise(source, sourceCreature);
+            }
+            return null;
+        }
+
+        public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Item item = null) {
+            return PlaySoundLoop(source, audioContainer, item?.lastHandler?.creature);
+        }
+
+        public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
+            if (source != null) {
+                source.PlayOneShot(audioContainer ? audioContainer.PickAudioClip() : source.clip);
+                NoiseManager.AddNoise(source.transform.position, source.volume, sourceCreature);
+            }
+        }
+
+        public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer, Item item = null) {
+            PlaySoundOneShot(source, audioContainer, item?.lastHandler?.creature);
+        }
+
+        public static void StopSoundLoop(AudioSource source, ref NoiseManager.Noise noise) {
+            if (source != null) {
+                source.Stop();
+                NoiseManager.RemoveLoopNoise(source);
+                noise = null;
             }
         }
 

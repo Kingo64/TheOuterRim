@@ -65,7 +65,7 @@ namespace TOR {
         public void CycleMode(RagdollHand interactor = null) {
             currentMode = (currentMode >= modes.Length - 1) ? 0 : currentMode + 1;
             renderer.material = materials[currentMode];
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {

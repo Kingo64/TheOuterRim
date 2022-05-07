@@ -97,14 +97,14 @@ namespace TOR {
         }
 
         void OnTriggerEnter(Collider other) {
-            if (currentCharge >= 100 && playerColliders.Contains(other)) {
+            if (!item.holder && currentCharge >= 100 && playerColliders.Contains(other)) {
                Heal(Player.currentCreature);
             }
         }
 
         void Heal(Creature creature) {
-            if (creature && currentCharge >= 100 && creature.currentHealth < creature.maxHealth) {
-                injectSound.Play();
+            if (creature && currentCharge >= 100 && creature.currentHealth < creature.maxHealth && creature.state != Creature.State.Dead) {
+                Utils.PlaySound(injectSound, null, item);
                 BactaStimHeal heal = creature.gameObject.AddComponent<BactaStimHeal>();
                 heal.healAmount = module.healAmount;
                 heal.healDuration = module.healDuration;
@@ -119,7 +119,7 @@ namespace TOR {
             if (currentCharge < 100) {
                 currentCharge = Mathf.Clamp(currentCharge + (module.chargeRate * Time.deltaTime), 0, 100);
                 text.text = Mathf.RoundToInt(currentCharge).ToString();
-                if (currentCharge >= 100) rechargeSound.Play();
+                if (currentCharge >= 100) Utils.PlaySound(rechargeSound, null, item);
             }
         }
     }

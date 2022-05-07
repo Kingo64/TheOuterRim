@@ -14,14 +14,10 @@ namespace TOR {
 
         Renderer scopeL;
         Camera scopeCameraL;
-        Material scopeMaterialL;
-        Material originalScopeMaterialL;
         RenderTexture renderScopeTextureL;
 
         Renderer scopeR;
         Camera scopeCameraR;
-        Material scopeMaterialR;
-        Material originalScopeMaterialR;
         RenderTexture renderScopeTextureR;
 
         int currentScopeZoom;
@@ -36,17 +32,14 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
 
-            SetupScope(item.GetCustomReference(module.leftScopeID), item.GetCustomReference(module.leftScopeCameraID).GetComponent<Camera>(), ref scopeL, ref scopeCameraL, ref originalScopeMaterialL, ref scopeMaterialL, ref renderScopeTextureL);
-            SetupScope(item.GetCustomReference(module.rightScopeID), item.GetCustomReference(module.rightScopeCameraID).GetComponent<Camera>(), ref scopeR, ref scopeCameraR, ref originalScopeMaterialR, ref scopeMaterialR, ref renderScopeTextureR);
+            SetupScope(item.GetCustomReference(module.leftScopeID), item.GetCustomReference(module.leftScopeCameraID).GetComponent<Camera>(), ref scopeL, ref scopeCameraL, ref renderScopeTextureL);
+            SetupScope(item.GetCustomReference(module.rightScopeID), item.GetCustomReference(module.rightScopeCameraID).GetComponent<Camera>(), ref scopeR, ref scopeCameraR, ref renderScopeTextureR);
             if (!string.IsNullOrEmpty(module.zoomSoundsID)) zoomSounds = item.GetCustomReference(module.zoomSoundsID).GetComponents<AudioSource>();
         }
 
-        void SetupScope(Transform scopeTransform, Camera scopeCamera, ref Renderer scope, ref Camera storedCamera, ref Material originalScopeMaterial, ref Material scopeMaterial, ref RenderTexture renderTexture) {
+        void SetupScope(Transform scopeTransform, Camera scopeCamera, ref Renderer scope, ref Camera storedCamera, ref RenderTexture renderTexture) {
             if (scopeTransform != null) {
                 scope = scopeTransform.GetComponent<Renderer>();
-                originalScopeMaterial = scopeL.materials[0];
-                scopeMaterial = scope.materials[1];
-                scope.materials = new Material[] { originalScopeMaterial };
 
                 scopeCamera.enabled = false;
                 storedCamera = scopeCamera;
@@ -57,14 +50,16 @@ namespace TOR {
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
                 renderTexture.Create();
                 scopeCamera.targetTexture = renderTexture;
-                scopeMaterial.SetTexture("_BaseMap", renderTexture);
+                scope.material.SetTexture("_BaseMap", renderTexture);
+                if (GlobalSettings.BlasterScope3D) scope.material.EnableKeyword("_3D_SCOPE"); else scope.material.DisableKeyword("_3D_SCOPE");
             }
         }
 
-        void SetScopeRender(Renderer scope, Camera scopeCamera, Material material, bool state) {
+        void SetScopeRender(Renderer scope, Camera scopeCamera, bool state) {
             if (scope == null) return;
             scopeCamera.enabled = state;
-            scope.material = material;
+            if (state) scope.material.EnableKeyword("_SCOPE_ACTIVE");
+            else scope.material.DisableKeyword("_SCOPE_ACTIVE");
         }
 
         void CycleScope(RagdollHand interactor = null) {
@@ -74,7 +69,7 @@ namespace TOR {
             scopeCameraL.fieldOfView = module.scopeZoom[currentScopeZoom];
             scopeCameraR.fieldOfView = module.scopeZoom[currentScopeZoom];
             if (zoomSounds != null) Utils.PlayRandomSound(zoomSounds);
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         void CycleScopeBack(RagdollHand interactor = null) {
@@ -84,7 +79,7 @@ namespace TOR {
             scopeCameraL.fieldOfView = module.scopeZoom[currentScopeZoom];
             scopeCameraR.fieldOfView = module.scopeZoom[currentScopeZoom];
             if (zoomSounds != null) Utils.PlayRandomSound(zoomSounds);
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         public void ExecuteAction(string action, RagdollHand ragdollHand = null) {
@@ -98,15 +93,15 @@ namespace TOR {
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             // toggle scope for performance reasons
             if (interactor.playerHand) {
-                SetScopeRender(scopeL, scopeCameraL, scopeMaterialL, true);
-                SetScopeRender(scopeR, scopeCameraR, scopeMaterialR, true);
+                SetScopeRender(scopeL, scopeCameraL, true);
+                SetScopeRender(scopeR, scopeCameraR, true);
             }
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             // toggle scope for performance reasons
-            SetScopeRender(scopeL, scopeCameraL, originalScopeMaterialL, false);
-            SetScopeRender(scopeR, scopeCameraR, originalScopeMaterialR, false);
+            SetScopeRender(scopeL, scopeCameraL, false);
+            SetScopeRender(scopeR, scopeCameraR, false);
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {

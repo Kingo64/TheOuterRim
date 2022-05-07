@@ -58,9 +58,9 @@ namespace TOR {
         protected void Update() {
             var distanceToHand = getClosestHandDistance();
             var minGlow = 0.33f;
-            var maxGlow = 1.5f;
-            var flicker = module.isUnstable ? Random.Range(-0.1f, 0.1f) : Random.Range(-0.02f, 0.02f);
-            var intensity = Mathf.Clamp(maxGlow - (8 * distanceToHand) + flicker, minGlow, maxGlow);
+            var maxGlow = 3f;
+            var flicker = module.isUnstable ? Random.Range(-0.2f, 0.2f) : Random.Range(-0.04f, 0.04f);
+            var intensity = Mathf.Clamp(maxGlow - (10 * distanceToHand) + flicker, minGlow, maxGlow);
             mesh.GetPropertyBlock(propBlock);
             propBlock.SetColor("_EmissionColor", new Color(bladeColour.r * intensity, bladeColour.g * intensity, bladeColour.b * intensity, bladeColour.a));
             mesh.SetPropertyBlock(propBlock);

@@ -3,12 +3,13 @@ using UnityEngine.AI;
 using ThunderRoad;
 using System.Linq;
 using System.Collections.Generic;
+using System;
 
 namespace TOR {
     public class ItemThermalDetonator : MonoBehaviour {
         protected Item item;
         protected ItemModuleThermalDetonator module;
-        readonly MaterialPropertyBlock propBlock = new MaterialPropertyBlock();
+        MaterialPropertyBlock propBlock;
         Renderer renderer;
         Animator animator;
         ParticleSystem particles;
@@ -20,6 +21,9 @@ namespace TOR {
         AudioSource explosionSound;
         AudioSource explosionSound2;
         NavMeshObstacle obstacle;
+
+        NoiseManager.Noise armedNoise;
+        NoiseManager.Noise idleNoise;
 
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
@@ -67,6 +71,14 @@ namespace TOR {
 
             obstacle = GetComponent<NavMeshObstacle>();
             obstacle.radius = module.radius;
+
+            propBlock = new MaterialPropertyBlock();
+
+            item.OnCullEvent += OnCullEvent;
+        }
+
+        private void OnCullEvent(bool culled) {
+            if (culled && isArmed) gameObject.SetActive(true);
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
@@ -128,13 +140,13 @@ namespace TOR {
                 isArmed = !isArmed;
                 if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
                 if (isArmed) {
-                    armedSound.Play();
-                    idleSound.Stop();
+                    armedNoise = Utils.PlaySoundLoop(armedSound, null, item);
+                    Utils.StopSoundLoop(idleSound, ref idleNoise);
                     beepTime = 1f;
                     obstacle.enabled = true;
                 } else {
-                    armedSound.Stop();
-                    idleSound.Play();
+                    Utils.StopSoundLoop(armedSound, ref armedNoise);
+                    idleNoise = Utils.PlaySoundLoop(idleSound, null, item);
                     beepTime = 0;
                     SetLights(new bool[] { false, false, false });
                     obstacle.enabled = false;
@@ -145,12 +157,11 @@ namespace TOR {
         public void Detonate() {
             var pos = transform.position;
             var colliders = Physics.OverlapSphere(pos, module.radius);
-            var damage = new CollisionInstance(new DamageStruct(DamageType.Energy, module.damage), null, null);
             var creatures = new List<Creature>();
             var layerMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
             var creatureMask = ~((1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
 
-            armedSound.Stop();
+            Utils.StopSoundLoop(armedSound, ref armedNoise);
             beepTime = 0;
 
             foreach (var hit in colliders) {
@@ -172,15 +183,21 @@ namespace TOR {
                         }
                         if (!creatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
                             creatures.Add(creature);
+                            var damage = new CollisionInstance(new DamageStruct(DamageType.Energy, module.damage), null, null);
                             damage.damageStruct.damage = module.damage * multiplier;
-                            creature.Damage(damage);
+                            try {
+                                creature.Damage(damage);
+                            }
+                            catch (NullReferenceException) {
+                                // BrainModuleHitReaction seems to randomly fail when damaging NPCs
+                            }
                         }
                     }
                 }
             }
 
-            Utils.PlaySound(explosionSound, module.explosionSoundAsset);
-            Utils.PlaySound(explosionSound2, module.explosionSoundAsset2);
+            Utils.PlaySound(explosionSound, module.explosionSoundAsset, item);
+            Utils.PlaySound(explosionSound2, module.explosionSoundAsset2, item);
 
             Utils.PlayParticleEffect(particles, true);
             renderer.enabled = false;
@@ -193,10 +210,10 @@ namespace TOR {
             isOpen = !isOpen;
             animator.SetTrigger(isOpen ? "open" : "close");
             animator.ResetTrigger(isOpen ? "close" : "open");
-            if (isOpen) idleSound.Play();
+            if (isOpen) idleNoise = Utils.PlaySoundLoop(idleSound, null, item);
             else {
-                idleSound.Stop();
-                armedSound.Stop();
+                Utils.StopSoundLoop(idleSound, ref idleNoise);
+                Utils.StopSoundLoop(armedSound, ref armedNoise);
                 detonateTime = 0;
                 beepTime = 0;
                 isArmed = false;
@@ -218,9 +235,9 @@ namespace TOR {
             propBlock.SetFloat("Light3", beep[2] ? 1f : 0f);
             renderer.SetPropertyBlock(propBlock);
 
-            if (beep[0]) beepSound1.Play();
-            if (beep[1]) beepSound2.Play();
-            if (beep[2]) beepSound3.Play();
+            if (beep[0]) Utils.PlaySound(beepSound1, null, item);
+            if (beep[1]) Utils.PlaySound(beepSound2, null, item);
+            if (beep[2]) Utils.PlaySound(beepSound3, null, item);
             lastBeep = beep;
         }
 

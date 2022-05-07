@@ -52,7 +52,7 @@ namespace TOR {
                     collisionInstance.targetColliderGroup.transform.root.SendMessage("RechargeFromPowerCell", module.projectileID);
                     Utils.PlayParticleEffect(particle);
                     Utils.PlayHaptic(holdingLeft, holdingRight, Utils.HapticIntensity.Major);
-                    Utils.PlaySound(audio, module.audioAsset);
+                    Utils.PlaySound(audio, module.audioAsset, item);
                 }
             }
             catch { }

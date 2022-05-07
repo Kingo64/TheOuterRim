@@ -6,8 +6,9 @@ using System.Collections.Generic;
 
 namespace TOR {
     public class ItemBlaster : MonoBehaviour {
-        protected Item item;
-        protected ItemModuleBlaster module;
+        public static List<ItemBlaster> all = new List<ItemBlaster>();
+        internal Item item;
+        internal ItemModuleBlaster module;
 
         protected Rigidbody body;
         protected RagdollHand rightInteractor;
@@ -45,6 +46,8 @@ namespace TOR {
         protected AudioSource spinLoopSound2;
         protected AudioSource spinStopSound;
         protected AudioSource spinStopSound2;
+        protected NoiseManager.Noise spinLoopNoise;
+        protected NoiseManager.Noise spinLoopNoise2;
         protected ParticleSystem altFireEffect;
         protected Text ammoDisplay;
         protected ParticleSystem chargeEffect;
@@ -61,10 +64,8 @@ namespace TOR {
 
         bool hasRefillPort;
 
-        Renderer scope;
+        internal Renderer scope;
         Camera scopeCamera;
-        Material originalScopeMaterial;
-        Material scopeMaterial;
         RenderTexture renderScopeTexture;
 
         public bool holdingGunGripLeft;
@@ -119,20 +120,27 @@ namespace TOR {
 
         // AI settings
         Creature currentAI;
-        BrainHuman currentAIBrain;
-        int aiBurstAmount;
-        float aiGrabForegripTime;
-        float aiShootTime;
-        bool aiOriginalMeleeEnabled;
-        float aiOriginalMeleeDistMult;
-        float aiOriginalParryDetectionRadius;
-        float aiOriginalParryMaxDist;
+        //BrainData currentAIBrain;
+        //BrainModuleBow currentAIBow;
+        ////BrainModuleDetection currentAIDetection;
+        //BrainModuleMelee currentAIMelee;
+        //BrainModuleParry currentAIParry;
+        //BrainModuleSightable currentAISightable;
+        //BrainModuleSpeak currentAISpeak;
+        //int aiBurstAmount;
+        //float aiGrabForegripTime;
+        //float aiShootTime;
+        //bool aiOriginalMeleeEnabled;
+        //float aiOriginalMeleeDistMult;
+        //float aiOriginalParryDetectionRadius;
+        //float aiOriginalParryMaxDist;
         ItemModuleAI.WeaponHandling aiOriginalWeaponHandling;
         const int aiMask = ~(1 << 0);
 
         ItemModuleAI moduleAI;
 
         protected void Awake() {
+            all.Add(this);
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlaster>();
             body = GetComponent<Rigidbody>();
@@ -252,11 +260,15 @@ namespace TOR {
             currentFiremode = module.fireModes[currentFiremodeIndex];
             currentFirerate = module.gunRPM[currentFirerateIndex];
             currentInstability = module.handlingBaseAccuracy;
-            aiBurstAmount = Mathf.Abs(module.fireModes.Max());
+            //aiBurstAmount = Mathf.Abs(module.fireModes.Max());
             aiOriginalWeaponHandling = moduleAI.weaponHandling;
             moduleAI.weaponHandling = ItemModuleAI.WeaponHandling.OneHanded;
 
             UpdateFireEffectColour();
+        }
+
+        protected void OnDestroy() {
+            all.Remove(this);
         }
 
         DamagerData GetActiveBoltDamagerData() {
@@ -308,14 +320,11 @@ namespace TOR {
             }
         }
 
-        void SetupScope() {
-            if (module.hasScope == false) return;
+        public void SetupScope() {
+            if (!module.hasScope) return;
             var scopeTransform = item.GetCustomReference(module.scopeID);
             if (scopeTransform) {
                 scope = scopeTransform.GetComponent<Renderer>();
-                originalScopeMaterial = scope.materials[0];
-                scopeMaterial = scope.materials[1];
-                scope.materials = new Material[] { originalScopeMaterial };
                 scopeCamera = item.GetCustomReference(module.scopeCameraID).GetComponent<Camera>();
                 scopeCamera.enabled = false;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
@@ -326,21 +335,22 @@ namespace TOR {
                 renderScopeTexture.Create();
                 scopeCamera.targetTexture = renderScopeTexture;
 
-                scopeMaterial.SetTexture("_RenderTexture", renderScopeTexture);
-                if (module.scopeReticleTexture != null) scopeMaterial.SetTexture("_Reticle", module.scopeReticleTexture);
+                scope.material.SetTexture("_RenderTexture", renderScopeTexture);
+                scope.material.SetTexture("_Reticle", GlobalSettings.BlasterScopeReticles ? module.scopeReticleTexture : null);
                 UpdateScopeReticleColour();
-                scopeMaterial.SetFloat("_ReticleContrast", module.scopeReticleContrast);
-                scopeMaterial.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
+                scope.material.SetFloat("_ReticleContrast", module.scopeReticleContrast);
+                scope.material.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
+                if (GlobalSettings.BlasterScope3D) scope.material.EnableKeyword("_3D_SCOPE"); else scope.material.DisableKeyword("_3D_SCOPE");
             }
         }
 
-        void UpdateScopeReticleColour() {
-            if (scopeMaterial) {
+        public void UpdateScopeReticleColour() {
+            if (scope && scope.material) {
                 var activeBoltModule = GetActiveBoltModule();
                 if (module.scopeReticleUseBoltHue && activeBoltModule != null) {
-                    scopeMaterial.SetColor("_ReticleColour", Color.HSVToRGB(activeBoltModule.boltHue, 1, 1));
+                    scope.material.SetColor("_ReticleColour", Color.HSVToRGB(activeBoltModule.boltHue, 1, 1));
                 } else {
-                    scopeMaterial.SetColor("_ReticleColour", new Color(module.scopeReticleColour[0], module.scopeReticleColour[1], module.scopeReticleColour[2], 1));
+                    scope.material.SetColor("_ReticleColour", new Color(module.scopeReticleColour[0], module.scopeReticleColour[1], module.scopeReticleColour[2], 1));
                 }
             }
         }
@@ -348,54 +358,54 @@ namespace TOR {
         void EnableScopeRender() {
             if (scope == null) return;
             scopeCamera.enabled = true;
-            scope.material = scopeMaterial;
+            scope.material.EnableKeyword("_SCOPE_ACTIVE");
         }
 
         void DisableScopeRender() {
             if (scope == null) return;
             scopeCamera.enabled = false;
-            scope.material = originalScopeMaterial;
+            scope.material.DisableKeyword("_SCOPE_ACTIVE");
         }
 
-        void CycleFiremode(RagdollHand interactor = null) {
+        public void CycleFiremode(RagdollHand interactor = null) {
             if (module.fireModes.Length > 1) {
                 currentFiremodeIndex = (currentFiremodeIndex >= module.fireModes.Length - 1) ? -1 : currentFiremodeIndex;
                 currentFiremode = module.fireModes[++currentFiremodeIndex];
-                Utils.PlaySound(fireModeSound, module.fireModeSoundAsset);
-                Utils.PlaySound(fireModeSound2, module.fireModeSoundAsset2);
-                if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+                Utils.PlaySound(fireModeSound, module.fireModeSoundAsset, item);
+                Utils.PlaySound(fireModeSound2, module.fireModeSoundAsset2, item);
+                Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
             }
         }
 
-        void CycleFirerate(RagdollHand interactor = null) {
+        public void CycleFirerate(RagdollHand interactor = null) {
             if (module.gunRPM.Length > 1) {
                 currentFirerateIndex = (currentFirerateIndex >= module.gunRPM.Length - 1) ? -1 : currentFirerateIndex;
                 currentFirerate = module.gunRPM[++currentFirerateIndex];
-                Utils.PlaySound(fireModeSound, module.fireModeSoundAsset);
-                Utils.PlaySound(fireModeSound2, module.fireModeSoundAsset2);
-                if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+                Utils.PlaySound(fireModeSound, module.fireModeSoundAsset, item);
+                Utils.PlaySound(fireModeSound2, module.fireModeSoundAsset2, item);
+                Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
             }
         }
 
-        void CycleScope(RagdollHand interactor = null) {
+        public void CycleScope(RagdollHand interactor = null) {
             if (scope == null || scopeCamera == null) return;
             currentScopeZoom = (currentScopeZoom >= module.scopeZoom.Length - 1) ? -1 : currentScopeZoom;
             scopeCamera.fieldOfView = module.scopeZoom[++currentScopeZoom];
             var scopeSound = scope.GetComponent<AudioSource>();
-            if (scopeSound) scopeSound.Play();
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            if (scopeSound) Utils.PlaySound(scopeSound, null, item);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
-        void ResetScope(RagdollHand interactor = null) {
+        public void ResetScope(RagdollHand interactor = null) {
             if (scope == null || scopeCamera == null) return;
             currentScopeZoom = 0;
             scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
             var scopeSound = scope.GetComponent<AudioSource>();
-            if (scopeSound) scopeSound.Play();
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            if (scopeSound) Utils.PlaySound(scopeSound, null, item);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
-        void ToggleAltFire(RagdollHand interactor = null) {
+        public void ToggleAltFire(RagdollHand interactor = null) {
             ChargedFireStop();
             altFireEnabled = !altFireEnabled;
             UpdateFireEffectColour();
@@ -405,9 +415,9 @@ namespace TOR {
             overrideInteractor = null;
             isDelayingFire = false;
 
-            Utils.PlaySound(fireModeSound, module.fireModeSoundAsset);
-            Utils.PlaySound(fireModeSound2, module.fireModeSoundAsset2);
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            Utils.PlaySound(fireModeSound, module.fireModeSoundAsset, item);
+            Utils.PlaySound(fireModeSound2, module.fireModeSoundAsset2, item);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
@@ -507,43 +517,48 @@ namespace TOR {
             holdingGunGripRight = interactor.playerHand == Player.local.handRight;
             holdingGunGripLeft = interactor.playerHand == Player.local.handLeft;
 
-            if (!holdingGunGripLeft && !holdingGunGripRight) {
-                currentAI = interactor.creature;
-                currentAIBrain = (BrainHuman)currentAI.brain.instance;
-                aiOriginalMeleeEnabled = currentAIBrain.meleeEnabled;
-                if (aiOriginalMeleeEnabled) {
-                    aiOriginalMeleeDistMult = currentAIBrain.meleeMax;
-                    aiOriginalParryDetectionRadius = currentAIBrain.parryDetectionRadius;
-                    aiOriginalParryMaxDist = currentAIBrain.parryMaxDistance;
-                    currentAIBrain.meleeEnabled = module.aiMeleeEnabled;
-                    if (!module.aiMeleeEnabled) {
-                        currentAIBrain.meleeDistMult = currentAIBrain.bowDist * module.aiShootDistanceMult;
-                        currentAIBrain.parryDetectionRadius = (currentAIBrain.bowDist + 1f) * module.aiShootDistanceMult;
-                        currentAIBrain.parryMaxDistance = (currentAIBrain.bowDist + 1f) * module.aiShootDistanceMult;
-                    }
-                }
-                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    aiGrabForegripTime = 0.5f;
-                }
-            }
+            //if (!holdingGunGripLeft && !holdingGunGripRight) {
+            //    currentAI = interactor.creature;
+            //    currentAIBrain = currentAI.brain.instance;
+            //    currentAIBow = currentAIBrain.GetModule<BrainModuleBow>();
+            //    currentAIDetection = currentAIBrain.GetModule<BrainModuleDetection>();
+            //    currentAIMelee = currentAIBrain.GetModule<BrainModuleMelee>();
+            //    currentAISightable = currentAIBrain.GetModule<BrainModuleSightable>();
+            //    currentAISpeak = currentAIBrain.GetModule<BrainModuleSpeak>();
+            //    aiOriginalMeleeEnabled = currentAIMelee.meleeEnabled;
+            //    if (aiOriginalMeleeEnabled) {
+            //        aiOriginalMeleeDistMult = currentAIMelee.meleeMax;
+            //        aiOriginalParryDetectionRadius = currentAIParry.parryDetectionRadius;
+            //        aiOriginalParryMaxDist = currentAIParry.parryMaxDistance;
+            //        currentAIMelee.meleeEnabled = module.aiMeleeEnabled;
+            //        if (!module.aiMeleeEnabled) {
+            //            //currentAIMelee. = currentAIBow.bowDist * module.aiShootDistanceMult;
+            //            //currentAIParry.parryDetectionRadius = (currentAIBow.dist + 1f) * module.aiShootDistanceMult;
+            //            //currentAIParry.parryMaxDistance = (currentAIBow.bowDist + 1f) * module.aiShootDistanceMult;
+            //        }
+            //    }
+            //    if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+            //        aiGrabForegripTime = 0.5f;
+            //    }
+            //}
         }
 
         public void OnGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingGunGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingGunGripLeft = false;
 
-            if (currentAI) {
-                if (aiOriginalMeleeEnabled) {
-                    currentAIBrain.meleeEnabled = aiOriginalMeleeEnabled;
-                    currentAIBrain.meleeDistMult = aiOriginalMeleeDistMult;
-                    currentAIBrain.parryDetectionRadius = aiOriginalParryDetectionRadius;
-                    currentAIBrain.parryMaxDistance = aiOriginalParryMaxDist;
-                }
-                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    currentAI.handLeft.TryRelease();
-                }
-                currentAI = null;
-            }
+            //if (currentAI) {
+            //    if (aiOriginalMeleeEnabled) {
+            //        currentAIMelee.meleeEnabled = aiOriginalMeleeEnabled;
+            //        //currentAIMelee.meleeDistMult = aiOriginalMeleeDistMult;
+            //        currentAIParry.parryDetectionRadius = aiOriginalParryDetectionRadius;
+            //        currentAIParry.parryMaxDistance = aiOriginalParryMaxDist;
+            //    }
+            //    if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+            //        currentAI.handLeft.TryRelease();
+            //    }
+            //    currentAI = null;
+            //}
             ChargedFireStop();
             SpinStop();
         }
@@ -557,11 +572,11 @@ namespace TOR {
             if (interactor.playerHand == Player.local.handRight) holdingForeGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingForeGripLeft = false;
 
-            if (currentAI && !currentAI.handLeft.grabbedHandle) {
-                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    aiGrabForegripTime = 0.5f;
-                }
-            }
+            //if (currentAI && !currentAI.handLeft.grabbedHandle) {
+            //    if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+            //        aiGrabForegripTime = 0.5f;
+            //    }
+            //}
         }
 
         public void OnScopeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
@@ -592,7 +607,7 @@ namespace TOR {
             telekinesis = teleGrabber;
         }
 
-        void DropBlaster() {
+        public void DropBlaster() {
             if (gunGrip) gunGrip.Release();
             if (foreGrip) foreGrip.Release();
             if (scopeGrip) scopeGrip.Release();
@@ -608,8 +623,8 @@ namespace TOR {
             }
 
             if (ammoLeft == 0 || isOverheated) {
-                Utils.PlaySound(emptySound, module.emptySoundAsset);
-                Utils.PlaySound(emptySound2, module.emptySoundAsset2);
+                Utils.PlaySound(emptySound, module.emptySoundAsset, item);
+                Utils.PlaySound(emptySound2, module.emptySoundAsset2, item);
                 leftInteractor = null;
                 rightInteractor = null;
                 overrideInteractor = null;
@@ -665,7 +680,7 @@ namespace TOR {
                     projTransform.position = bulletSpawn.position;
                     projTransform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
                     var projectileBody = projectile.GetComponent<Rigidbody>();
-                    projectileBody.velocity = body.velocity;
+                    projectileBody.mass /= GlobalSettings.BlasterBoltSpeed * (currentAI ? GlobalSettings.BlasterBoltSpeedNPC : 1f);
                     projectile.Throw(1f);
                     projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
                 });
@@ -699,16 +714,16 @@ namespace TOR {
             Utils.PlayParticleEffect(fireEffect, module.fireEffectDetachFromParent);
 
             if (altFireEnabled) {
-                Utils.PlaySound(altFireSound, module.altFireSoundAsset);
-                Utils.PlaySound(altFireSound2, module.altFireSoundAsset2);
+                Utils.PlaySound(altFireSound, module.altFireSoundAsset, item);
+                Utils.PlaySound(altFireSound2, module.altFireSoundAsset2, item);
             } else if (isChargedFire) {
-                Utils.PlaySound(chargeFireSound, module.chargeFireSoundAsset);
-                Utils.PlaySound(chargeFireSound2, module.chargeFireSoundAsset2);
-                Utils.PlaySound(chargeFireSound3, module.chargeFireSoundAsset3);
+                Utils.PlaySound(chargeFireSound, module.chargeFireSoundAsset, item);
+                Utils.PlaySound(chargeFireSound2, module.chargeFireSoundAsset2, item);
+                Utils.PlaySound(chargeFireSound3, module.chargeFireSoundAsset3, item);
             } else {
-                Utils.PlaySound(fireSound, module.fireSoundAsset);
-                Utils.PlaySound(fireSound2, module.fireSoundAsset2);
-                Utils.PlaySound(fireSound3, module.fireSoundAsset3);
+                Utils.PlaySound(fireSound, module.fireSoundAsset, item);
+                Utils.PlaySound(fireSound2, module.fireSoundAsset2, item);
+                Utils.PlaySound(fireSound3, module.fireSoundAsset3, item);
             }
 
             if (isChargedFire) {
@@ -722,8 +737,8 @@ namespace TOR {
 
         void ChargedFireStart(RagdollHand interactor = null) {
             if (ammoLeft == 0 || isOverheated) {
-                Utils.PlaySound(emptySound, module.emptySoundAsset);
-                Utils.PlaySound(emptySound2, module.emptySoundAsset2);
+                Utils.PlaySound(emptySound, module.emptySoundAsset, item);
+                Utils.PlaySound(emptySound2, module.emptySoundAsset2, item);
                 leftInteractor = null;
                 rightInteractor = null;
                 overrideInteractor = null;
@@ -742,10 +757,10 @@ namespace TOR {
 
             chargeTime = module.chargeTime;
             Utils.PlayParticleEffect(chargeEffect);
-            Utils.PlaySound(chargeSound, module.chargeSoundAsset);
-            Utils.PlaySound(chargeSound2, module.chargeSoundAsset2);
-            Utils.PlaySound(chargeStartSound, module.chargeStartSoundAsset);
-            Utils.PlaySound(chargeStartSound2, module.chargeStartSoundAsset2);
+            Utils.PlaySound(chargeSound, module.chargeSoundAsset, item);
+            Utils.PlaySound(chargeSound2, module.chargeSoundAsset2, item);
+            Utils.PlaySound(chargeStartSound, module.chargeStartSoundAsset, item);
+            Utils.PlaySound(chargeStartSound2, module.chargeStartSoundAsset2, item);
         }
 
         void ChargedFireStop() {
@@ -765,14 +780,14 @@ namespace TOR {
 
         void SpinStart(RagdollHand interactor = null) {
             isSpinning = true;
-            Utils.PlaySound(spinStartSound, module.spinStartSoundAsset);
-            Utils.PlaySound(spinStartSound2, module.spinStartSoundAsset2);
+            Utils.PlaySound(spinStartSound, module.spinStartSoundAsset, item);
+            Utils.PlaySound(spinStartSound2, module.spinStartSoundAsset2, item);
         }
 
         void SpinStop() {
             if (isSpinning) {
-                Utils.PlaySound(spinStopSound, module.spinStopSoundAsset);
-                Utils.PlaySound(spinStopSound2, module.spinStopSoundAsset2);
+                Utils.PlaySound(spinStopSound, module.spinStopSoundAsset, item);
+                Utils.PlaySound(spinStopSound2, module.spinStopSoundAsset2, item);
             }
             isSpinning = false;
         }
@@ -788,7 +803,7 @@ namespace TOR {
                     Random.Range(module.recoilAngle[0], module.recoilAngle[1]),
                     Random.Range(module.recoilAngle[2], module.recoilAngle[3]),
                     Random.Range(module.recoilAngle[4], module.recoilAngle[5])
-                    ), ForceMode.Impulse);
+                    ), ForceMode.VelocityChange);
             }
             if (module.recoilForce != null) {
                 Vector3 recoilForce = new Vector3(
@@ -800,7 +815,7 @@ namespace TOR {
             }
         }
 
-        void Reload(RagdollHand interactor = null) {
+        public void Reload(RagdollHand interactor = null) {
             if (!isReloading && !(GlobalSettings.BlasterRequireRefill && hasRefillPort && currentAI == null)) {
                 isReloading = true;
                 ammoLeft = 0;
@@ -809,9 +824,9 @@ namespace TOR {
                 rightInteractor = null;
                 overrideInteractor = null;
                 reloadTime = module.reloadTime;
-                Utils.PlaySound(reloadSound, module.reloadSoundAsset);
-                Utils.PlaySound(reloadSound2, module.reloadSoundAsset2);
-                if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Moderate);
+                Utils.PlaySound(reloadSound, module.reloadSoundAsset, item);
+                Utils.PlaySound(reloadSound2, module.reloadSoundAsset2, item);
+                Utils.PlayHaptic(interactor, Utils.HapticIntensity.Moderate);
             }
         }
 
@@ -823,8 +838,8 @@ namespace TOR {
             rightInteractor = null;
             overrideInteractor = null;
             UpdateAmmoDisplay();
-            Utils.PlaySound(reloadEndSound, module.reloadEndSoundAsset);
-            Utils.PlaySound(reloadEndSound2, module.reloadEndSoundAsset2);
+            Utils.PlaySound(reloadEndSound, module.reloadEndSoundAsset, item);
+            Utils.PlaySound(reloadEndSound2, module.reloadEndSoundAsset2, item);
             Utils.PlayHaptic(holdingGunGripLeft, holdingGunGripRight, Utils.HapticIntensity.Moderate);
             item.SetSavedValue("ammo", ammoLeft.ToString());
         }
@@ -849,35 +864,7 @@ namespace TOR {
         }
         
         void AIShoot() {
-            if (currentAI && currentAIBrain != null && currentAIBrain.targetCreature) {
-                if (!module.aiMeleeEnabled) {
-                    var reach = gunGrip.reach + 3f;
-                    currentAIBrain.meleeEnabled = Vector3.SqrMagnitude(body.position - currentAIBrain.targetCreature.transform.position) <= reach * reach;
-                }
-                var aiAimAngle = CalculateInaccuracy(bulletSpawns[0].forward, false);
-                if (Physics.Raycast(bulletSpawns[0].position, aiAimAngle, out RaycastHit hit, currentAIBrain.detectionRadius, aiMask, QueryTriggerInteraction.Ignore)) {
-                    Creature target = null;
-                    var materialHash = Animator.StringToHash(hit.collider.material.name);
-                    if (materialHash == 1740652790 || materialHash == 1655722809) {
-                        var handles = hit.collider.transform.root.GetComponentsInChildren<Handle>();
-                        var handedHandle = handles.FirstOrDefault(handle => handle.IsHanded());
-                        if (handedHandle) target = handedHandle.handlers[0].creature;
-                    } else {
-                        target = hit.collider.transform.GetComponentInChildren<Creature>();
-                    }
-                    if (target && currentAI != target
-                        && currentAI.faction.attackBehaviour != GameData.Faction.AttackBehaviour.Ignored && currentAI.faction.attackBehaviour != GameData.Faction.AttackBehaviour.Passive 
-                        && target.faction.attackBehaviour != GameData.Faction.AttackBehaviour.Ignored && (currentAI.faction.attackBehaviour == GameData.Faction.AttackBehaviour.Agressive || currentAI.factionId != target.factionId)) {
-                            shotsLeftInBurst = aiBurstAmount;
-                            Fire();
-                            aiShootTime = Random.Range(currentAIBrain.bowAimMinMaxDelay.x, currentAIBrain.bowAimMinMaxDelay.y) * ((currentAIBrain.bowDist / module.aiShootDistanceMult + hit.distance / module.aiShootDistanceMult) / currentAIBrain.bowDist);
-                            if (Random.Range(0f, 1f) < currentAI.data.audioAttackChance) {
-                            if (Random.Range(0f, 1f) < 0.3f) currentAI.speak.PlaySound(CreatureSpeak.Type.AttackMeleeStrong);
-                            else currentAI.speak.PlaySound(CreatureSpeak.Type.AttackMelee);
-                        }
-                    }
-                }
-            }
+            return;
         }
 
         Vector3 CalculateInaccuracy(Vector3 initial, bool addCurrent = true) {
@@ -885,14 +872,15 @@ namespace TOR {
                         initial.x + Random.Range(-currentInstability, currentInstability),
                         initial.y + Random.Range(-currentInstability, currentInstability),
                         initial.z) : initial;
-            if (currentAIBrain == null) {
-                return baseInaccuracy;
-            }
-            var inaccuracyMult = 0.1f * (currentAIBrain.aimSpreadCone / module.aiShootDistanceMult);
-            return new Vector3(
-                        baseInaccuracy.x + Random.Range(-inaccuracyMult, inaccuracyMult),
-                        baseInaccuracy.y + Random.Range(-inaccuracyMult, inaccuracyMult),
-                        baseInaccuracy.z);
+            return baseInaccuracy;
+            //if (currentAIBrain == null) {
+            //    return baseInaccuracy;
+            //}
+            //var inaccuracyMult = 0.1f * (currentAIBow.aimSpreadAngle / module.aiShootDistanceMult) * GlobalSettings.BlasterNPCInaccuracy;
+            //return new Vector3(
+            //            baseInaccuracy.x + Random.Range(-inaccuracyMult, inaccuracyMult),
+            //            baseInaccuracy.y + Random.Range(-inaccuracyMult, inaccuracyMult),
+            //            baseInaccuracy.z);
         }
 
         void UpdateHoldTime(string action, ref float holdTime, bool holdingLeft, bool holdingRight) {
@@ -914,7 +902,7 @@ namespace TOR {
             if (fireDelayTime > 0) fireDelayTime -= Time.deltaTime;
             if (reloadTime > 0) reloadTime -= Time.deltaTime;
             if (currentHeat > 0) currentHeat -= Time.deltaTime;
-            if (aiShootTime > 0) aiShootTime -= Time.deltaTime;
+            //if (aiShootTime > 0) aiShootTime -= Time.deltaTime;
             if (currentInstability > module.handlingBaseAccuracy) {
                 currentInstability -= Time.deltaTime * (module.handlingStabilityMultiplier * module.handlingInstabilityRate);
                 if (item.handlers.Count == 0) currentInstability = module.handlingBaseAccuracy;
@@ -931,8 +919,8 @@ namespace TOR {
 
             if (currentHeat > module.overheatThreshold && !isOverheated) {
                 isOverheated = true;
-                Utils.PlaySound(overheatSound, module.overheatSoundAsset);
-                Utils.PlaySound(overheatSound2, module.overheatSoundAsset2);
+                Utils.PlaySound(overheatSound, module.overheatSoundAsset, item);
+                Utils.PlaySound(overheatSound2, module.overheatSoundAsset2, item);
                 Utils.PlayParticleEffect(overheatEffect);
             } else if (currentHeat <= 0 && isOverheated) {
                 isOverheated = false;
@@ -952,8 +940,8 @@ namespace TOR {
                         if (module.fireDelay > 0) {
                             fireDelayTime = module.fireDelay;
                             isDelayingFire = true;
-                            Utils.PlaySound(preFireSound, module.preFireSoundAsset);
-                            Utils.PlaySound(preFireSound2, module.preFireSoundAsset2);
+                            Utils.PlaySound(preFireSound, module.preFireSoundAsset, item);
+                            Utils.PlaySound(preFireSound2, module.preFireSoundAsset2, item);
                             Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
                         } 
                         else if (module.spinTime > 0) {
@@ -966,7 +954,7 @@ namespace TOR {
                             shotsLeftInBurst = currentFiremode;
                             Fire();
                         }
-                    } else if (aiShootTime <= 0) { AIShoot(); }
+                    } //else if (aiShootTime <= 0) { AIShoot(); }
                 }
             }
             if (telekinesis != null) telekinesis.SetSpinMode(false);
@@ -989,8 +977,8 @@ namespace TOR {
                 if (chargeSound) chargeSound.volume = adjustedVolume;
                 if (chargeSound2) chargeSound2.volume = adjustedVolume;
                 if (chargeTime <= 0) {
-                    if (chargeReadySound && !chargeReadySound.isPlaying) Utils.PlaySound(chargeReadySound, module.chargeReadySoundAsset);
-                    if (chargeReadySound2 && !chargeReadySound2.isPlaying) Utils.PlaySound(chargeReadySound2, module.chargeReadySoundAsset2);
+                    if (chargeReadySound && !chargeReadySound.isPlaying) Utils.PlaySound(chargeReadySound, module.chargeReadySoundAsset, item);
+                    if (chargeReadySound2 && !chargeReadySound2.isPlaying) Utils.PlaySound(chargeReadySound2, module.chargeReadySoundAsset2, item);
                     Utils.PlayHaptic(holdingGunGripLeft || holdingForeGripLeft, holdingGunGripRight || holdingForeGripRight, module.fireHaptic);
                 }
             }
@@ -1000,8 +988,8 @@ namespace TOR {
                 if (!isSpinning && spinTime > 0) {
                     spinTime -= Time.deltaTime;
                     if (spinTime <= 0) {
-                        if (spinLoopSound) spinLoopSound.Stop();
-                        if (spinLoopSound2) spinLoopSound2.Stop();
+                        if (spinLoopSound) Utils.StopSoundLoop(spinLoopSound, ref spinLoopNoise);
+                        if (spinLoopSound2) Utils.StopSoundLoop(spinLoopSound2, ref spinLoopNoise2);
                     }
                 }
                 if (isSpinning && spinTime < module.spinTime) {
@@ -1009,8 +997,8 @@ namespace TOR {
                 }
 
                 if (isSpinning) {
-                    if (spinLoopSound && !spinLoopSound.isPlaying) Utils.PlaySound(spinLoopSound, module.spinLoopSoundAsset);
-                    if (spinLoopSound2 && !spinLoopSound2.isPlaying) Utils.PlaySound(spinLoopSound2, module.spinLoopSoundAsset2);
+                    if (spinLoopSound && !spinLoopSound.isPlaying) spinLoopNoise = Utils.PlaySoundLoop(spinLoopSound, module.spinLoopSoundAsset, item);
+                    if (spinLoopSound2 && !spinLoopSound2.isPlaying) spinLoopNoise2 = Utils.PlaySoundLoop(spinLoopSound2, module.spinLoopSoundAsset2, item);
                     Utils.PlayHaptic(holdingGunGripLeft || holdingForeGripLeft, holdingGunGripRight || holdingForeGripRight, Utils.HapticIntensity.Minor);
                 }
 
@@ -1025,35 +1013,19 @@ namespace TOR {
             }
 
             // Run AI logic
-            if (aiGrabForegripTime > 0) {
-                aiGrabForegripTime -= Time.deltaTime;
-                if (aiGrabForegripTime <= 0 && currentAI) {
-                    currentAI.handLeft.TryRelease();
-                    currentAI.handLeft.Grab(foreGrip);
-                    currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
-                    currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
-                }
-            }
+            //if (aiGrabForegripTime > 0) {
+            //    aiGrabForegripTime -= Time.deltaTime;
+            //    if (aiGrabForegripTime <= 0 && currentAI) {
+            //        currentAI.handLeft.TryRelease();
+            //        currentAI.handLeft.Grab(foreGrip);
+            //        currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
+            //        currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
+            //    }
+            //}
 
-            if (currentAI && currentAIBrain != null) {
-                if (currentAIBrain.targetCreature) {
-                    var pivot = currentAIBrain.defenseCollider.transform;
-                    float elevation = Utils.GetElevation(pivot, currentAI.brain.instance.targetCreature.transform);
-                    pivot.localEulerAngles = new Vector3(-elevation / 3, pivot.localEulerAngles.y, pivot.localEulerAngles.z);
-
-                    if (module.spinTime > 0) {
-                        if (!isSpinning) {
-                            SpinStart();
-                        }
-                        moduleAI.parryDefaultLeftRotation.x = 30 - (Utils.GetElevation(currentAI.transform, currentAIBrain.targetCreature.transform) * 1.6f);
-                    }
-                } else {
-                    if (module.spinTime > 0) {
-                        SpinStop();
-                        moduleAI.parryDefaultLeftRotation.x = 30;
-                    }
-                }
-            }
+            //if (currentAI && currentAIBrain != null) {
+                
+            //}
         }
     }
 }

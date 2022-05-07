@@ -6,13 +6,23 @@ using RainyReignGames.RevealMask;
 namespace TOR {
     public class LevelModuleCreaturePainter : LevelModule {
 
-        public override IEnumerator OnLoadCoroutine(Level level) {
+        Texture2D moesGreen;
+
+        public override IEnumerator OnLoadCoroutine() {
             EventManager.onCreatureSpawn += OnCreatureSpawn;
+
+            if (!moesGreen) {
+                moesGreen = new Texture2D(1, 1);
+                moesGreen.SetPixel(0, 0, Color.green);
+                moesGreen.Resize(1, 1);
+                moesGreen.Apply();
+            }
+
             yield break;
         }
 
-        public override void OnUnload(Level level) {
-            base.OnUnload(level);
+        public override void OnUnload() {
+            base.OnUnload();
             EventManager.onCreatureSpawn -= OnCreatureSpawn;
         }
 
@@ -35,7 +45,7 @@ namespace TOR {
                         material.SetTexture("_BaseMap", null);
                         material.SetTexture("_BumpMap", null);
                         material.SetTexture("_MainTex", null);
-                        material.SetTexture("_MetallicGlossMap", null);
+                        material.SetTexture("_MetallicGlossMap", moesGreen);
                         material.SetTexture("_SpecGlossMap", null);
                         material.SetFloat("_Metallic", 0);
                         material.SetFloat("_Smoothness", 0.2f);
@@ -48,13 +58,12 @@ namespace TOR {
         void OnCreatureSpawn(Creature creature) {
             if (Constants.CREATURE_IDS.ContainsKey(creature.data.hashId)) {
                 if (creature.manikinParts) {
-
                     var creatureId = Constants.CREATURE_IDS[creature.data.hashId];
                     if (creatureId == "ForceSensitiveMale" || creatureId == "ForceSensitiveFemale") {
                         if (Random.Range(0f, 1f) < 0.9f) creature.SetColor(new Color(Random.Range(0.7f, 1), Random.Range(0.7f, 1), Random.Range(0.7f, 1)), Creature.ColorModifier.Skin);
                         if (Random.Range(0f, 1f) < 0.3f) creature.SetColor(new Color(Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f)), Creature.ColorModifier.Hair);
                     } else {
-                        creature.manikinParts.PartsCompletedEvent += delegate () {
+                        creature.manikinParts.UpdateParts_Completed += delegate (Chabuk.ManikinMono.ManikinPart[] partsAdded) {
                             creature.StartCoroutine(ActivateMaterials(creature));
                         };
                     }

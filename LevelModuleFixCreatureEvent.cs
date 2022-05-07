@@ -5,12 +5,12 @@ using System.Collections;
 namespace TOR {
     // DELETE THIS WHEN THE OFFICIAL EVENT LISTENER IS FIXED
     public class LevelModuleFixCreatureEvent : LevelModule {
-        public override IEnumerator OnLoadCoroutine(Level level) {
+        public override IEnumerator OnLoadCoroutine() {
             EventManager.onCreatureSpawn += OnCreatureSpawned;
             yield break;
         }
 
-        public override void OnUnload(Level level) {
+        public override void OnUnload() {
             EventManager.onCreatureSpawn -= OnCreatureSpawned;
         }
 
@@ -34,14 +34,14 @@ namespace TOR {
 
     public class CreatureZoneTrigger : MonoBehaviour {
         void OnTriggerEnter(Collider other) {
-            if (other.gameObject.layer == GameManager.zoneLayer) {
+            if (other.gameObject.layer == Common.zoneLayer) {
                 Zone component = other.GetComponent<Zone>();
                 component.creatureEnterEvent.Invoke(this);
             }
         }
 
         void OnTriggerExit(Collider other) {
-            if (other.gameObject.layer == GameManager.zoneLayer) {
+            if (other.gameObject.layer == Common.zoneLayer) {
                 other.GetComponent<Zone>().creatureExitEvent.Invoke(this);
             }
         }

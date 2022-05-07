@@ -1,76 +1,89 @@
 ﻿using System.Collections;
 using ThunderRoad;
 using UnityEngine;
+using UnityEngine.Audio;
+using UnityEngine.Events;
 
 namespace TOR {
-    class LevelModuleWaveMusic : LevelModule {
-		public Level level;
-		public LevelModuleWave wave;
-		public AudioContainer musicWaveAsset;
+    public class LevelModuleWaveMusic : LevelModule {
 		public string musicWavePath;
-		public AudioSource audioSource;
-		public AudioClip targetClip;
+		AudioContainer musicWaveAsset;
 		Coroutine observe;
 
-		public override IEnumerator OnLoadCoroutine(Level level) {
-			this.level = level;
-			wave = level.data.modes[0].GetModule<LevelModuleWave>();
+		AudioMixerGroup musicMixer;
 
-			yield return Catalog.LoadAssetCoroutine(level.data.musicWaveLocation, delegate (AudioClip value) {
-				targetClip = value;
-			}, "ModuleWaveMusic");
-
+		public override IEnumerator OnLoadCoroutine() {
 			yield return Catalog.LoadAssetCoroutine(musicWavePath, delegate (AudioContainer value) {
 				musicWaveAsset = value;
 			}, "ModuleWaveMusic");
 
+			musicMixer = GameManager.GetAudioMixerGroup(AudioMixerName.Music);
 			observe = level.StartCoroutine(Observe());
-
-			wave.OnWaveBeginEvent += Wave_OnWaveBeginEvent;
 			yield break;
 		}
 
 		IEnumerator Observe() {
+			var canExit = false;
 			while (true) {
 				yield return new WaitForSeconds(0.1f);
-				var sources = level.gameObject.GetComponents<AudioSource>();
-				foreach (var source in sources) {
-					if (source.clip == targetClip) {
-						audioSource = source;
-						level.StopCoroutine(observe);
-						yield break;
-					}
+
+				foreach (var waveSpawner in WaveSpawner.instances) {
+					var musicSelector = waveSpawner.gameObject.AddComponent<MusicSelector>();
+					musicSelector.musicMixer = musicMixer;
+					musicSelector.musicWaveAsset = musicWaveAsset;
+					musicSelector.waveSpawner = waveSpawner;
+					musicSelector.Setup();
+					canExit = true;
+				}
+				if (canExit) {
+					level.StopCoroutine(observe);
+					yield break;
 				}
 			}
 		}
 
-		private AudioClip GetTrack() {
-			return musicWaveAsset.GetRandomAudioClip(musicWaveAsset.sounds);
-		}
-
-        private void Wave_OnWaveBeginEvent() {
-			if (musicWaveAsset && audioSource) {
-				audioSource.clip = GetTrack();
-				audioSource.loop = false;
-				audioSource.Play();
-            }
-		}
-
-		public override void Update(Level level) {
-			if (wave.isRunning && musicWaveAsset && audioSource && !audioSource.isPlaying) {
-				audioSource.clip = GetTrack();
-				audioSource.Play();
-			}
-		}
-
-        public override void OnUnload(Level level) {
+		public override void OnUnload() {
 			if (musicWaveAsset) {
 				Catalog.ReleaseAsset(musicWaveAsset);
 			}
-			if (targetClip) {
-				Catalog.ReleaseAsset(targetClip);
+		}
+
+		public class MusicSelector : MonoBehaviour {
+			public AudioMixerGroup musicMixer;
+			public WaveSpawner waveSpawner;
+			public AudioSource audioSource;
+			public AudioContainer musicWaveAsset;
+
+
+			public void Setup() {
+				var sources = GetComponents<AudioSource>();
+				foreach (var source in sources) {
+					if (source.outputAudioMixerGroup == musicMixer) {
+						audioSource = source;
+						break;
+					}
+				}
+				waveSpawner.OnWaveBeginEvent.AddListener(new UnityAction(OnWaveBeginEvent));
 			}
-			this.level = null;
+
+			void OnWaveBeginEvent() {
+				if (musicWaveAsset && audioSource) {
+					audioSource.clip = GetTrack();
+					audioSource.loop = false;
+					audioSource.Play();
+				}
+			}
+
+			private AudioClip GetTrack() {
+				return musicWaveAsset.GetRandomAudioClip(musicWaveAsset.sounds);
+			}
+
+			void Update() {
+				if (waveSpawner.isRunning && musicWaveAsset && audioSource && !audioSource.isPlaying) {
+					audioSource.clip = GetTrack();
+					audioSource.Play();
+				}
+			}
 		}
 	}
 }

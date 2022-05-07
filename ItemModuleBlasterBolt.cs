@@ -12,10 +12,19 @@ namespace TOR {
         public float ricochetMaxAngle;
 
         public bool applyGlow;
+        public bool disintegrate;
         public string effectID;
         public float boltHue;
 
-        public override void OnItemLoaded(Item item) {
+		public string impactEffectID;
+		public EffectData impactEffect;
+
+		public override void OnItemDataRefresh(ItemData data) {
+			base.OnItemDataRefresh(data);
+			if (!string.IsNullOrEmpty(impactEffectID)) impactEffect = Catalog.GetData<EffectData>(impactEffectID, true);
+		}
+
+		public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemBlasterBolt>(item.gameObject);
         }

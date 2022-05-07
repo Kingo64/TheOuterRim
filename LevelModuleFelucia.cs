@@ -4,15 +4,21 @@ using UnityEngine;
 
 namespace TOR {
     public class LevelModuleFelucia : LevelModule {
-        public float grassDensity = 1f;
+        public float grassDensity = 0.6f;
         public float grassDistance = 80f;
-        public bool pollenEnabled = true;
-        public float pollenDensity = 1f;
+        public float pollenDensity = 0.5f;
         Terrain terrain;
         Transform pollenTrans;
 
-        public override IEnumerator OnLoadCoroutine(Level level) {
-            EventManager.onPlayerSpawn += OnPlayerSpawned;
+        public override IEnumerator OnLoadCoroutine() {
+            Player.onSpawn += OnPlayerSpawned;
+
+            if (Level.current.options != null) {
+                if (Level.current.options.TryGetValue("grassDensity", out double val)) grassDensity = (float)val * 0.2f;
+                if (Level.current.options.TryGetValue("grassDistance", out val)) grassDistance = (float)val * 20f;
+                if (Level.current.options.TryGetValue("pollenDensity", out val)) pollenDensity = (float)val * 0.2f;
+            }
+
             pollenTrans = level.customReferences.Find(x => x.name == "Pollen").transforms[0];
             var springs = level.customReferences.Find(x => x.name == "Springs").transforms[0];
             foreach (Transform child in springs) {
@@ -27,7 +33,7 @@ namespace TOR {
         }
 
         void OnPlayerSpawned(Player player) {
-            if (pollenTrans != null && pollenEnabled) {
+            if (pollenTrans != null && pollenDensity > 0) {
                 var pollenClone = Object.Instantiate(pollenTrans, player.transform);
                 pollenClone.gameObject.SetActive(true);
                 var emission = pollenClone.GetComponent<ParticleSystem>().emission;
@@ -35,8 +41,8 @@ namespace TOR {
             }
         }
 
-        public override void OnUnload(Level level) {
-            EventManager.onPlayerSpawn -= OnPlayerSpawned;
+        public override void OnUnload() {
+            Player.onSpawn -= OnPlayerSpawned;
         }
     }
 

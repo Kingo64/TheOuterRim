@@ -33,10 +33,7 @@ namespace TOR {
         }
 
         public void PlayTaunt(AudioContainer audioContainer) {
-            if (tauntSource != null && audioContainer != null) {
-                tauntSource.clip = audioContainer.PickAudioClip();
-                tauntSource.Play();
-            }
+            Utils.PlaySound(tauntSource, audioContainer, item);
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {

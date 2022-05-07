@@ -17,6 +17,8 @@ namespace TOR {
         public MeshRenderer[] primaryModel;
         public MeshRenderer[] secondaryModel;
 
+        NoiseManager.Noise toggleNoise;
+
         int modelState;
 
         protected void Awake() {
@@ -38,8 +40,8 @@ namespace TOR {
 
         public void ExecuteAction(string action, RagdollHand interactor = null) {
             if (action == "playSound") {
-                playSound.Play();
-                if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+                Utils.PlaySound(playSound, null, item);
+                Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
             } else if (action == "cycleModels") {
                 CycleModels(interactor);
             } else if (action == "toggleSound") {
@@ -54,17 +56,17 @@ namespace TOR {
             if (modelState > 2) modelState = 0;
             primaryModel.ToList().ForEach(m => m.enabled = (modelState == 0 || modelState == 1));
             secondaryModel.ToList().ForEach(m => m.enabled = (modelState == 0 || modelState == 2));
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         public void ToggleSound(RagdollHand interactor = null) {
-            if (toggleSound.isPlaying) toggleSound.Stop();
-            else toggleSound.Play();
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
+            if (toggleSound.isPlaying) Utils.StopSoundLoop(toggleSound, ref toggleNoise);
+            else toggleNoise = Utils.PlaySoundLoop(toggleSound, null, item);
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         public void ToggleLight(RagdollHand interactor = null) {
-            if (lightSound) lightSound.Play();
+            if (lightSound) Utils.PlaySound(lightSound, null, item);
             if (light1) {
                 light1.enabled = !light1.enabled;
                 if (light1.enabled) light1Sprite.Play();
@@ -75,9 +77,7 @@ namespace TOR {
                 if (light2.enabled) light2Sprite.Play();
                 else light2Sprite.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
-            if (interactor) {
-                Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
-            }
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {

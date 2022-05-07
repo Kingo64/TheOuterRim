@@ -1,14 +1,15 @@
 ﻿using UnityEngine;
 using ThunderRoad;
 using System;
+using System.Linq;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 
 namespace TOR {
     public class ItemComlink : MonoBehaviour {
-        protected Item item;
-        protected ItemModuleComlink module;
+        internal Item item;
+        internal ItemModuleComlink module;
 
         int currentFaction;
         int currentTarget;
@@ -28,12 +29,14 @@ namespace TOR {
         MeshRenderer hologramLogo;
         Light light;
 
+        NoiseManager.Noise idleNoise;
+
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
         RagdollHand leftInteractor;
         RagdollHand rightInteractor;
 
-        List<SpawnLocation> spawnLocations;
+        List<Transform> spawnLocations = new List<Transform>();
 
         protected void Awake() {
             item = GetComponent<Item>();
@@ -58,7 +61,10 @@ namespace TOR {
             materials = item.GetCustomReference("Materials").GetComponent<MeshRenderer>().materials;
 
             hologram.SetActive(false);
-            spawnLocations = new List<SpawnLocation>(FindObjectsOfType<SpawnLocation>());
+            var waveSpawners = new List<WaveSpawner>(FindObjectsOfType<WaveSpawner>());
+            foreach (var spawner in waveSpawners) {
+                spawnLocations.AddRange(spawner.spawns);
+            }
 
             item.TryGetSavedValue("faction", out string tempFaction);
             item.TryGetSavedValue("target", out string tempTarget);
@@ -74,14 +80,14 @@ namespace TOR {
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             hologram.SetActive(true);
-            startSound.Play();
-            idleSound.Play();
+            Utils.PlaySound(startSound, null, item);
+            idleNoise = Utils.PlaySoundLoop(idleSound, null, item);
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             hologram.SetActive(false);
-            stopSound.Play();
-            idleSound.Stop();
+            Utils.PlaySound(stopSound, null, item);
+            Utils.StopSoundLoop(idleSound, ref idleNoise);
         }
 
         public void OnSnapEvent(Holder holder) {
@@ -108,9 +114,8 @@ namespace TOR {
             else currentFaction = (currentFaction <= 0) ? module.factions.Count - 1 : currentFaction - 1;
             factionData = module.factions[currentFaction];
             SetColour();
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
-            useSound.clip = module.useSoundAsset.PickAudioClip();
-            useSound.Play();
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
+            Utils.PlaySound(useSound, module.useSoundAsset, item);
         }
 
         public void CycleTarget(RagdollHand interactor = null, bool inc = true) {
@@ -120,9 +125,8 @@ namespace TOR {
             creatureTable = Catalog.GetData<CreatureTable>(reinforcementData.creatureTable, true);
             SetGraphic();
             SetColour();
-            if (interactor) Utils.PlayHaptic(interactor.side == Side.Left, interactor.side == Side.Right, Utils.HapticIntensity.Minor);
-            useSound.clip = module.useSoundAsset.PickAudioClip();
-            useSound.Play();
+            Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
+            Utils.PlaySound(useSound, module.useSoundAsset, item);
         }
 
         public void SetGraphic() {
@@ -144,30 +148,31 @@ namespace TOR {
             Transform closestSpawn = null;
             float closestDistance = float.MaxValue;
 
-            foreach (var spawnLocation in spawnLocations) {
-                foreach (var spawn in spawnLocation.list) {
-                    if (closestSpawn == null) {
-                        closestSpawn = spawn;
-                        continue;
-                    }
-                    var distance = Mathf.Abs((currentPos - spawn.position).sqrMagnitude);
-                    if (distance < closestDistance) {
-                        closestSpawn = spawn;
-                        closestDistance = distance;
-                    }
+            foreach (var spawn in spawnLocations) {
+                if (closestSpawn == null) {
+                    closestSpawn = spawn;
+                    continue;
+                }
+                var distance = Mathf.Abs((currentPos - spawn.position).sqrMagnitude);
+                if (distance < closestDistance) {
+                    closestSpawn = spawn;
+                    closestDistance = distance;
                 }
             }
 
+
             if (closestSpawn != null && creatureTable != null) {
-                StartCoroutine((creatureTable.Pick().Clone() as CreatureData).SpawnCoroutine(closestSpawn.transform.position, closestSpawn.transform.rotation, null, delegate (Creature creature) {
-                    if (factionData.factionId != -999) creature.SetFaction(factionData.factionId);
-                    if (creature.factionId == Player.currentCreature.factionId) {
-                        AllyBehaviour ally = creature.gameObject.AddComponent<AllyBehaviour>();
-                        ally.creature = creature;
-                    }
-                }, true));
-                Utils.PlayHaptic(leftInteractor, rightInteractor, Utils.HapticIntensity.Moderate);
-                pingSound.Play();
+                if (creatureTable.TryPick(out CreatureData creatureData)) {
+                    StartCoroutine(creatureData.SpawnCoroutine(closestSpawn.position, closestSpawn.rotation, null, delegate (Creature creature) {
+                        if (factionData.factionId != -999) creature.SetFaction(factionData.factionId);
+                        if (creature.factionId == Player.currentCreature.factionId) {
+                            AllyBehaviour ally = creature.gameObject.AddComponent<AllyBehaviour>();
+                            ally.creature = creature;
+                        }
+                    }, true));
+                    Utils.PlayHaptic(leftInteractor, rightInteractor, Utils.HapticIntensity.Moderate);
+                    Utils.PlaySound(pingSound, null, item);
+                }
             }
         }
 
@@ -252,7 +257,10 @@ namespace TOR {
 
     public class AllyBehaviour : MonoBehaviour {
         public Creature creature;
+        public BrainData brain;
+        public BrainModulePatrol patrol;
         public IEnumerator follow;
+        public WayPoint wayPoint;
 
         void Awake() {
             creature = creature ?? GetComponent<Creature>();
@@ -265,12 +273,18 @@ namespace TOR {
                     Destroy(behaviour);
                 }
             }
+            brain = creature.brain.instance;
+            if (brain == null) {
+                Destroy(this);
+            }
+            patrol = brain.GetModule<BrainModulePatrol>();
         }
 
         void OnEnable() {
-            ((BrainHuman)creature.brain.instance).canLeave = false;
-            follow = Follow();
-            StartCoroutine(follow);
+            if (patrol != null) {
+                follow = Follow();
+                StartCoroutine(follow);
+            }
         }
 
         void OnDisable() {
@@ -279,13 +293,17 @@ namespace TOR {
         }
 
         private IEnumerator Follow() {
-            while (creature) {
-                if (creature.brain.instance.isActive) {
-                    creature.brain.TryAction(new ActionMove(Player.currentCreature.transform) {
-                        reachDistance = 3f
-                    });
+            while (creature && brain != null) {
+                if (!wayPoint) {
+                    var wp = new GameObject();
+                    wayPoint = wp.AddComponent<WayPoint>();
+                    wp.transform.SetParent(Player.currentCreature.transform);
                 }
-                yield return new WaitForSeconds(creature.brain.actionCycleSpeed);
+
+                if (patrol.waypoints == null || !patrol.waypoints.Contains(wayPoint))
+                    patrol.waypoints = new WayPoint[] { wayPoint };
+
+                yield return new WaitForSeconds(creature.brain.instance.cycleSpeed);
             }
         }
     }

@@ -16,7 +16,7 @@ namespace TOR {
         bool markForDeletion;
         bool destroyNextTick;
         float despawnTime;
-        float debounceTime;
+        int lastItemHitId;
         int ricochets;
 
         List<DamagerData> originalDamagers = new List<DamagerData>();
@@ -63,6 +63,7 @@ namespace TOR {
 
         void ResetValues() {
             despawnTime = module.despawnTime;
+            lastItemHitId = 0;
             ricochets = module.ricochetLimit;
             destroyNextTick = false;
             markForDeletion = false;
@@ -77,8 +78,29 @@ namespace TOR {
             if (!bounced) {
                 Collider collider = collisionInstance.targetCollider;
                 if (!module.deflectionMaterials.Any(material => collider.material.name == material + " (Instance)")) {
-                    GetComponent<Rigidbody>().velocity = new Vector3(0, 0, 0);
+                    body.velocity = new Vector3(0, 0, 0);
                     markForDeletion = true;
+                }
+            }
+
+            if (module.disintegrate) {
+                var creature = collisionInstance.targetCollider.GetComponentInParent<Creature>();
+                if (creature) {
+                    try {
+                        foreach (var holder in creature.equipment.holders) {
+                            holder.UnSnapAll();
+                        }
+                    }
+                    catch { }
+                    creature?.handLeft?.TryRelease();
+                    creature?.handRight?.TryRelease();
+                    creature.Kill(collisionInstance);
+
+                    if (module.impactEffect != null) {
+                        module.impactEffect.Spawn(collisionInstance.contactPoint, new Quaternion()).Play();
+                    }
+
+                    creature.Despawn();
                 }
             }
             if (module.applyGlow) {
@@ -101,7 +123,8 @@ namespace TOR {
                 var currentPos = body.transform.position;
                 var hasBeenAssisted = false;
                 foreach (KeyValuePair<int, Collider[]> colliders in GlobalSettings.LightsaberColliders) {
-                    if (hasBeenAssisted) return;
+                    if (lastItemHitId == colliders.Key) hasBeenAssisted = true;
+                    if (hasBeenAssisted) break;
                     foreach (var collider in colliders.Value) {
                         if (!collider) {
                             if (toRemove == null) toRemove = new List<int> { colliders.Key };
@@ -113,9 +136,10 @@ namespace TOR {
                             if (Mathf.Abs((currentPos - closest).sqrMagnitude) < GlobalSettings.SaberDeflectAssistDistance) {
                                 hasBeenAssisted = true;
                                 var lastHandler = item.lastHandler;
-                                if (GlobalSettings.SaberDeflectAssistAlwaysReturn && (GlobalSettings.SaberDeflectAssistAlwaysReturnNPC || !lastHandler || lastHandler.creature != Player.currentCreature)) {
-                                    if (item.lastHandler) {
-                                        var direction = item.lastHandler.creature.ragdoll.GetPart(Utils.RandomEnum<RagdollPart.Type>()).transform.position - transform.position;
+
+                                if (ShouldReturnBolt()) {
+                                    if (lastHandler) {
+                                        var direction = lastHandler.creature.ragdoll.GetPart(Utils.RandomEnum<RagdollPart.Type>()).transform.position - transform.position;
                                         body.velocity = direction.normalized * body.velocity.magnitude;
                                     } else {
                                         body.velocity *= -1;
@@ -133,11 +157,13 @@ namespace TOR {
                                         effect.SetIntensity(Random.Range(0.06f, 0.12f));
                                         effect.Play();
                                     }
-                                    debounceTime = 0.1f;
                                 } else {
                                     if (Time.timeScale >= 1 ) body.position = closest;
                                     body.velocity = (currentPos - closest).normalized * body.velocity.magnitude;
                                 }
+
+                                lastItemHitId = colliders.Key;
+                                despawnTime = module.despawnTime;
                             }
                         }
                     }
@@ -148,6 +174,12 @@ namespace TOR {
                     }
                 }
             }
+        }
+
+        bool ShouldReturnBolt() {
+            var deflectRoll = Random.Range(0, 1f);
+            if (!item.lastHandler || item.lastHandler.creature == Player.currentCreature) return GlobalSettings.SaberDeflectAssistReturnNPCChance > deflectRoll;
+            return GlobalSettings.SaberDeflectAssistReturnChance > deflectRoll;
         }
 
         void ResetDamagers() {
@@ -173,21 +205,21 @@ namespace TOR {
             }
             destroyNextTick = markForDeletion;
 
+            if (item.isTelekinesisGrabbed) despawnTime = module.despawnTime;
             despawnTime -= Time.deltaTime;
             markForDeletion |= despawnTime <= 0;
 
             if (GlobalSettings.SaberDeflectAssist) {
-                if (debounceTime > 0) debounceTime -= Time.deltaTime;
-                else DeflectAssist();
+                DeflectAssist();
             }
         }
     }
 
     public class StunGlow : MonoBehaviour {
         public float hue = 0.62f;
-        Dictionary<int, Material[]> originalMaterials = new Dictionary<int, Material[]>();
-        MeshRenderer[] hatRenderers;
-        Creature creature;
+        public Dictionary<int, Material[]> originalMaterials = new Dictionary<int, Material[]>();
+        public MeshRenderer[] hatRenderers;
+        public Creature creature;
         public static Material stunMaterial;
 
         void Awake() {
@@ -232,7 +264,7 @@ namespace TOR {
             }
         }
 
-        void AssignMaterials(MeshRenderer[] renderers) {
+        public void AssignMaterials(MeshRenderer[] renderers) {
             for (int i = 0, l = renderers.Length; i < l; i++) {
                 Material[] tempMaterials = renderers[i].materials;
                 for (int j = 0, k = tempMaterials.Length; j < k; j++) {
@@ -242,7 +274,7 @@ namespace TOR {
             }
         }
 
-        void AssignMaterials(List<Creature.RendererData> renderers) {
+        public void AssignMaterials(List<Creature.RendererData> renderers) {
             for (int i = 0, l = renderers.Count; i < l; i++) {
                 Material[] tempMaterials = renderers[i].renderer.materials;
                 for (int j = 0, k = tempMaterials.Length; j < k; j++) {
@@ -252,7 +284,7 @@ namespace TOR {
             }
         }
 
-        void RestoreMaterials(MeshRenderer[] renderers) {
+        public void RestoreMaterials(MeshRenderer[] renderers) {
             for (int i = 0, l = renderers.Length; i < l; i++) {
                 if (originalMaterials.TryGetValue(renderers[i].GetHashCode(), out Material[] original)) {
                     renderers[i].materials = original;
@@ -260,7 +292,7 @@ namespace TOR {
             }
         }
 
-        void RestoreMaterials(List<Creature.RendererData> renderers) {
+        public void RestoreMaterials(List<Creature.RendererData> renderers) {
             for (int i = 0, l = renderers.Count; i < l; i++) {
                 if (originalMaterials.TryGetValue(renderers[i].GetHashCode(), out Material[] original)) {
                     renderers[i].renderer.materials = original;
