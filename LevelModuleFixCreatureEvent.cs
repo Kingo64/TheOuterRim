@@ -22,7 +22,7 @@ namespace TOR {
     public class CreatureZoneController : MonoBehaviour {
         GameObject trigger;
 
-        void Awake() {
+        protected void Awake() {
             trigger = new GameObject("CreatureZoneController", typeof(CreatureZoneTrigger)) {
                 layer = 27
             };
@@ -33,14 +33,14 @@ namespace TOR {
     }
 
     public class CreatureZoneTrigger : MonoBehaviour {
-        void OnTriggerEnter(Collider other) {
+        protected void OnTriggerEnter(Collider other) {
             if (other.gameObject.layer == Common.zoneLayer) {
                 Zone component = other.GetComponent<Zone>();
                 component.creatureEnterEvent.Invoke(this);
             }
         }
 
-        void OnTriggerExit(Collider other) {
+        protected void OnTriggerExit(Collider other) {
             if (other.gameObject.layer == Common.zoneLayer) {
                 other.GetComponent<Zone>().creatureExitEvent.Invoke(this);
             }

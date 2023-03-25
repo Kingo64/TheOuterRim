@@ -42,7 +42,7 @@
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=12.0.1.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\modopt\bin\Debug\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="RainyReignGames.Reveal, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
     <Reference Include="Sirenix.Serialization, Version=2.0.17.0, Culture=neutral, processorArchitecture=MSIL">
@@ -113,16 +113,20 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ItemBottle.cs" />
     <Compile Include="ItemJetpack.cs" />
     <Compile Include="ItemBlasterPowerCell.cs" />
     <Compile Include="ItemComlink.cs" />
     <Compile Include="ItemBactaStim.cs" />
     <Compile Include="ItemImbueToggle.cs" />
+    <Compile Include="ItemModuleBottle.cs" />
     <Compile Include="ItemModuleImbueToggle.cs" />
     <Compile Include="ItemModuleDiscoverable.cs" />
+    <Compile Include="ItemModuleAutoDrawHolder.cs" />
     <Compile Include="ItemModuleStorage.cs" />
     <Compile Include="ItemModuleJetpack.cs" />
     <Compile Include="ItemDiscoverable.cs" />
+    <Compile Include="ItemAutoDrawHolder.cs" />
     <Compile Include="ItemStorage.cs" />
     <Compile Include="ItemThermalDetonator.cs" />
     <Compile Include="ItemLightsaberTool.cs" />
@@ -145,6 +149,9 @@
     <Compile Include="ItemModuleKyberCrystal.cs" />
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
+    <Compile Include="LevelModuleExposeWaves.cs" />
+    <Compile Include="LevelModuleLegacyHelmets.cs" />
+    <Compile Include="LevelModuleFixCreatureEthnicity.cs" />
     <Compile Include="LevelModuleFixCreaturePhysics.cs" />
     <Compile Include="LevelModuleForceDistanceShadowmask.cs" />
     <Compile Include="LevelModuleSaveManager.cs" />

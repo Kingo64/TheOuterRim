@@ -9,7 +9,6 @@ namespace TOR {
     public class ItemThermalDetonator : MonoBehaviour {
         protected Item item;
         protected ItemModuleThermalDetonator module;
-        MaterialPropertyBlock propBlock;
         Renderer renderer;
         Animator animator;
         ParticleSystem particles;
@@ -27,14 +26,23 @@ namespace TOR {
 
         float primaryControlHoldTime;
         float secondaryControlHoldTime;
-        bool isOpen;
-        bool isArmed;
+        public bool isOpen;
+        public bool isArmed;
+        public bool armedByPlayer;
 
         SpellTelekinesis telekinesis;
         float detonateTime;
         float beepTime;
         bool[] lastBeep = { false, false, false };
         readonly System.Random rand = new System.Random();
+
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                _propBlock = _propBlock ?? new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
 
         static readonly Dictionary<RagdollPart.Type, float> validParts = new Dictionary<RagdollPart.Type, float> {
             { RagdollPart.Type.Head, 0.9f },
@@ -72,8 +80,6 @@ namespace TOR {
             obstacle = GetComponent<NavMeshObstacle>();
             obstacle.radius = module.radius;
 
-            propBlock = new MaterialPropertyBlock();
-
             item.OnCullEvent += OnCullEvent;
         }
 
@@ -82,11 +88,28 @@ namespace TOR {
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
-            if (isArmed) detonateTime = 0;
+            if (!interactor.playerHand) {
+                if (!isOpen) ToggleSlider(interactor);
+                if (!isArmed) Arm(interactor);
+            }
+            if (isArmed && ((armedByPlayer && interactor.playerHand) || (!armedByPlayer && !interactor.playerHand))) detonateTime = 0;
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
-            if (isArmed) detonateTime = module.detonateTime;
+            if (!interactor.playerHand && isOpen) {
+                if (throwing) {
+                    if (!isArmed) Arm(interactor);
+                } else {
+                    if (interactor.creature && !interactor.creature.isKilled) ToggleSlider(interactor);
+                }
+            }
+            if (isArmed) {
+                detonateTime = module.detonateTime;
+                if (item.currentRoom) {
+                    item.currentRoom.UnRegisterItem(item);
+                    item.currentRoom = null;
+                }
+            }
         }
 
         public void OnTelekinesisReleaseEvent(Handle handle, SpellTelekinesis teleGrabber) {
@@ -138,7 +161,10 @@ namespace TOR {
         public void Arm(RagdollHand interactor = null) {
             if (isOpen) {
                 isArmed = !isArmed;
-                if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
+                if (interactor && interactor.playerHand) {
+                    PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
+                    armedByPlayer = true;
+                } else armedByPlayer = false;
                 if (isArmed) {
                     armedNoise = Utils.PlaySoundLoop(armedSound, null, item);
                     Utils.StopSoundLoop(idleSound, ref idleNoise);
@@ -164,6 +190,9 @@ namespace TOR {
             Utils.StopSoundLoop(armedSound, ref armedNoise);
             beepTime = 0;
 
+            renderer.enabled = false;
+            item.rb.isKinematic = true;
+
             foreach (var hit in colliders) {
                 var distance = Vector3.Distance(hit.transform.position, pos);
                 var multiplier = (module.radius - distance) / module.radius;
@@ -176,7 +205,7 @@ namespace TOR {
                             var rp = hit.GetComponent<RagdollPart>() ?? hit.GetComponentInParent<RagdollPart>();
                             if (rp && rp.sliceAllowed && validParts.ContainsKey(rp.type) && validParts[rp.type] < multiplier) {
                                 try {
-                                    rp.Slice();
+                                    rp.TrySlice();
                                 }
                                 catch { }
                             }
@@ -196,17 +225,17 @@ namespace TOR {
                 }
             }
 
-            Utils.PlaySound(explosionSound, module.explosionSoundAsset, item);
-            Utils.PlaySound(explosionSound2, module.explosionSoundAsset2, item);
-
+            var handler = item?.lastHandler?.creature;
             Utils.PlayParticleEffect(particles, true);
-            renderer.enabled = false;
-            item.enabled = false;
-            item.Despawn(1.5f);
+
+            Utils.PlaySound(explosionSound, module.explosionSoundAsset, handler);
+            Utils.PlaySound(explosionSound2, module.explosionSoundAsset2, handler);
+
+            item.Despawn(3f);
         }
 
         public void ToggleSlider(RagdollHand interactor = null) {
-            if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
+            if (interactor && interactor.playerHand) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
             isOpen = !isOpen;
             animator.SetTrigger(isOpen ? "open" : "close");
             animator.ResetTrigger(isOpen ? "close" : "open");
@@ -229,19 +258,20 @@ namespace TOR {
         }
 
         void SetLights(bool[] beep) {
-            renderer.GetPropertyBlock(propBlock);
-            propBlock.SetFloat("Light1", beep[0] ? 1f : 0f);
-            propBlock.SetFloat("Light2", beep[1] ? 1f : 0f);
-            propBlock.SetFloat("Light3", beep[2] ? 1f : 0f);
-            renderer.SetPropertyBlock(propBlock);
+            renderer.GetPropertyBlock(PropBlock);
+            PropBlock.SetFloat("Light1", beep[0] ? 1f : 0f);
+            PropBlock.SetFloat("Light2", beep[1] ? 1f : 0f);
+            PropBlock.SetFloat("Light3", beep[2] ? 1f : 0f);
+            renderer.SetPropertyBlock(PropBlock);
 
-            if (beep[0]) Utils.PlaySound(beepSound1, null, item);
-            if (beep[1]) Utils.PlaySound(beepSound2, null, item);
-            if (beep[2]) Utils.PlaySound(beepSound3, null, item);
+            var handler = item?.lastHandler?.creature;
+            if (beep[0]) Utils.PlaySound(beepSound1, null, handler);
+            if (beep[1]) Utils.PlaySound(beepSound2, null, handler);
+            if (beep[2]) Utils.PlaySound(beepSound3, null, handler);
             lastBeep = beep;
         }
 
-        void Update() {
+        protected void Update() {
             if (primaryControlHoldTime > 0) {
                 primaryControlHoldTime -= Time.deltaTime;
                 if (primaryControlHoldTime <= 0) ExecuteAction(module.gripPrimaryActionHold);

@@ -159,61 +159,99 @@ namespace TOR {
         public float aiShootDistanceMult = 1.0f;
         public bool aiMeleeEnabled;
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(altFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath, ac => altFireSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(altFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath2, ac => altFireSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(chargeFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath, ac => chargeFireSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(chargeFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath2, ac => chargeFireSoundAsset2 = ac, null);
-            if (!string.IsNullOrEmpty(chargeFireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath3, ac => chargeFireSoundAsset3 = ac, null);
-
-            if (!string.IsNullOrEmpty(chargeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath, ac => chargeSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(chargeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath2, ac => chargeSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(chargeReadySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath, ac => chargeReadySoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(chargeReadySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath2, ac => chargeReadySoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(chargeStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath, ac => chargeStartSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(chargeStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath2, ac => chargeStartSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(emptySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath, ac => emptySoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(emptySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath2, ac => emptySoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(fireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath, ac => fireSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(fireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath2, ac => fireSoundAsset2 = ac, null);
-            if (!string.IsNullOrEmpty(fireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath3, ac => fireSoundAsset3 = ac, null);
-
-            if (!string.IsNullOrEmpty(fireModeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath, ac => fireModeSoundAsset= ac, null);
-            if (!string.IsNullOrEmpty(fireModeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath2, ac => fireModeSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(overheatSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath, ac => overheatSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(overheatSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath2, ac => overheatSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(preFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath, ac => preFireSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(preFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath2, ac => preFireSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(reloadSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath, ac => reloadSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(reloadSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath2, ac => reloadSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(reloadEndSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath, ac => reloadEndSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(reloadEndSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath2, ac => reloadEndSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(spinStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath, ac => spinStartSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(spinStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath2, ac => spinStartSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(spinLoopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath, ac => spinLoopSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(spinLoopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath2, ac => spinLoopSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(spinStopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath, ac => spinStopSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(spinStopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath2, ac => spinStopSoundAsset2 = ac, null);
-
-            if (!string.IsNullOrEmpty(scopeReticle)) Catalog.LoadAssetAsync<Texture2D>(scopeReticle, texture => scopeReticleTexture = texture, null);
-        }
-
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemBlaster>(item.gameObject);
+        }
+
+        public override void OnItemDataRefresh(ItemData data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(altFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath, x => altFireSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(altFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath2, x => altFireSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(chargeFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath, x => chargeFireSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath2, x => chargeFireSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath3, x => chargeFireSoundAsset3 = x, null);
+
+            if (!string.IsNullOrEmpty(chargeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath, x => chargeSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(chargeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath2, x => chargeSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(chargeReadySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath, x => chargeReadySoundAsset = x, null);
+            if (!string.IsNullOrEmpty(chargeReadySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath2, x => chargeReadySoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(chargeStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath, x => chargeStartSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(chargeStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath2, x => chargeStartSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(emptySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath, x => emptySoundAsset = x, null);
+            if (!string.IsNullOrEmpty(emptySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath2, x => emptySoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(fireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath, x => fireSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(fireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath2, x => fireSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(fireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath3, x => fireSoundAsset3 = x, null);
+
+            if (!string.IsNullOrEmpty(fireModeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath, x => fireModeSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(fireModeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath2, x => fireModeSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(overheatSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath, x => overheatSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(overheatSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath2, x => overheatSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(preFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath, x => preFireSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(preFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath2, x => preFireSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(reloadSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath, x => reloadSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(reloadSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath2, x => reloadSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(reloadEndSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath, x => reloadEndSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(reloadEndSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath2, x => reloadEndSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(spinStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath, x => spinStartSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(spinStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath2, x => spinStartSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(spinLoopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath, x => spinLoopSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(spinLoopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath2, x => spinLoopSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(spinStopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath, x => spinStopSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(spinStopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath2, x => spinStopSoundAsset2 = x, null);
+
+            if (!string.IsNullOrEmpty(scopeReticle)) Catalog.LoadAssetAsync<Texture2D>(scopeReticle, x => scopeReticleTexture = x, null);
+        }
+
+        public override void ReleaseAddressableAssets() {
+            base.ReleaseAddressableAssets();
+            Utils.ReleaseAsset(altFireSoundAsset);
+            Utils.ReleaseAsset(altFireSoundAsset2);
+            Utils.ReleaseAsset(chargeFireSoundAsset);
+            Utils.ReleaseAsset(chargeFireSoundAsset2);
+            Utils.ReleaseAsset(chargeFireSoundAsset3);
+            Utils.ReleaseAsset(chargeSoundAsset);
+            Utils.ReleaseAsset(chargeSoundAsset2);
+            Utils.ReleaseAsset(chargeReadySoundAsset);
+            Utils.ReleaseAsset(chargeReadySoundAsset2);
+            Utils.ReleaseAsset(chargeStartSoundAsset);
+            Utils.ReleaseAsset(chargeStartSoundAsset2);
+            Utils.ReleaseAsset(emptySoundAsset);
+            Utils.ReleaseAsset(emptySoundAsset2);
+            Utils.ReleaseAsset(fireSoundAsset);
+            Utils.ReleaseAsset(fireSoundAsset2);
+            Utils.ReleaseAsset(fireSoundAsset3);
+            Utils.ReleaseAsset(fireModeSoundAsset);
+            Utils.ReleaseAsset(fireModeSoundAsset2);
+            Utils.ReleaseAsset(overheatSoundAsset);
+            Utils.ReleaseAsset(overheatSoundAsset2);
+            Utils.ReleaseAsset(preFireSoundAsset);
+            Utils.ReleaseAsset(preFireSoundAsset2);
+            Utils.ReleaseAsset(reloadSoundAsset);
+            Utils.ReleaseAsset(reloadSoundAsset2);
+            Utils.ReleaseAsset(reloadEndSoundAsset);
+            Utils.ReleaseAsset(reloadEndSoundAsset2);
+            Utils.ReleaseAsset(spinStartSoundAsset);
+            Utils.ReleaseAsset(spinStartSoundAsset2);
+            Utils.ReleaseAsset(spinLoopSoundAsset);
+            Utils.ReleaseAsset(spinLoopSoundAsset2);
+            Utils.ReleaseAsset(spinStopSoundAsset);
+            Utils.ReleaseAsset(spinStopSoundAsset2);
+
+            Utils.ReleaseAsset(scopeReticleTexture);
         }
     }
 }

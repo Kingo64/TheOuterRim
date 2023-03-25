@@ -7,12 +7,15 @@ namespace TOR {
         internal Item item;
         internal ItemModuleJetpack module;
 
+        Creature creature;
         PlayerControl playerControl;
-        InputXR.Controller controllerLeft;
-        InputXR.Controller controllerRight;
+        WaterHandler waterHandler;
+        Side locomotionSide;
+        InputXR.Controller locomotionController;
+        InputXR.Controller steeringController;
         InputSteamVR steamController;
         Locomotion locomotion;
-        Rigidbody playerRb;
+        Rigidbody creatureRb;
         bool isFlying;
         bool equipped;
         float currentThrust;
@@ -40,8 +43,6 @@ namespace TOR {
             module = item.data.GetModule<ItemModuleJetpack>();
 
             playerControl = PlayerControl.local;
-            locomotion = Player.local.locomotion;
-            playerRb = locomotion.rb;
 
             idleSoundLeft = item.GetCustomReference("idleSoundLeft").GetComponent<AudioSource>();
             idleSoundRight = item.GetCustomReference("idleSoundRight").GetComponent<AudioSource>();
@@ -53,49 +54,70 @@ namespace TOR {
             sparksVelocityLeft = thrusterLeft.transform.Find("Sparks").GetComponent<ParticleSystem>().velocityOverLifetime;
             sparksVelocityRight = thrusterRight.transform.Find("Sparks").GetComponent<ParticleSystem>().velocityOverLifetime;
 
-            if (PlayerControl.loader == PlayerControl.Loader.Oculus) {
-                controllerLeft = ((InputXR)PlayerControl.input).leftController;
-                controllerRight = ((InputXR)PlayerControl.input).rightController;
-            } else {
-                steamController = (InputSteamVR)PlayerControl.input;
-            }
-
-            var temp = thrusterLeft.transform.Find("Sparks").GetComponent<ParticleSystem>().emission;
-            temp.enabled = false;
-            temp = thrusterRight.transform.Find("Sparks").GetComponent<ParticleSystem>().emission;
-            temp.enabled = false;
+            SetControllers();
 
             item.OnSnapEvent += OnSnapEvent;
             item.OnUnSnapEvent += OnUnSnapEvent;
         }
 
+        protected void OnDestroy() {
+            UnassignItem();
+        }
+
         public void OnSnapEvent(Holder holder) {
-            equipped = holder?.creature == Player.local.creature;
-            if (equipped) {
-                locomotion = Player.local.locomotion;
-                playerRb = locomotion.rb;
-            }
+            creature = holder?.creature;
+            creature.OnKillEvent += delegate { UnassignItem(); };
+            equipped = creature == Player.local.creature;
+            locomotion = equipped ? Player.local.locomotion : creature.locomotion;
+            originalAirSpeed = locomotion.airSpeed;
+
+            creatureRb = locomotion.rb;
+
+            waterHandler = creature.waterHandler;
+            waterHandler.OnWaterEnter += TurnOff;
         }
 
         public void OnUnSnapEvent(Holder holder) {
+            UnassignItem();
+        }
+
+        public void UnassignItem() {
             TurnOff();
             equipped = false;
+            creature = null;
+            if (waterHandler != null) {
+                waterHandler.OnWaterEnter -= TurnOff;
+                waterHandler = null;
+            }
             locomotion = null;
-            playerRb = null;
+            creatureRb = null;
+        }
+
+        public void SetControllers() {
+            try {
+                locomotionSide = playerControl.locomotionController;
+                if (PlayerControl.loader == PlayerControl.Loader.Oculus) {
+                    locomotionController = locomotionSide == Side.Left ? ((InputXR)PlayerControl.input).leftController : ((InputXR)PlayerControl.input).rightController;
+                    steeringController = locomotionSide == Side.Left ? ((InputXR)PlayerControl.input).rightController : ((InputXR)PlayerControl.input).leftController;
+                } else {
+                    steamController = (InputSteamVR)PlayerControl.input;
+                }
+            } catch {
+                Utils.LogError("Couldn't setup Jetpack as VR controllers not detected");
+            }
         }
 
         void ApplyThrust(float multiplier) {
-            playerRb.AddForce(Vector3.up * module.thrust * multiplier, ForceMode.Acceleration);
+            creatureRb.AddForce(Vector3.up * module.thrust * multiplier, ForceMode.Acceleration);
         }
 
-        readonly WaitForSeconds destabliseGrabbedDelay = new WaitForSeconds(0.1f);
         IEnumerator DestabliseGrabbedCoroutine() {
             Creature GetCreature(Side side) {
                 return Player.local?.GetHand(side)?.ragdollHand?.grabbedHandle?.gameObject?.GetComponentInParent<Creature>();
             }
 
             while (true) {
-                yield return destabliseGrabbedDelay;
+                yield return Utils.waitSeconds_01;
                 if (!equipped && destabiliseGrabbedCoroutine != null) StopCoroutine(destabiliseGrabbedCoroutine);
                 var creature = GetCreature(Side.Right) ?? GetCreature(Side.Left);
                 if (creature?.ragdoll && creature.ragdoll.state == Ragdoll.State.Standing) {
@@ -116,11 +138,9 @@ namespace TOR {
             isFlying = true;
             groundIgnoreTime = 0.1f;
 
-            originalAirSpeed = locomotion.airSpeed;
-
             locomotion.airSpeed = module.airSpeed;
-            playerRb.drag = module.drag;
-            playerRb.useGravity = false;
+            creatureRb.drag = module.drag;
+            creatureRb.useGravity = false;
 
             if (equipped) destabiliseGrabbedCoroutine = StartCoroutine(DestabliseGrabbedCoroutine());
         }
@@ -137,28 +157,30 @@ namespace TOR {
 
             try {
                 locomotion.airSpeed = originalAirSpeed;
-                playerRb.drag = locomotion.isGrounded ? locomotion.groundDrag : locomotion.flyDrag;
-                playerRb.useGravity = true;
+                creatureRb.drag = locomotion.isGrounded ? locomotion.groundDrag : locomotion.flyDrag;
+                creatureRb.useGravity = true;
             }
             catch { }
 
             if (destabiliseGrabbedCoroutine != null) StopCoroutine(destabiliseGrabbedCoroutine);
         }
 
-        void FixedUpdate() {
+        protected void FixedUpdate() {
             if (equipped && isFlying && currentThrust != 0f) {
                 ApplyThrust(currentThrust);
                 currentThrust = 0;
             }
         }
 
-        void Update() {
+        protected void Update() {
             if (equipped) {
-                if (isFlying && locomotion.isGrounded && groundIgnoreTime <= 0) {
+                if (locomotionController == null && steamController == null) return;
+                if (locomotionController != null && playerControl.locomotionController != locomotionSide) SetControllers();
+                if (isFlying && (locomotion.isGrounded && groundIgnoreTime <= 0 || waterHandler.inWater)) {
                     TurnOff();
-                } else {
+                } else if (!waterHandler.inWater) {
                     if (!Pointer.GetActive() || !Pointer.GetActive().isPointingUI) {
-                        var yMult = controllerRight != null ? controllerRight.thumbstick.GetValue().y : steamController.turnAction.axis.y;
+                        var yMult = steeringController != null ? steeringController.thumbstick.GetValue().y : steamController.turnAction.axis.y;
                         if (Mathf.Abs(yMult) > playerControl.axisTurnDeadZone) {
                             if (!isFlying && yMult > module.startDeadzone) {
                                 TurnOn();
@@ -166,14 +188,14 @@ namespace TOR {
                             if (isFlying) currentThrust = yMult;
                         }
                     }
-                    if (controllerRight != null ? controllerRight.thumbstickClick.GetDown() : steamController.jumpAction.stateDown) {
+                    if (steeringController != null ? steeringController.thumbstickClick.GetDown() : steamController.jumpAction.stateDown) {
                         if (isFlying) TurnOff();
                         else if (!locomotion.isGrounded) TurnOn();
                     }
                 }
                 if (isFlying) {
-                    var xMult = controllerLeft != null ? GetVectorIntensity(controllerLeft.thumbstick.GetValue()) : GetVectorIntensity(steamController.moveAction.axis);
-                    var yMult = controllerRight != null ? controllerRight.thumbstick.GetValue().y : steamController.turnAction.axis.y;
+                    var xMult = locomotionController != null ? GetVectorIntensity(locomotionController.thumbstick.GetValue()) : GetVectorIntensity(steamController.moveAction.axis);
+                    var yMult = steeringController != null ? steeringController.thumbstick.GetValue().y : steamController.turnAction.axis.y;
                     var throttleAmount = (xMult + ((yMult + 1) / 2)) / 2;
                     var volume = Mathf.Lerp(0.2f, 0.45f, throttleAmount);
                     var pitch = Mathf.Lerp(0.8f, 1.5f, throttleAmount);
@@ -186,6 +208,7 @@ namespace TOR {
                     idleSoundRight.pitch = pitch;
                     sparksVelocityLeft.speedModifierMultiplier = sparkVelocity;
                     sparksVelocityRight.speedModifierMultiplier = sparkVelocity;
+                    locomotion.groundAngle = 0;
                 }
             }
             if (groundIgnoreTime > 0) groundIgnoreTime -= Time.deltaTime;

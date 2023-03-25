@@ -17,15 +17,21 @@ namespace TOR {
         public string explosionSound2;
         public AudioContainer explosionSoundAsset2;
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(explosionSound)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound, ac => explosionSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(explosionSound2)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound2, ac => explosionSoundAsset2 = ac, null);
-        }
-
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemThermalDetonator>(item.gameObject);
+        }
+
+        public override void OnItemDataRefresh(ItemData data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(explosionSound)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound, x => explosionSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(explosionSound2)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound2, x => explosionSoundAsset2 = x, null);
+        }
+
+        public override void ReleaseAddressableAssets() {
+            base.ReleaseAddressableAssets();
+            Utils.ReleaseAsset(explosionSoundAsset);
+            Utils.ReleaseAsset(explosionSoundAsset2);
         }
     }
 }

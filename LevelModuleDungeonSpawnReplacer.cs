@@ -6,7 +6,8 @@ using UnityEngine;
 namespace TOR {
     public class LevelModuleDungeonSpawnReplacer : LevelModule {
         public string creatureTable;
-        public Dictionary<string, string> groups = new Dictionary<string, string>();
+        public Dictionary<string, string> waveBackups = new Dictionary<string, string>();
+        public int factionId;
 
         public override IEnumerator OnLoadCoroutine() {
             EventManager.onLevelLoad += OnLevelLoad;
@@ -22,7 +23,9 @@ namespace TOR {
 
         void OnLevelLoad(LevelData levelData, EventTime eventTime) {
             if (eventTime == EventTime.OnEnd) {
-                groups.Clear();
+                Catalog.GetData<CreatureTable>(creatureTable).TryPick(out var creatureData);
+                factionId = creatureData.factionId;
+                waveBackups.Clear();
                 foreach (Room room in Level.current.dungeon.rooms) {
                     var creatures = new List<Creature>(room.creatures);
                     foreach (var creature in creatures) {
@@ -35,16 +38,19 @@ namespace TOR {
                         spawner.creatureTableID = creatureTable;
                         if (spawner.ignoreRoomMaxNPC) {
                             spawner.Spawn();
-                            if (spawner.spawning) room.spawnerNPCCount++;
+                            if (spawner.CurrentState == CreatureSpawner.State.Spawning) room.spawnerNPCCount++;
                         } else if (room.spawnerNPCCount < Mathf.Min(Catalog.gameData.platformParameters.maxRoomNpc, room.spawnerMaxNPC)) {
                             spawner.Spawn();
-                            if (spawner.spawning) room.spawnerNPCCount++;
+                            if (spawner.CurrentState == CreatureSpawner.State.Spawning) room.spawnerNPCCount++;
                         }
                     }
 
                     foreach (WaveSpawner spawner in room.GetComponentsInChildren<WaveSpawner>(true)) {
                         var data = Catalog.GetData<WaveData>(spawner.startWaveId, true);
-                        groups.Add(data.id, JsonUtility.ToJson(data));
+                        waveBackups.Add(data.id, JsonUtility.ToJson(data));
+                        foreach (var faction in data.factions) {
+                            faction.factionID = creatureData.factionId;
+                        }
                         foreach (var group in data.groups) {
                             group.reference = WaveData.Group.Reference.Table;
                             group.referenceID = creatureTable;
@@ -58,11 +64,14 @@ namespace TOR {
         }
 
         private void OnLevelUnload(LevelData levelData, EventTime eventTime) {
-            foreach (var group in groups) {
-                var data = Catalog.GetData<WaveData>(group.Key, true);
-                data.groups = JsonUtility.FromJson<WaveData>(group.Value).groups;
+            foreach (var backup in waveBackups) {
+                var data = Catalog.GetData<WaveData>(backup.Key, true);
+                var waveData = JsonUtility.FromJson<WaveData>(backup.Value);
+                data.groups = waveData.groups;
+                data.factions = waveData.factions;
+                data.OnCatalogRefresh();
             }
-            groups.Clear();
+            waveBackups.Clear();
         }
     }
 }

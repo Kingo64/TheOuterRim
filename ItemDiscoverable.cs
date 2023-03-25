@@ -20,7 +20,7 @@ namespace TOR {
             audioContainer = ((EffectModuleAudio)fx.modules[0]).audioContainer;
 
             audio = item.gameObject.AddComponent<AudioSource>();
-            audio.spatialBlend = 0.9f;
+            audio.spatialBlend = 0.5f;
             audio.volume = 0.5f;
             audio.outputAudioMixerGroup = GameManager.local.audioMixer.FindMatchingGroups("Effect")[0];
 

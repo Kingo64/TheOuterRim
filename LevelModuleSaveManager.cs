@@ -1,6 +1,7 @@
 ﻿using ThunderRoad;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace TOR {
     public class LevelModuleSaveManager : LevelModule {
@@ -15,7 +16,7 @@ namespace TOR {
         }
 
         private void OnLevelLoad(LevelData levelData, EventTime eventTime) {
-            if (eventTime == EventTime.OnEnd) {
+            if (eventTime == EventTime.OnStart) {
                 Load();
                 ProcessDiscoveredItems();
             }
@@ -41,6 +42,22 @@ namespace TOR {
                 }
                 catch { }
             }
+            //var containers = Object.FindObjectsOfType<Container>();
+            //if (containers != null) {
+            //    var contents = new List<ContainerData.Content>();
+            //    foreach (CatalogData catalogData in Catalog.GetDataList(Catalog.Category.Item)) {
+            //        ItemData itemData = (ItemData)catalogData;
+            //        if (itemData.purchasable && itemData != null && itemData.prefabLocation != null) {
+            //            contents.Add(new ContainerData.Content(itemData, null, null, 1));
+            //        }
+            //    }
+
+            //    foreach (var container in containers) {
+            //        if (container.loadContent == Container.LoadContent.Purchasable) {
+            //            container.Load(contents);
+            //        }
+            //    }
+            //}
         }
 
         public static void Load() {

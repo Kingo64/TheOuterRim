@@ -24,14 +24,14 @@ namespace TOR {
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
 
-            var boltModule = Catalog.GetData<ItemData>(module.projectileID, true).GetModule<ItemModuleBlasterBolt>();
-            if (boltModule != null) {
+            var projectileData = Catalog.GetData<ProjectileData>(module.projectileID, true);
+            if (projectileData != null) {
                 var mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
-                mesh.materials[0].SetColor("_BaseColor", Utils.UpdateHue(mesh.materials[0].GetColor("_BaseColor"), boltModule.boltHue));
+                mesh.materials[0].SetColor("_BaseColor", Utils.UpdateHue(mesh.materials[0].GetColor("_BaseColor"), projectileData.boltHue));
 
                 if (particle) {
                     var main = particle.main;
-                    main.startColor = Utils.UpdateHue(main.startColor.color, boltModule.boltHue);
+                    main.startColor = Utils.UpdateHue(main.startColor.color, projectileData.boltHue);
                 }
             }
         }

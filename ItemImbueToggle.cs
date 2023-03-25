@@ -110,7 +110,7 @@ namespace TOR {
             }
         }
 
-        void Update() {
+        protected void Update() {
             if (primaryControlHoldTime > 0) {
                 primaryControlHoldTime -= Time.deltaTime;
                 if (primaryControlHoldTime <= 0) ExecuteAction(module.primaryActionHold);

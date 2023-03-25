@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Collections;
 using IngameDebugConsole;
 using System.Reflection;
+using System.Linq;
 
 namespace TOR {
     [Description("Global settings for The Outer Rim|Global Settings")]
@@ -22,14 +23,6 @@ namespace TOR {
         [Description("Blaster bolt speed multiplier for NPCs|NPC Bolt Speed"), Category("Blasters")]
         public static float BlasterBoltSpeedNPC { get; set; }
         public float blasterBoltSpeedNPC = 1f;
-
-        [Description("Time multiplier between NPC shots|NPC Attack Interval"), Category("Blasters")]
-        public static float BlasterNPCAttackInterval { get; set; }
-        public float blasterNPCAttackInterval = 1f;
-
-        [Description("Inaccuracy multiplier for NPCs|NPC Inaccuracy"), Category("Blasters")]
-        public static float BlasterNPCInaccuracy { get; set; }
-        public float blasterNPCInaccuracy = 1f;
 
         [Description("Can only reload via a manual power cell refill|Require Refill"), Category("Blasters")]
         public static bool BlasterRequireRefill { get; set; }
@@ -93,7 +86,7 @@ namespace TOR {
 
         [Description("Attack speed for force sensitive lightsaber wielders. High values will cause animation/physics anomalies.|Saber NPC Attack Speed"), Category("Lightsabers")]
         public static float SaberNPCAttackSpeed { get; set; }
-        public float saberNPCAttackSpeed = 1.3f;
+        public float saberNPCAttackSpeed = 1.2f;
 
         [Description("Activate the 'NPC Recoil On Parry' setting|Saber NPC Override Recoil On Parry"), Category("Lightsabers")]
         public static bool SaberNPCOverrideRecoilOnParry { get; set; }
@@ -145,21 +138,15 @@ namespace TOR {
         internal static Dictionary<int, Collider[]> LightsaberColliders { get; private set; }
 
         public override IEnumerator OnLoadCoroutine() {
+            RunPrechecks();
             SetJsonValues();
             SetupConsoleCommands();
             SetupLoadingTips();
             SceneManager.sceneLoaded += OnNewSceneLoaded;
             EventManager.onPossess += OnPossessionEvent;
             EventManager.onReloadJson += OnReloadJson;
-            EventManager.onLevelLoad += OnLevelLoad;
 
             yield break;
-        }
-
-        private void OnLevelLoad(LevelData levelData, EventTime eventTime) {
-            if (eventTime == EventTime.OnEnd) {
-                SetupHelmets();
-            }
         }
 
         private void OnReloadJson(EventTime eventTime) {
@@ -169,9 +156,7 @@ namespace TOR {
         }
 
         void OnPossessionEvent(Creature creature, EventTime eventTime) {
-            if (eventTime == EventTime.OnStart) {
-                SetupPlayerHelmet(creature);
-            } else if (eventTime == EventTime.OnEnd) {
+            if (eventTime == EventTime.OnEnd) {
                 SetupHandAudio(creature);
             }
         }
@@ -185,8 +170,6 @@ namespace TOR {
             BlasterAutomaticReload = blasterAutomaticReload;
             BlasterBoltSpeed = blasterBoltSpeed;
             BlasterBoltSpeedNPC = blasterBoltSpeedNPC;
-            BlasterNPCAttackInterval = blasterNPCAttackInterval;
-            BlasterNPCInaccuracy = blasterNPCInaccuracy;
             BlasterRequireRefill = blasterRequireRefill;
             BlasterScope3D = blasterScope3D;
             BlasterScopeResolution = blasterScopeResolution;
@@ -214,7 +197,13 @@ namespace TOR {
             DisableCreaturePhysicsCulling = disableCreaturePhysicsCulling;
             DisableCreaturePhysicsCullingDungeon = disableCreaturePhysicsCullingDungeon;
 
-            Debug.Log("The Outer Rim v" + Assembly.GetExecutingAssembly().GetName().Version + ": Settings file loaded successfully");
+            Utils.Log("v" + Assembly.GetExecutingAssembly().GetName().Version + " - Settings file loaded successfully");
+        }
+
+        void RunPrechecks() {
+            if (!GameManager.options.postProcessing) Utils.LogWarning("Post-processing is currently disabled! Lightsabers will not render correctly unless it is turned on.");
+            if (!GameManager.options.bloomEnabled) Utils.LogWarning("Bloom is currently disabled! Lightsabers will not render correctly unless it is turned on.");
+            if (GameManager.options.bloomIntensity <= 0.05f) Utils.LogWarning("Bloom is currently set to a very low intensity. Lightsabers may not look correct as they are tuned for default game settings.");
         }
 
         void SetupConsoleCommands() {
@@ -226,8 +215,6 @@ namespace TOR {
             DebugLogConsole.AddCommand("tor_blaster_automatic_reload", GetDescription("BlasterAutomaticReload"), (bool enabled) => blasterAutomaticReload = BlasterAutomaticReload = enabled);
             DebugLogConsole.AddCommand("tor_blaster_bolt_speed", GetDescription("BlasterBoltSpeed"), (float multiplier) => blasterBoltSpeed = BlasterBoltSpeed = multiplier);
             DebugLogConsole.AddCommand("tor_blaster_bolt_speed_npc", GetDescription("BlasterBoltSpeedNPC"), (float multiplier) => blasterBoltSpeedNPC = BlasterBoltSpeedNPC = multiplier);
-            DebugLogConsole.AddCommand("tor_blaster_npc_attack_interval", GetDescription("BlasterNPCAttackInterval"), (float multiplier) => blasterNPCAttackInterval = BlasterNPCAttackInterval = multiplier);
-            DebugLogConsole.AddCommand("tor_blaster_npc_inaccuracy", GetDescription("BlasterNPCInaccuracy"), (float multiplier) => blasterNPCInaccuracy = BlasterNPCInaccuracy = multiplier);
             DebugLogConsole.AddCommand("tor_blaster_require_refill", GetDescription("BlasterRequireRefill"), (bool enabled) => blasterRequireRefill = BlasterRequireRefill = enabled);
             DebugLogConsole.AddCommand("tor_blaster_scope_3d", GetDescription("BlasterScope3D"), (bool enabled) => {
             blasterScope3D = BlasterScope3D = enabled;
@@ -272,7 +259,6 @@ namespace TOR {
             DebugLogConsole.AddCommand("tor_saber_trail", GetDescription("SaberTrailEnabled"), (bool enabled) => saberTrailEnabled = SaberTrailEnabled = enabled);
             DebugLogConsole.AddCommand("tor_saber_trail_duration", GetDescription("SaberTrailDuration"), (float duration) => saberTrailDuration = SaberTrailDuration = duration);
             DebugLogConsole.AddCommand("tor_saber_trail_min_velocity", GetDescription("SaberTrailMinVelocity"), (float velocity) => saberTrailMinVelocity = SaberTrailMinVelocity = velocity);
-            DebugLogConsole.AddCommand("tor_use_legacy_helmets", GetDescription("UseLegacyHelmets"), (bool enabled) => useLegacyHelmets = UseLegacyHelmets = enabled);
         }
 
         void SetupHandAudio(Creature creature) {
@@ -297,54 +283,9 @@ namespace TOR {
             return handAudio;
         }
 
-        void SetupPlayerHelmet(Creature creature) {
-            if (UseLegacyHelmets) {
-                SetupHelmet(creature, Catalog.GetData<HolderData>(HAT_HOLDER_NAME, true));
-                var holder = creature.equipment.holders.Find(x => x.name == HAT_HOLDER_NAME);
-                if (holder && holder.HasSlotFree()) {
-                    foreach (ContainerData.Content content in Player.characterData.inventory) {
-                        if (content.TryGetCustomValue(SavedValueID.Holder.ToString(), out string savedHolder)) {
-                            if (savedHolder == HAT_HOLDER_NAME) {
-                                content.Spawn(delegate (Item item) { if (item) holder.Snap(item, true); }, true);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        void SetupHelmets() {
-            Debug.Log("The Outer Rim: Configuring pooled creatures");
-            var holderNPCHead = Catalog.GetData<HolderData>("HolderNPCHead", true);
-            foreach (var id in Constants.CREATURE_IDS.Keys) {
-                var pool = CreatureData.pools.Find((CreatureData.Pool p) => p.id == id);
-                if (pool != null) {
-                    foreach (var obj in pool.list) {
-                        var pooledCreature = obj.GetComponent<Creature>();
-                        SetupHelmet(pooledCreature, holderNPCHead.Clone() as HolderData);
-                    }
-                }
-            }
-        }
-
-        public static string HAT_HOLDER_NAME = "HolderHead";
-
-        public static void SetupHelmet(Creature creature, HolderData holderData) {
-            var HAT_POSITION = new Vector3(-0.14f, 0, 0.02f);
-            var HAT_ROTATION = Quaternion.Euler(0, 90, 90);
-
-            var holderObject = new GameObject(HAT_HOLDER_NAME);
-            holderObject.transform.SetParent(creature.ragdoll.headPart.meshBone);
-            holderObject.transform.localPosition = HAT_POSITION;
-            holderObject.transform.localRotation = HAT_ROTATION;
-            Holder holder = holderObject.AddComponent<Holder>();
-            holder.Load(holderData);
-            creature.equipment.holders.Add(holder);
-        }
-
         public void SetupLoadingTips() {
             if (loadingTips != null) { 
-                var tips = Catalog.GetTextData()?.GetGroup("Tips");
+                var tips = Catalog.GetTextData()?.textGroups.Find(x => x.id == "Tips");
                 var count = tips.texts.Count;
                 foreach (var tip in loadingTips) {
                     tips.texts.Add(new TextData.TextID {
@@ -354,16 +295,5 @@ namespace TOR {
                 }
             }
         }
-    }
-
-    public class Constants {
-        internal readonly static Dictionary<int, string> CREATURE_IDS = new Dictionary<int, string>() {
-            { -2046070811, "CloneTrooper" },
-            { -1363703833, "ForceSensitiveMale" },
-            { -145168602, "ForceSensitiveFemale" },
-            { 121048391, "Stormtrooper" },
-            //{ 190647430, "Gamorrean" },
-            //{ 519019616, "TuskenRaider" }
-        };
     }
 }

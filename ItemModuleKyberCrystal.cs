@@ -33,18 +33,24 @@ namespace TOR {
         public EffectData whoosh;
         public string whooshFX;
 
+        public override void OnItemLoaded(Item item) {
+            base.OnItemLoaded(item);
+            Utils.AddModule<ItemKyberCrystal>(item.gameObject);
+        }
+
         public override void OnItemDataRefresh(ItemData data) {
             base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(idleSound)) Catalog.LoadAssetAsync<AudioContainer>(idleSound, ac => idleSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, ac => startSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, ac => stopSoundAsset = ac, null);
+            if (!string.IsNullOrEmpty(idleSound)) Catalog.LoadAssetAsync<AudioContainer>(idleSound, x => idleSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, x => startSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, x => stopSoundAsset = x, null);
             if (!string.IsNullOrEmpty(whooshFX)) whoosh = Catalog.GetData<EffectData>(whooshFX, true);
         }
 
-        public override void OnItemLoaded(Item item)
-        {
-            base.OnItemLoaded(item);
-            Utils.AddModule<ItemKyberCrystal>(item.gameObject);
+        public override void ReleaseAddressableAssets() {
+            base.ReleaseAddressableAssets();
+            Utils.ReleaseAsset(idleSoundAsset);
+            Utils.ReleaseAsset(startSoundAsset);
+            Utils.ReleaseAsset(stopSoundAsset);
         }
     }
 }

@@ -25,7 +25,7 @@ namespace TOR {
 		IEnumerator Observe() {
 			var canExit = false;
 			while (true) {
-				yield return new WaitForSeconds(0.1f);
+				yield return Utils.waitSeconds_01;
 
 				foreach (var waveSpawner in WaveSpawner.instances) {
 					var musicSelector = waveSpawner.gameObject.AddComponent<MusicSelector>();
@@ -78,7 +78,7 @@ namespace TOR {
 				return musicWaveAsset.GetRandomAudioClip(musicWaveAsset.sounds);
 			}
 
-			void Update() {
+			protected void Update() {
 				if (waveSpawner.isRunning && musicWaveAsset && audioSource && !audioSource.isPlaying) {
 					audioSource.clip = GetTrack();
 					audioSource.Play();

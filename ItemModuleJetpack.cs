@@ -12,17 +12,25 @@ namespace TOR {
         public AudioContainer startSoundAsset; public string startSound;
         public AudioContainer stopSoundAsset; public string stopSound;
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(idleSoundLeft)) Catalog.LoadAssetAsync<AudioContainer>(idleSoundLeft, ac => idleSoundLeftAsset = ac, null);
-            if (!string.IsNullOrEmpty(idleSoundRight)) Catalog.LoadAssetAsync<AudioContainer>(idleSoundRight, ac => idleSoundRightAsset = ac, null);
-            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, ac => startSoundAsset = ac, null);
-            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, ac => stopSoundAsset = ac, null);
-        }
-
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemJetpack>(item.gameObject);
+        }
+
+        public override void OnItemDataRefresh(ItemData data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(idleSoundLeft)) Catalog.LoadAssetAsync<AudioContainer>(idleSoundLeft, x => idleSoundLeftAsset = x, null);
+            if (!string.IsNullOrEmpty(idleSoundRight)) Catalog.LoadAssetAsync<AudioContainer>(idleSoundRight, x => idleSoundRightAsset = x, null);
+            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, x => startSoundAsset = x, null);
+            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, x => stopSoundAsset = x, null);
+        }
+
+        public override void ReleaseAddressableAssets() {
+            base.ReleaseAddressableAssets();
+            Utils.ReleaseAsset(idleSoundLeftAsset);
+            Utils.ReleaseAsset(idleSoundRightAsset);
+            Utils.ReleaseAsset(startSoundAsset);
+            Utils.ReleaseAsset(stopSoundAsset);
         }
     }
 }

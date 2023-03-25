@@ -5,6 +5,16 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 
 namespace TOR {
+    [System.Serializable]
+    public class ItemBlasterSaveData : ContentCustomData {
+        public int ammo;
+        public bool altFire;
+        public int firemode;
+        public int firerate;
+        public int scopeZoom;
+        public string projectileID;
+    }
+
     public class ItemBlaster : MonoBehaviour {
         public static List<ItemBlaster> all = new List<ItemBlaster>();
         internal Item item;
@@ -77,8 +87,10 @@ namespace TOR {
         public bool holdingSecondaryGripLeft;
         public bool holdingSecondaryGripRight;
 
-        ItemData projectileData;
-        ItemData projectileAltData;
+        ProjectileData projectileData;
+        ItemData projectileItemData;
+        ProjectileData projectileAltData;
+        ItemData projectileAltItemData;
         ItemModuleBlasterBolt boltModule;
         ItemModuleBlasterBolt boltAltModule;
         DamagerData boltDamager;
@@ -120,24 +132,26 @@ namespace TOR {
 
         // AI settings
         Creature currentAI;
-        //BrainData currentAIBrain;
-        //BrainModuleBow currentAIBow;
+        BrainData currentAIBrain;
+        BrainModuleFirearm currentAIFirearm;
         ////BrainModuleDetection currentAIDetection;
         //BrainModuleMelee currentAIMelee;
         //BrainModuleParry currentAIParry;
         //BrainModuleSightable currentAISightable;
         //BrainModuleSpeak currentAISpeak;
-        //int aiBurstAmount;
-        //float aiGrabForegripTime;
-        //float aiShootTime;
-        //bool aiOriginalMeleeEnabled;
-        //float aiOriginalMeleeDistMult;
-        //float aiOriginalParryDetectionRadius;
-        //float aiOriginalParryMaxDist;
+        int aiBurstAmount;
+        float aiGrabForegripTime;
         ItemModuleAI.WeaponHandling aiOriginalWeaponHandling;
-        const int aiMask = ~(1 << 0);
 
         ItemModuleAI moduleAI;
+
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                _propBlock = _propBlock ?? new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
 
         protected void Awake() {
             all.Add(this);
@@ -197,6 +211,12 @@ namespace TOR {
                 bulletSpawns = module.bulletSpawnIDs.Select(id => item.GetCustomReference(id)).ToArray();
             }
 
+            var moduleAIFireable = GetComponent<AIFireable>();
+            if (moduleAIFireable) {
+                moduleAIFireable.OnAIFire = new AIFireable.FireableEvent(OnAIFire);
+                moduleAIFireable.OnAITryReload = new AIFireable.FireableEvent(OnAITryReload);
+            }
+
             // setup item events
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
@@ -228,27 +248,31 @@ namespace TOR {
                 originalChargeEffectScale = chargeEffectTrans.localScale;
             }
 
-            item.TryGetSavedValue("ammo", out string foundAmmo);
-            if (!int.TryParse(foundAmmo, out ammoLeft)) {
+            string foundProjectile = null;
+            item.TryGetCustomData(out ItemBlasterSaveData saveData);
+            if (saveData != null) {
+                ammoLeft = saveData.ammo;
+                altFireEnabled = saveData.altFire;
+                currentFiremodeIndex = saveData.firemode;
+                currentFirerateIndex = saveData.firerate;
+                currentScopeZoom = saveData.scopeZoom;
+                foundProjectile = saveData.projectileID;
+            } else {
                 ammoLeft = module.magazineSize;
                 UpdateAmmoDisplay();
             }
 
-            item.TryGetSavedValue("altFire", out string foundAltFire);
-            bool.TryParse(foundAltFire, out altFireEnabled);
-            item.TryGetSavedValue("firerate", out string foundFirerate);
-            int.TryParse(foundFirerate, out currentFirerateIndex);
-            item.TryGetSavedValue("firemode", out string foundFiremode);
-            int.TryParse(foundFiremode, out currentFiremodeIndex);
-            item.TryGetSavedValue("scopeZoom", out string foundScopeZoom);
-            int.TryParse(foundScopeZoom, out currentScopeZoom);
-            item.TryGetSavedValue("projectileID", out string foundProjectile);
+            if (!string.IsNullOrEmpty(module.projectileID)) {
+                projectileData = Catalog.GetData<ProjectileData>(!string.IsNullOrEmpty(foundProjectile) ? foundProjectile : module.projectileID, true);
+                projectileItemData = Catalog.GetData<ItemData>(projectileData.item);
+                if (projectileItemData != null) boltModule = projectileItemData.GetModule<ItemModuleBlasterBolt>();
+            }
 
-            if (!string.IsNullOrEmpty(module.projectileID)) projectileData = Catalog.GetData<ItemData>(!string.IsNullOrEmpty(foundProjectile) ? foundProjectile : module.projectileID, true);
-            if (projectileData != null) boltModule = projectileData.GetModule<ItemModuleBlasterBolt>();
-
-            if (!string.IsNullOrEmpty(module.altFireProjectileID)) projectileAltData = Catalog.GetData<ItemData>(module.altFireProjectileID, true);
-            if (projectileAltData != null) boltAltModule = projectileAltData.GetModule<ItemModuleBlasterBolt>();
+            if (!string.IsNullOrEmpty(module.altFireProjectileID)) {
+                projectileAltData = Catalog.GetData<ProjectileData>(module.altFireProjectileID, true);
+                projectileAltItemData = Catalog.GetData<ItemData>(projectileAltData.item, true);
+                if (projectileAltItemData != null) boltAltModule = projectileAltItemData.GetModule<ItemModuleBlasterBolt>();
+            }
 
             if (!string.IsNullOrEmpty(module.overrideBoltDamager)) boltDamager = Catalog.GetData<DamagerData>(module.overrideBoltDamager, true);
             if (!string.IsNullOrEmpty(module.overrideBoltAltDamager)) boltAltDamager = Catalog.GetData<DamagerData>(module.overrideBoltAltDamager, true);
@@ -260,7 +284,7 @@ namespace TOR {
             currentFiremode = module.fireModes[currentFiremodeIndex];
             currentFirerate = module.gunRPM[currentFirerateIndex];
             currentInstability = module.handlingBaseAccuracy;
-            //aiBurstAmount = Mathf.Abs(module.fireModes.Max());
+            aiBurstAmount = Mathf.Abs(module.fireModes.Max());
             aiOriginalWeaponHandling = moduleAI.weaponHandling;
             moduleAI.weaponHandling = ItemModuleAI.WeaponHandling.OneHanded;
 
@@ -269,6 +293,17 @@ namespace TOR {
 
         protected void OnDestroy() {
             all.Remove(this);
+        }
+
+        public void UpdateCustomData() {
+            Utils.UpdateCustomData(item, new ItemBlasterSaveData {
+                altFire = altFireEnabled,
+                ammo = ammoLeft,
+                firemode = currentFiremodeIndex,
+                firerate = currentFirerateIndex,
+                scopeZoom = currentScopeZoom,
+                projectileID = projectileData.id
+            });
         }
 
         DamagerData GetActiveBoltDamagerData() {
@@ -282,20 +317,24 @@ namespace TOR {
         }
 
         ItemData GetActiveProjectile() {
+            return altFireEnabled ? projectileAltItemData : projectileItemData;
+        }
+
+        ProjectileData GetActiveProjectileData() {
             return altFireEnabled ? projectileAltData : projectileData;
         }
-        
+
         void UpdateFireEffectColour() {
             if (module.fireEffectUseBoltHue && fireEffect) {
-                var activeBoltModule = GetActiveBoltModule();
-                if (activeBoltModule == null) return;
+                var activeProjectileData = GetActiveProjectileData();
+                if (activeProjectileData == null) return;
                 var fireEffectTrans = item.GetCustomReference(module.fireEffectID);
-                _UpdateFireEffectColour(fireEffectTrans, activeBoltModule.boltHue);
-                _updateRecursively(fireEffectTrans, activeBoltModule.boltHue);
+                _UpdateFireEffectColour(fireEffectTrans, activeProjectileData.boltHue);
+                _updateRecursively(fireEffectTrans, activeProjectileData.boltHue);
 
                 if (chargeEffectTrans) {
-                    _UpdateFireEffectColour(chargeEffectTrans, activeBoltModule.boltHue);
-                    _updateRecursively(chargeEffectTrans, activeBoltModule.boltHue);
+                    _UpdateFireEffectColour(chargeEffectTrans, activeProjectileData.boltHue);
+                    _updateRecursively(chargeEffectTrans, activeProjectileData.boltHue);
                 }
                 UpdateScopeReticleColour();
             }
@@ -332,31 +371,36 @@ namespace TOR {
                     module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution[0],
                     module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution[1],
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
-                renderScopeTexture.Create();
                 scopeCamera.targetTexture = renderScopeTexture;
 
-                scope.material.SetTexture("_RenderTexture", renderScopeTexture);
-                scope.material.SetTexture("_Reticle", GlobalSettings.BlasterScopeReticles ? module.scopeReticleTexture : null);
+                scope.GetPropertyBlock(PropBlock);
+                PropBlock.SetTexture("_RenderTexture", renderScopeTexture);
+                PropBlock.SetTexture("_Reticle", GlobalSettings.BlasterScopeReticles ? module.scopeReticleTexture : null);
+                PropBlock.SetFloat("_ReticleContrast", module.scopeReticleContrast);
+                PropBlock.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
+                scope.SetPropertyBlock(PropBlock);
+
                 UpdateScopeReticleColour();
-                scope.material.SetFloat("_ReticleContrast", module.scopeReticleContrast);
-                scope.material.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
                 if (GlobalSettings.BlasterScope3D) scope.material.EnableKeyword("_3D_SCOPE"); else scope.material.DisableKeyword("_3D_SCOPE");
             }
         }
 
         public void UpdateScopeReticleColour() {
             if (scope && scope.material) {
-                var activeBoltModule = GetActiveBoltModule();
-                if (module.scopeReticleUseBoltHue && activeBoltModule != null) {
-                    scope.material.SetColor("_ReticleColour", Color.HSVToRGB(activeBoltModule.boltHue, 1, 1));
+                var activeProjectileData = GetActiveProjectileData();
+                scope.GetPropertyBlock(PropBlock);
+                if (module.scopeReticleUseBoltHue && activeProjectileData != null) {
+                    PropBlock.SetColor("_ReticleColour", Color.HSVToRGB(activeProjectileData.boltHue, 1, 1));
                 } else {
-                    scope.material.SetColor("_ReticleColour", new Color(module.scopeReticleColour[0], module.scopeReticleColour[1], module.scopeReticleColour[2], 1));
+                    PropBlock.SetColor("_ReticleColour", new Color(module.scopeReticleColour[0], module.scopeReticleColour[1], module.scopeReticleColour[2], 1));
                 }
+                scope.SetPropertyBlock(PropBlock);
             }
         }
 
         void EnableScopeRender() {
             if (scope == null) return;
+            if (!renderScopeTexture.IsCreated()) renderScopeTexture.Create();
             scopeCamera.enabled = true;
             scope.material.EnableKeyword("_SCOPE_ACTIVE");
         }
@@ -365,6 +409,7 @@ namespace TOR {
             if (scope == null) return;
             scopeCamera.enabled = false;
             scope.material.DisableKeyword("_SCOPE_ACTIVE");
+            renderScopeTexture.Release();
         }
 
         public void CycleFiremode(RagdollHand interactor = null) {
@@ -431,11 +476,14 @@ namespace TOR {
         }
         
         public void OnSnapEvent(Holder holder) {
-            item.SetSavedValue("ammo", ammoLeft.ToString());
-            item.SetSavedValue("firemode", currentFiremodeIndex.ToString());
-            item.SetSavedValue("firerate", currentFirerateIndex.ToString());
-            item.SetSavedValue("altFire", altFireEnabled.ToString());
-            if (module.hasScope) item.SetSavedValue("scopeZoom", currentScopeZoom.ToString());
+            Utils.UpdateCustomData(item, new ItemBlasterSaveData {
+                altFire = altFireEnabled,
+                ammo = ammoLeft,
+                firemode = currentFiremodeIndex,
+                firerate = currentFirerateIndex,
+                scopeZoom = currentScopeZoom,
+                projectileID = projectileData.id
+            });
         }
 
         public void ExecuteAction(string action, RagdollHand interactor = null) {
@@ -517,48 +565,51 @@ namespace TOR {
             holdingGunGripRight = interactor.playerHand == Player.local.handRight;
             holdingGunGripLeft = interactor.playerHand == Player.local.handLeft;
 
-            //if (!holdingGunGripLeft && !holdingGunGripRight) {
-            //    currentAI = interactor.creature;
-            //    currentAIBrain = currentAI.brain.instance;
-            //    currentAIBow = currentAIBrain.GetModule<BrainModuleBow>();
-            //    currentAIDetection = currentAIBrain.GetModule<BrainModuleDetection>();
-            //    currentAIMelee = currentAIBrain.GetModule<BrainModuleMelee>();
-            //    currentAISightable = currentAIBrain.GetModule<BrainModuleSightable>();
-            //    currentAISpeak = currentAIBrain.GetModule<BrainModuleSpeak>();
-            //    aiOriginalMeleeEnabled = currentAIMelee.meleeEnabled;
-            //    if (aiOriginalMeleeEnabled) {
-            //        aiOriginalMeleeDistMult = currentAIMelee.meleeMax;
-            //        aiOriginalParryDetectionRadius = currentAIParry.parryDetectionRadius;
-            //        aiOriginalParryMaxDist = currentAIParry.parryMaxDistance;
-            //        currentAIMelee.meleeEnabled = module.aiMeleeEnabled;
-            //        if (!module.aiMeleeEnabled) {
-            //            //currentAIMelee. = currentAIBow.bowDist * module.aiShootDistanceMult;
-            //            //currentAIParry.parryDetectionRadius = (currentAIBow.dist + 1f) * module.aiShootDistanceMult;
-            //            //currentAIParry.parryMaxDistance = (currentAIBow.bowDist + 1f) * module.aiShootDistanceMult;
-            //        }
-            //    }
-            //    if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-            //        aiGrabForegripTime = 0.5f;
-            //    }
-            //}
+            if (!holdingGunGripLeft && !holdingGunGripRight) {
+                currentAI = interactor.creature;
+                currentAIBrain = currentAI.brain.instance;
+                currentAIFirearm = currentAIBrain.GetModule<BrainModuleFirearm>();
+                //    currentAIBow = currentAIBrain.GetModule<BrainModuleBow>();
+                //    currentAIDetection = currentAIBrain.GetModule<BrainModuleDetection>();
+                //    currentAIMelee = currentAIBrain.GetModule<BrainModuleMelee>();
+                //    currentAISightable = currentAIBrain.GetModule<BrainModuleSightable>();
+                //    currentAISpeak = currentAIBrain.GetModule<BrainModuleSpeak>();
+                //    aiOriginalMeleeEnabled = currentAIMelee.meleeEnabled;
+                //    if (aiOriginalMeleeEnabled) {
+                //        aiOriginalMeleeDistMult = currentAIMelee.meleeMax;
+                //        aiOriginalParryDetectionRadius = currentAIParry.parryDetectionRadius;
+                //        aiOriginalParryMaxDist = currentAIParry.parryMaxDistance;
+                //        currentAIMelee.meleeEnabled = module.aiMeleeEnabled;
+                //        if (!module.aiMeleeEnabled) {
+                //            //currentAIMelee. = currentAIBow.bowDist * module.aiShootDistanceMult;
+                //            //currentAIParry.parryDetectionRadius = (currentAIBow.dist + 1f) * module.aiShootDistanceMult;
+                //            //currentAIParry.parryMaxDistance = (currentAIBow.bowDist + 1f) * module.aiShootDistanceMult;
+                //        }
+                //    }
+                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+                    aiGrabForegripTime = 0.5f;
+                }
+            }
         }
 
         public void OnGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingGunGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingGunGripLeft = false;
 
-            //if (currentAI) {
-            //    if (aiOriginalMeleeEnabled) {
-            //        currentAIMelee.meleeEnabled = aiOriginalMeleeEnabled;
-            //        //currentAIMelee.meleeDistMult = aiOriginalMeleeDistMult;
-            //        currentAIParry.parryDetectionRadius = aiOriginalParryDetectionRadius;
-            //        currentAIParry.parryMaxDistance = aiOriginalParryMaxDist;
-            //    }
-            //    if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-            //        currentAI.handLeft.TryRelease();
-            //    }
-            //    currentAI = null;
-            //}
+            if (currentAI) {
+                //    if (aiOriginalMeleeEnabled) {
+                //        currentAIMelee.meleeEnabled = aiOriginalMeleeEnabled;
+                //        //currentAIMelee.meleeDistMult = aiOriginalMeleeDistMult;
+                //        currentAIParry.parryDetectionRadius = aiOriginalParryDetectionRadius;
+                //        currentAIParry.parryMaxDistance = aiOriginalParryMaxDist;
+                //    }
+                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+                    currentAI.handLeft.TryRelease();
+                }
+                currentAI = null;
+                currentAIBrain = null;
+                currentAIFirearm = null;
+            }
             ChargedFireStop();
             SpinStop();
         }
@@ -572,11 +623,11 @@ namespace TOR {
             if (interactor.playerHand == Player.local.handRight) holdingForeGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingForeGripLeft = false;
 
-            //if (currentAI && !currentAI.handLeft.grabbedHandle) {
-            //    if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-            //        aiGrabForegripTime = 0.5f;
-            //    }
-            //}
+            if (currentAI && !currentAI.handLeft.grabbedHandle) {
+                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
+                    aiGrabForegripTime = 0.5f;
+                }
+            }
         }
 
         public void OnScopeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
@@ -607,6 +658,30 @@ namespace TOR {
             telekinesis = teleGrabber;
         }
 
+        public bool OnAIFire(AIFireable fireable, RagdollHand hand, bool finished) {
+            if (module.fireDelay > 0) {
+                fireDelayTime = module.fireDelay;
+                isDelayingFire = true;
+                Utils.PlaySound(preFireSound, module.preFireSoundAsset, item);
+                Utils.PlaySound(preFireSound2, module.preFireSoundAsset2, item);
+                Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
+            } else if (module.spinTime > 0) {
+                if (GetSpinSpeed() >= module.spinSpeedMinToFire) {
+                    shotsLeftInBurst = currentFiremode;
+                    Fire();
+                }
+            } else {
+                shotsLeftInBurst = aiBurstAmount;
+                Fire();
+            }
+            return true;
+        }
+
+        public bool OnAITryReload(AIFireable fireable, RagdollHand hand, bool finished) {
+            Reload();
+            return true;
+        }
+
         public void DropBlaster() {
             if (gunGrip) gunGrip.Release();
             if (foreGrip) foreGrip.Release();
@@ -618,13 +693,12 @@ namespace TOR {
         }
 
         public void Fire() {
-            if (module.spinTime > 0) {
-                currentFirerate = module.gunRPM[currentFirerateIndex] * GetSpinSpeed();
-            }
+            var shooterHand = gunGrip.handlers.FirstOrDefault() ?? gunGrip.telekinesisHandler?.ragdollHand;
+            var shooter = shooterHand?.creature;
 
             if (ammoLeft == 0 || isOverheated) {
-                Utils.PlaySound(emptySound, module.emptySoundAsset, item);
-                Utils.PlaySound(emptySound2, module.emptySoundAsset2, item);
+                Utils.PlaySound(emptySound, module.emptySoundAsset, shooter);
+                Utils.PlaySound(emptySound2, module.emptySoundAsset2, shooter);
                 leftInteractor = null;
                 rightInteractor = null;
                 overrideInteractor = null;
@@ -633,16 +707,30 @@ namespace TOR {
             }
 
             // Create and fire bullet
-            var activeProjectileData = GetActiveProjectile();
-            if (activeProjectileData == null) return;
+            var activeProjectileData = GetActiveProjectileData();
+            var activeProjectileItemData = GetActiveProjectile();
+            if (activeProjectileData == null || activeProjectileItemData == null) {
+                Utils.LogError("Couldn't retrieve ProjectileData/ItemData for " + item.name);
+                return;
+            }
+            var activeDamager = GetActiveBoltDamagerData() ?? GetActiveProjectileData().damager;
+            var useGravity = altFireEnabled ? boltAltModule.useGravity : boltModule.useGravity;
+
+            if (module.spinTime > 0) {
+                currentFirerate = module.gunRPM[currentFirerateIndex] * GetSpinSpeed();
+            }
 
             Transform[] spawns = module.multishot || (isChargedFire && module.chargeMultishot) ? bulletSpawns : new Transform[] { bulletSpawns[0] };
             List<Item> projectileClones = spawns.Length > 1 ? new List<Item>() : null;
             foreach (var bulletSpawn in spawns) {
-                activeProjectileData.SpawnAsync(projectile => {
-                    if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
+                activeProjectileItemData.SpawnAsync(projectile => {
+                    var boltData = projectile.gameObject.GetComponent<ItemBlasterBolt>();
+                    if (boltData != null) {
+                        boltData.UpdateValues(ref activeProjectileData);
+                    }
                     var ignoreHandler = projectile.gameObject.GetComponent<CollisionIgnoreHandler>();
                     if (!ignoreHandler) ignoreHandler = projectile.gameObject.AddComponent<CollisionIgnoreHandler>();
+                    if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
                     ignoreHandler.item = projectile;
                     ignoreHandler.IgnoreCollision(item);
                     if (projectileClones != null) {
@@ -654,22 +742,19 @@ namespace TOR {
                         projectileClones.Add(projectile);
                     }
                     try {
-                        var shooter = gunGrip.handlers.First();
                         foreach (var pt in projectile.parryTargets) {
-                            pt.owner = shooter.creature;
+                            pt.owner = shooter;
                             if (!ParryTarget.list.Contains(pt)) ParryTarget.list.Add(pt);
                         }
-                        projectile.lastHandler = shooter;
+                        projectile.lastHandler = shooterHand;
                     }
                     catch { }
 
                     foreach (CollisionHandler collisionHandler in projectile.collisionHandlers) {
-                        var useGravity = altFireEnabled ? boltAltModule.useGravity : boltModule.useGravity;
                         collisionHandler.SetPhysicModifier(this, 0, useGravity ? 1 : 0);
 
-                        foreach (Damager damager in collisionHandler.damagers) {
-                            var activeDamager = GetActiveBoltDamagerData();
-                            if (activeDamager != null) {
+                        if (activeDamager != null) {
+                            foreach (Damager damager in collisionHandler.damagers) {
                                 damager.data = activeDamager;
                             }
                         }
@@ -683,6 +768,7 @@ namespace TOR {
                     projectileBody.mass /= GlobalSettings.BlasterBoltSpeed * (currentAI ? GlobalSettings.BlasterBoltSpeedNPC : 1f);
                     projectile.Throw(1f);
                     projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
+                    boltData.trail?.Clear();
                 });
             }
 
@@ -714,16 +800,16 @@ namespace TOR {
             Utils.PlayParticleEffect(fireEffect, module.fireEffectDetachFromParent);
 
             if (altFireEnabled) {
-                Utils.PlaySound(altFireSound, module.altFireSoundAsset, item);
-                Utils.PlaySound(altFireSound2, module.altFireSoundAsset2, item);
+                Utils.PlaySoundOneShot(altFireSound, module.altFireSoundAsset, shooter);
+                Utils.PlaySoundOneShot(altFireSound2, module.altFireSoundAsset2, shooter);
             } else if (isChargedFire) {
-                Utils.PlaySound(chargeFireSound, module.chargeFireSoundAsset, item);
-                Utils.PlaySound(chargeFireSound2, module.chargeFireSoundAsset2, item);
-                Utils.PlaySound(chargeFireSound3, module.chargeFireSoundAsset3, item);
+                Utils.PlaySoundOneShot(chargeFireSound, module.chargeFireSoundAsset, shooter);
+                Utils.PlaySoundOneShot(chargeFireSound2, module.chargeFireSoundAsset2, shooter);
+                Utils.PlaySoundOneShot(chargeFireSound3, module.chargeFireSoundAsset3, shooter);
             } else {
-                Utils.PlaySound(fireSound, module.fireSoundAsset, item);
-                Utils.PlaySound(fireSound2, module.fireSoundAsset2, item);
-                Utils.PlaySound(fireSound3, module.fireSoundAsset3, item);
+                Utils.PlaySoundOneShot(fireSound, module.fireSoundAsset, shooter);
+                Utils.PlaySoundOneShot(fireSound2, module.fireSoundAsset2, shooter);
+                Utils.PlaySoundOneShot(fireSound3, module.fireSoundAsset3, shooter);
             }
 
             if (isChargedFire) {
@@ -841,18 +927,19 @@ namespace TOR {
             Utils.PlaySound(reloadEndSound, module.reloadEndSoundAsset, item);
             Utils.PlaySound(reloadEndSound2, module.reloadEndSoundAsset2, item);
             Utils.PlayHaptic(holdingGunGripLeft, holdingGunGripRight, Utils.HapticIntensity.Moderate);
-            item.SetSavedValue("ammo", ammoLeft.ToString());
+            UpdateCustomData();
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called from BlasterPowerCell")]
         void RechargeFromPowerCell(string newProjectile) {
             if (!string.IsNullOrEmpty(newProjectile)) {
-                item.SetSavedValue("projectileID", newProjectile);
-                projectileData = Catalog.GetData<ItemData>(newProjectile, true);
-                if (projectileData != null) boltModule = projectileData.GetModule<ItemModuleBlasterBolt>();
+                projectileData = Catalog.GetData<ProjectileData>(newProjectile, true);
+                if (projectileData != null) projectileItemData = Catalog.GetData<ItemData>(projectileData.item, true);
+                if (projectileItemData != null) boltModule = projectileItemData.GetModule<ItemModuleBlasterBolt>();
                 ChargedFireStop();
                 UpdateFireEffectColour();
                 ReloadComplete();
+                UpdateCustomData();
             }
         }
 
@@ -862,10 +949,6 @@ namespace TOR {
                 ammoDisplay.text = ammoLeft.ToString("D" + digits);
             }
         }
-        
-        void AIShoot() {
-            return;
-        }
 
         Vector3 CalculateInaccuracy(Vector3 initial, bool addCurrent = true) {
             var baseInaccuracy = addCurrent ? new Vector3(
@@ -873,14 +956,6 @@ namespace TOR {
                         initial.y + Random.Range(-currentInstability, currentInstability),
                         initial.z) : initial;
             return baseInaccuracy;
-            //if (currentAIBrain == null) {
-            //    return baseInaccuracy;
-            //}
-            //var inaccuracyMult = 0.1f * (currentAIBow.aimSpreadAngle / module.aiShootDistanceMult) * GlobalSettings.BlasterNPCInaccuracy;
-            //return new Vector3(
-            //            baseInaccuracy.x + Random.Range(-inaccuracyMult, inaccuracyMult),
-            //            baseInaccuracy.y + Random.Range(-inaccuracyMult, inaccuracyMult),
-            //            baseInaccuracy.z);
         }
 
         void UpdateHoldTime(string action, ref float holdTime, bool holdingLeft, bool holdingRight) {
@@ -902,7 +977,6 @@ namespace TOR {
             if (fireDelayTime > 0) fireDelayTime -= Time.deltaTime;
             if (reloadTime > 0) reloadTime -= Time.deltaTime;
             if (currentHeat > 0) currentHeat -= Time.deltaTime;
-            //if (aiShootTime > 0) aiShootTime -= Time.deltaTime;
             if (currentInstability > module.handlingBaseAccuracy) {
                 currentInstability -= Time.deltaTime * (module.handlingStabilityMultiplier * module.handlingInstabilityRate);
                 if (item.handlers.Count == 0) currentInstability = module.handlingBaseAccuracy;
@@ -954,7 +1028,7 @@ namespace TOR {
                             shotsLeftInBurst = currentFiremode;
                             Fire();
                         }
-                    } //else if (aiShootTime <= 0) { AIShoot(); }
+                    }
                 }
             }
             if (telekinesis != null) telekinesis.SetSpinMode(false);
@@ -1018,14 +1092,16 @@ namespace TOR {
             //    if (aiGrabForegripTime <= 0 && currentAI) {
             //        currentAI.handLeft.TryRelease();
             //        currentAI.handLeft.Grab(foreGrip);
-            //        currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
-            //        currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
+            //        // currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
+            //        // currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
             //    }
             //}
 
-            //if (currentAI && currentAIBrain != null) {
-                
-            //}
+            if (currentAI && currentAIBrain != null && module.spinTime > 0) {
+                if (currentAI.brain.state == Brain.State.Combat || currentAI.brain.state == Brain.State.Alert || currentAI.brain.state == Brain.State.Grappled) {
+                    if (!isSpinning) SpinStart();
+                } else SpinStop();
+            }
         }
     }
 }

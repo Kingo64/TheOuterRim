@@ -10,8 +10,9 @@ namespace TOR {
         protected ItemModuleBlasterBolt module;
         protected Rigidbody body;
 
-        protected TrailRenderer trail;
-        protected Light light;
+        public TrailRenderer trail;
+        public Color trailColor;
+        public Light light;
 
         bool markForDeletion;
         bool destroyNextTick;
@@ -21,6 +22,14 @@ namespace TOR {
 
         List<DamagerData> originalDamagers = new List<DamagerData>();
 
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                _propBlock = _propBlock ?? new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
+
         protected void Awake() {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlasterBolt>();
@@ -28,20 +37,8 @@ namespace TOR {
 
             ResetValues();
 
+            body.drag = module.drag;
             body.freezeRotation = module.lockRotation;
-
-            if (!string.IsNullOrEmpty(module.effectID)) {
-                trail = item.GetCustomReference(module.effectID).GetComponent<TrailRenderer>();
-                light = item.GetCustomReference(module.effectID).GetComponent<Light>();
-
-                if (light != null) {
-                    light.color = Utils.UpdateHue(light.color, module.boltHue);
-                }
-
-                if (trail != null) {
-                    trail.material.SetColor("_Color", Utils.UpdateHue(trail.material.GetColor("_Color"), module.boltHue));
-                }
-            }
 
             foreach (CollisionHandler collisionHandler in item.collisionHandlers) {
                 foreach (Damager damager in collisionHandler.damagers) {
@@ -50,15 +47,41 @@ namespace TOR {
                 collisionHandler.OnCollisionStartEvent += CollisionHandler;
                 collisionHandler.checkMinVelocity = false;
             }
-            
-            if (module.colliderScale > 0 && !Mathf.Approximately(module.colliderScale, 1.0f)) {
-                var colliders = item.GetComponentsInChildren<Collider>();
-                for (int i = 0, l = colliders.Count(); i < l; i++) {
-                    var colTrans = colliders[i].transform;
-                    var colScale = colTrans.localScale;
-                    colTrans.localScale = new Vector3(colScale.x * module.colliderScale, colScale.y * module.colliderScale, colScale.z * module.colliderScale);
-                }
+
+            if (!string.IsNullOrEmpty(module.effectID)) {
+                trail = item.GetCustomReference(module.effectID).GetComponent<TrailRenderer>();
+                light = item.GetCustomReference(module.effectID).GetComponent<Light>();
+
+                UpdateHue(module.boltHue);
             }
+
+            if (!Mathf.Approximately(module.colliderScale, 1.0f)) UpdateColliderScale(module.colliderScale);
+        }
+
+        protected void OnEnable() {
+            if (trail) trail.emitting = true;
+        }
+
+        public void UpdateValues(ref ProjectileData data) {
+            module.drag = data.drag;
+            body.drag = data.drag;
+            if (module.colliderScale != data.colliderScale) UpdateColliderScale(data.colliderScale);
+            module.colliderScale = data.colliderScale;
+            module.deflectionMaterials = data.deflectionMaterials;
+            module.despawnTime = data.despawnTime;
+            module.lockRotation = data.lockRotation;
+            module.useGravity = data.useGravity;
+
+            module.ricochetLimit = data.ricochetLimit;
+            module.ricochetMaxAngle = data.ricochetMaxAngle;
+            module.applyGlow = data.applyGlow;
+            module.disintegrate = data.disintegrate;
+            module.effectID = data.effectID;
+            module.boltHue = data.boltHue;
+            module.impactEffectID = data.impactEffectID;
+            module.impactEffect = data.impactEffect;
+
+            UpdateHue(data.boltHue);
         }
 
         void ResetValues() {
@@ -67,6 +90,30 @@ namespace TOR {
             ricochets = module.ricochetLimit;
             destroyNextTick = false;
             markForDeletion = false;
+        }
+
+        void UpdateColliderScale(float scale) {
+            if (scale > 0) {
+                var colliders = item.GetComponentsInChildren<Collider>();
+                for (int i = 0, l = colliders.Count(); i < l; i++) {
+                    var colTrans = colliders[i].transform;
+                    var colScale = colTrans.localScale;
+                    colTrans.localScale = new Vector3(colScale.x * scale, colScale.y * scale, colScale.z * scale);
+                }
+            }
+        }
+
+        void UpdateHue(float hue) {
+            if (light != null) {
+                light.color = Utils.UpdateHue(light.color, hue);
+            }
+
+            if (trail != null) {
+                if (trailColor == Color.clear) trailColor = trail.material.GetColor("_Color");
+                trail.GetPropertyBlock(PropBlock);
+                PropBlock.SetColor("_Color", Utils.UpdateHue(trailColor, module.boltHue));
+                trail.SetPropertyBlock(PropBlock);
+            }
         }
 
         void CollisionHandler(CollisionInstance collisionInstance) {
@@ -87,7 +134,7 @@ namespace TOR {
                 var creature = collisionInstance.targetCollider.GetComponentInParent<Creature>();
                 if (creature) {
                     try {
-                        foreach (var holder in creature.equipment.holders) {
+                        foreach (var holder in creature.holders) {
                             holder.UnSnapAll();
                         }
                     }
@@ -145,14 +192,15 @@ namespace TOR {
                                         body.velocity *= -1;
                                     }
                                     var blasterCollider = GetComponentInChildren<Collider>();
-                                    var collision = new CollisionInstance();
-                                    collision.sourceCollider = blasterCollider;
-                                    collision.targetCollider = collider;
-                                    collision.contactPoint = closest;
+                                    var collision = new CollisionInstance {
+                                        sourceCollider = blasterCollider,
+                                        targetCollider = collider,
+                                        contactPoint = closest
+                                    };
                                     if (Physics.Linecast(transform.position, closest, out RaycastHit hit)) {
                                         collision.contactNormal = hit.normal;
                                     }
-                                    MaterialData.TryGetMaterials(Animator.StringToHash(blasterCollider.material.name), Animator.StringToHash(collider.material.name), out MaterialData sourceMaterial, out MaterialData targetMaterial);
+                                    MaterialData.TryGetMaterials(Utils.HashString(blasterCollider.material.name, false), Utils.HashString(collider.material.name, false), out MaterialData sourceMaterial, out MaterialData targetMaterial);
                                     if (collision.SpawnEffect(sourceMaterial, targetMaterial, false, out EffectInstance effect)) {
                                         effect.SetIntensity(Random.Range(0.06f, 0.12f));
                                         effect.Play();
@@ -191,9 +239,10 @@ namespace TOR {
             }
         }
 
-        void Update() {
+        protected void Update() {
             if (destroyNextTick) {
-                if (item.isPooled && trail != null) {
+                if (trail) {
+                    trail.emitting = false;
                     trail.Clear();
                 }
                 ResetDamagers();
@@ -222,7 +271,7 @@ namespace TOR {
         public Creature creature;
         public static Material stunMaterial;
 
-        void Awake() {
+        protected void Awake() {
             if (GetComponents<StunGlow>().Length > 1) {
                 Destroy(this);
             }
@@ -238,7 +287,7 @@ namespace TOR {
                 }
                 AssignMaterials(creature.renderers);
 
-                var holster = creature.equipment.GetHolster(GlobalSettings.HAT_HOLDER_NAME);
+                var holster = creature.holders.Find(x => x.name == LevelModuleLegacyHelmets.HAT_HOLDER_NAME);
                 if (holster && holster.items.Count > 0) {
                     hatRenderers = holster.items[0].GetComponentsInChildren<MeshRenderer>();
                     foreach (var mesh in hatRenderers) {
@@ -257,7 +306,7 @@ namespace TOR {
             Destroy(this, 0.1f);
         }
 
-        void OnDestroy() {
+        protected void OnDestroy() {
             if (creature) {
                 RestoreMaterials(creature.renderers);
                 if (hatRenderers != null) RestoreMaterials(hatRenderers);

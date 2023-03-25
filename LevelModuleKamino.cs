@@ -16,9 +16,9 @@ namespace TOR {
 
             if (Level.current.options != null) {
                 // Toggle Map Options seem to not support initialising with True values so we need to use the inverse
-                if (Level.current.options.TryGetValue("disableRain", out double val)) rainEnabled = val != 1;
-                if (Level.current.options.TryGetValue("disableRainPhysics", out val)) rainPhysics = val != 1;
-                if (Level.current.options.TryGetValue("rainDensity", out val)) rainDensity = (float)val * 0.2f;
+                if (Level.current.options.TryGetValue("rainEnabled", out string val)) rainEnabled = float.Parse(val) == 1;
+                if (Level.current.options.TryGetValue("rainPhysics", out val)) rainPhysics = float.Parse(val) == 1;
+                if (Level.current.options.TryGetValue("rainDensity", out val)) rainDensity = float.Parse(val) * 0.2f;
             }
 
             if (rainEnabled) {
@@ -58,7 +58,7 @@ namespace TOR {
     public class RainController : MonoBehaviour {
         public Transform target;
 
-        void Update() {
+        protected void Update() {
             if (target) transform.position = target.position;
         }
     }

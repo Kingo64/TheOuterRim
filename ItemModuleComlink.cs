@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using ThunderRoad;
+using UnityEngine;
 
 namespace TOR {
     public class ItemModuleComlink : ItemModule {
@@ -15,14 +16,19 @@ namespace TOR {
         public List<ItemComlink.FactionData> factions = new List<ItemComlink.FactionData>();
         public List<ItemComlink.ReinforcementData> reinforcements = new List<ItemComlink.ReinforcementData>();
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(useSound)) Catalog.LoadAssetAsync<AudioContainer>(useSound, ac => useSoundAsset = ac, null);
-        }
-
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemComlink>(item.gameObject);
+        }
+
+        public override void OnItemDataRefresh(ItemData data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(useSound)) Catalog.LoadAssetAsync<AudioContainer>(useSound, x => useSoundAsset = x, null);
+        }
+
+        public override void ReleaseAddressableAssets() {
+            base.ReleaseAddressableAssets();
+            Utils.ReleaseAsset(useSoundAsset);
         }
     }
 }

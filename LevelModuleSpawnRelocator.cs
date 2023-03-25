@@ -1,5 +1,6 @@
 ﻿using ThunderRoad;
 using System.Collections;
+using UnityEngine;
 
 namespace TOR {
     public class LevelModuleSpawnRelocator : LevelModule {
@@ -9,7 +10,9 @@ namespace TOR {
             if (!string.IsNullOrEmpty(startLocation)) {
                 var startLocations = level.customReferences.Find(x => x.name == "StartLocations");
                 var location = startLocations.transforms.Find(x => x.name == startLocation);
-                if (location) level.playerStart = location;
+                if (location) {
+                    level.playerSpawnerId = location.GetComponent<PlayerSpawner>().id;
+                }
             }
             yield break;
         }

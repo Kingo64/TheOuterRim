@@ -20,7 +20,7 @@ namespace TOR {
         AudioSource injectSound;
         AudioSource rechargeSound;
 
-        HashSet<Collider> playerColliders = new HashSet<Collider>();
+        HashSet<Collider> playerColliders;
 
         protected void Awake() {
             item = GetComponent<Item>();
@@ -42,13 +42,14 @@ namespace TOR {
             light.enabled = false;
             text.enabled = false;
 
+            playerColliders = new HashSet<Collider>();
             var coroutine = GetPlayerColliders();
             StartCoroutine(coroutine);
         }
 
         private IEnumerator GetPlayerColliders() {
             while (!Player.local) {
-                yield return new WaitForSeconds(0.1f);
+                yield return Utils.waitSeconds_01;
             }
             while (Player.local && playerColliders.Count < 1) {
                 try {
@@ -62,7 +63,7 @@ namespace TOR {
                     yield break;
                 }
                 catch { }
-                yield return new WaitForSeconds(0.1f);
+                yield return Utils.waitSeconds_01;
             }
             yield break;
         }
@@ -84,7 +85,7 @@ namespace TOR {
         }
 
         void CollisionHandler(CollisionInstance collisionInstance) {
-            if ((collisionInstance.sourceCollider == tip || collisionInstance.targetCollider == tip)) {
+            if (collisionInstance.sourceCollider == tip || collisionInstance.targetCollider == tip) {
                 if (currentCharge >= 100) {
                     var ragdollPart = collisionInstance.targetColliderGroup?.collisionHandler?.ragdollPart ?? collisionInstance.sourceColliderGroup?.collisionHandler?.ragdollPart;
                     if (ragdollPart) {
@@ -96,7 +97,7 @@ namespace TOR {
             }
         }
 
-        void OnTriggerEnter(Collider other) {
+        protected void OnTriggerEnter(Collider other) {
             if (!item.holder && currentCharge >= 100 && playerColliders.Contains(other)) {
                Heal(Player.currentCreature);
             }
@@ -115,7 +116,7 @@ namespace TOR {
             }
         }
 
-        void Update() {
+        protected void Update() {
             if (currentCharge < 100) {
                 currentCharge = Mathf.Clamp(currentCharge + (module.chargeRate * Time.deltaTime), 0, 100);
                 text.text = Mathf.RoundToInt(currentCharge).ToString();
@@ -132,7 +133,7 @@ namespace TOR {
 
         float duration;
 
-        void Update() {
+        protected void Update() {
             if (creature == null || creature.state == Creature.State.Dead || duration >= healDuration || creature.currentHealth >= creature.maxHealth) Destroy(this);
             creature.Heal(healAmount * Time.deltaTime, healer);
             duration += Time.deltaTime;

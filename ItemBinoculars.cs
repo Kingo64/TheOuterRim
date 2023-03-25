@@ -22,6 +22,14 @@ namespace TOR {
 
         int currentScopeZoom;
 
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                _propBlock = _propBlock ?? new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
+
         protected void Awake() {
             item = this.GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBinoculars>();
@@ -48,18 +56,24 @@ namespace TOR {
                     module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution[0],
                     module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution[1],
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
-                renderTexture.Create();
                 scopeCamera.targetTexture = renderTexture;
-                scope.material.SetTexture("_BaseMap", renderTexture);
-                if (GlobalSettings.BlasterScope3D) scope.material.EnableKeyword("_3D_SCOPE"); else scope.material.DisableKeyword("_3D_SCOPE");
+                scope.GetPropertyBlock(PropBlock);
+                PropBlock.SetTexture("_BaseMap", renderTexture);
+                scope.SetPropertyBlock(PropBlock);
+                if (GlobalSettings.BlasterScope3D) scope.sharedMaterial.EnableKeyword("_3D_SCOPE"); else scope.sharedMaterial.DisableKeyword("_3D_SCOPE");
             }
         }
 
-        void SetScopeRender(Renderer scope, Camera scopeCamera, bool state) {
+        void SetScopeRender(Renderer scope, Camera scopeCamera, bool state, ref RenderTexture renderTexture) {
             if (scope == null) return;
             scopeCamera.enabled = state;
-            if (state) scope.material.EnableKeyword("_SCOPE_ACTIVE");
-            else scope.material.DisableKeyword("_SCOPE_ACTIVE");
+            if (state) {
+                if (!renderTexture.IsCreated()) renderTexture.Create();
+                scope.material.EnableKeyword("_SCOPE_ACTIVE");
+            } else {
+                renderTexture.Release();
+                scope.material.DisableKeyword("_SCOPE_ACTIVE");
+            }
         }
 
         void CycleScope(RagdollHand interactor = null) {
@@ -93,15 +107,15 @@ namespace TOR {
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             // toggle scope for performance reasons
             if (interactor.playerHand) {
-                SetScopeRender(scopeL, scopeCameraL, true);
-                SetScopeRender(scopeR, scopeCameraR, true);
+                SetScopeRender(scopeL, scopeCameraL, true, ref renderScopeTextureL);
+                SetScopeRender(scopeR, scopeCameraR, true, ref renderScopeTextureR);
             }
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             // toggle scope for performance reasons
-            SetScopeRender(scopeL, scopeCameraL, false);
-            SetScopeRender(scopeR, scopeCameraR, false);
+            SetScopeRender(scopeL, scopeCameraL, false, ref renderScopeTextureL);
+            SetScopeRender(scopeR, scopeCameraR, false, ref renderScopeTextureR);
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {

@@ -7,6 +7,12 @@ using System.Collections.Generic;
 using System.Collections;
 
 namespace TOR {
+    [Serializable]
+    public class ItemComlinkSaveData : ContentCustomData {
+        public int faction = 0;
+        public int target = 0;
+    }
+
     public class ItemComlink : MonoBehaviour {
         internal Item item;
         internal ItemModuleComlink module;
@@ -38,6 +44,14 @@ namespace TOR {
 
         List<Transform> spawnLocations = new List<Transform>();
 
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                _propBlock = _propBlock ?? new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
+
         protected void Awake() {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleComlink>();
@@ -66,16 +80,29 @@ namespace TOR {
                 spawnLocations.AddRange(spawner.spawns);
             }
 
-            item.TryGetSavedValue("faction", out string tempFaction);
-            item.TryGetSavedValue("target", out string tempTarget);
-            int.TryParse(tempFaction, out currentFaction);
-            int.TryParse(tempTarget, out currentTarget);
+            var creatureSpawners = new List<CreatureSpawner>(FindObjectsOfType<CreatureSpawner>());
+            foreach (var spawner in waveSpawners) {
+                spawnLocations.AddRange(spawner.spawns);
+            }
+
+            item.TryGetCustomData<ItemComlinkSaveData>(out var savedData);
+            if (savedData != null) {
+                currentFaction = savedData.faction;
+                currentTarget = savedData.target;
+            }
 
             factionData = module.factions[currentFaction];
             reinforcementData = module.reinforcements[currentTarget];
             creatureTable = Catalog.GetData<CreatureTable>(reinforcementData.creatureTable, true);
             SetGraphic();
             SetColour();
+        }
+
+        public void UpdateCustomData() {
+            Utils.UpdateCustomData(item, new ItemComlinkSaveData {
+                faction = currentFaction,
+                target = currentTarget
+            });
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
@@ -91,8 +118,7 @@ namespace TOR {
         }
 
         public void OnSnapEvent(Holder holder) {
-            item.SetSavedValue("faction", currentFaction.ToString());
-            item.SetSavedValue("target", currentTarget.ToString());
+            UpdateCustomData();
         }
 
         public void ExecuteAction(string action, RagdollHand interactor = null) {
@@ -136,8 +162,14 @@ namespace TOR {
 
         public void SetColour() {
             var newColour = Color.HSVToRGB(factionData.colour[0], factionData.colour[1], 1);
-            hologramLogo.material.SetColor("Colour", newColour);
-            hologramLight.material.SetColor("Colour", newColour);
+            hologramLogo.GetPropertyBlock(PropBlock);
+            PropBlock.SetColor("Colour", newColour);
+            hologramLogo.SetPropertyBlock(PropBlock);
+            
+            hologramLight.GetPropertyBlock(PropBlock);
+            PropBlock.SetColor("Colour", newColour);
+            hologramLight.SetPropertyBlock(PropBlock);
+
             light.color = newColour;
             text.color = newColour;
             text.material.SetColor("Colour", newColour);
@@ -146,29 +178,40 @@ namespace TOR {
         public void SummonTarget() {
             Vector3 currentPos = transform.position;
             Transform closestSpawn = null;
+            Vector3 spawnPos = Vector3.zero;
+            float spawnRot = 0;
+
             float closestDistance = float.MaxValue;
 
-            foreach (var spawn in spawnLocations) {
-                if (closestSpawn == null) {
-                    closestSpawn = spawn;
-                    continue;
+            if (spawnLocations.Count > 0) {
+                foreach (var spawn in spawnLocations) {
+                    if (!closestSpawn) {
+                        closestSpawn = spawn;
+                        continue;
+                    }
+                    var distance = Mathf.Abs((currentPos - spawn.position).sqrMagnitude);
+                    if (distance < closestDistance) {
+                        closestSpawn = spawn;
+                        closestDistance = distance;
+                    }
                 }
-                var distance = Mathf.Abs((currentPos - spawn.position).sqrMagnitude);
-                if (distance < closestDistance) {
-                    closestSpawn = spawn;
-                    closestDistance = distance;
-                }
+                spawnPos = closestSpawn.position;
+                spawnRot = closestSpawn.rotation.y;
+            } else if (Player.local) {
+                var head = Player.local.head.transform;
+                spawnPos = head.position + head.forward * 2f;
+                spawnRot = head.rotation.eulerAngles.y + 180f;
             }
 
-
-            if (closestSpawn != null && creatureTable != null) {
+            if (creatureTable != null && spawnPos != Vector3.zero) {
                 if (creatureTable.TryPick(out CreatureData creatureData)) {
-                    StartCoroutine(creatureData.SpawnCoroutine(closestSpawn.position, closestSpawn.rotation, null, delegate (Creature creature) {
+                    StartCoroutine(creatureData.SpawnCoroutine(spawnPos, spawnRot, null, delegate (Creature creature) {
                         if (factionData.factionId != -999) creature.SetFaction(factionData.factionId);
                         if (creature.factionId == Player.currentCreature.factionId) {
                             AllyBehaviour ally = creature.gameObject.AddComponent<AllyBehaviour>();
                             ally.creature = creature;
                         }
+                        creature.spawnGroup = new WaveData.Group();
                     }, true));
                     Utils.PlayHaptic(leftInteractor, rightInteractor, Utils.HapticIntensity.Moderate);
                     Utils.PlaySound(pingSound, null, item);
@@ -261,8 +304,9 @@ namespace TOR {
         public BrainModulePatrol patrol;
         public IEnumerator follow;
         public WayPoint wayPoint;
+        WaitForSeconds followInterval;
 
-        void Awake() {
+        protected void Awake() {
             creature = creature ?? GetComponent<Creature>();
             if (!creature) {
                 Destroy(this);
@@ -280,14 +324,14 @@ namespace TOR {
             patrol = brain.GetModule<BrainModulePatrol>();
         }
 
-        void OnEnable() {
+        protected void OnEnable() {
             if (patrol != null) {
                 follow = Follow();
                 StartCoroutine(follow);
             }
         }
 
-        void OnDisable() {
+        protected void OnDisable() {
             if (follow != null) StopCoroutine(follow);
             Destroy(this);
         }
@@ -303,7 +347,8 @@ namespace TOR {
                 if (patrol.waypoints == null || !patrol.waypoints.Contains(wayPoint))
                     patrol.waypoints = new WayPoint[] { wayPoint };
 
-                yield return new WaitForSeconds(creature.brain.instance.cycleSpeed);
+                followInterval = followInterval ?? new WaitForSeconds(creature.brain.instance.cycleSpeed);
+                yield return followInterval;
             }
         }
     }

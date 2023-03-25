@@ -2,13 +2,21 @@
 using UnityEngine;
 using System.Collections;
 using RainyReignGames.RevealMask;
+using System.Collections.Generic;
 
 namespace TOR {
     public class LevelModuleCreaturePainter : LevelModule {
-
+        public string[] creatures = new string[]{
+            "TORMale",
+            "TORFemale",
+            "CloneTrooper",
+            "Stormtrooper",
+        };
+        HashSet<int> creatureHashes;
         Texture2D moesGreen;
 
         public override IEnumerator OnLoadCoroutine() {
+            creatureHashes = Utils.HashArray(creatures);
             EventManager.onCreatureSpawn += OnCreatureSpawn;
 
             if (!moesGreen) {
@@ -36,8 +44,24 @@ namespace TOR {
             return name.Contains("brow") || name.Contains("hair");
         }
 
-        public void PaintRenderer(Creature creature, Material[] materials) {
-            var creatureId = Constants.CREATURE_IDS[creature.data.hashId];
+        void OnCreatureSpawn(Creature creature) {
+            if (creatureHashes.Contains(creature.data.hashId)) {
+                if (creature.manikinParts) {
+                    var creatureId = creature.data.id;
+                    if (creatureId == "TORMale" || creatureId == "TORFemale") {
+                        if (Random.Range(0f, 1f) < 0.9f) creature.SetColor(new Color(Random.Range(0.7f, 1), Random.Range(0.7f, 1), Random.Range(0.7f, 1)), Creature.ColorModifier.Skin);
+                        if (Random.Range(0f, 1f) < 0.3f) creature.SetColor(new Color(Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f)), Creature.ColorModifier.Hair);
+                        creature.manikinProperties.UpdateProperties();
+                    } else {
+                        creature.manikinParts.UpdateParts_Completed += delegate (Chabuk.ManikinMono.ManikinPart[] partsAdded) {
+                            creature.StartCoroutine(ActivateMaterials(creature));
+                        };
+                    }
+                }
+            };
+        }
+
+        public void PaintRenderer(string creatureId, Material[] materials) {
             if (creatureId == "CloneTrooper" || creatureId == "Stormtrooper") {
                 var colour = creatureId == "Stormtrooper" ? new Color(0.728f, 0.708f, 0.662f) : new Color(0.8f, 0.8f, 0.8f);
                 foreach (Material material in materials) {
@@ -55,29 +79,14 @@ namespace TOR {
             }
         }
 
-        void OnCreatureSpawn(Creature creature) {
-            if (Constants.CREATURE_IDS.ContainsKey(creature.data.hashId)) {
-                if (creature.manikinParts) {
-                    var creatureId = Constants.CREATURE_IDS[creature.data.hashId];
-                    if (creatureId == "ForceSensitiveMale" || creatureId == "ForceSensitiveFemale") {
-                        if (Random.Range(0f, 1f) < 0.9f) creature.SetColor(new Color(Random.Range(0.7f, 1), Random.Range(0.7f, 1), Random.Range(0.7f, 1)), Creature.ColorModifier.Skin);
-                        if (Random.Range(0f, 1f) < 0.3f) creature.SetColor(new Color(Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f), Random.Range(0.35f, 0.7f)), Creature.ColorModifier.Hair);
-                    } else {
-                        creature.manikinParts.UpdateParts_Completed += delegate (Chabuk.ManikinMono.ManikinPart[] partsAdded) {
-                            creature.StartCoroutine(ActivateMaterials(creature));
-                        };
-                    }
-                }
-            };
-        }
-
         IEnumerator ActivateMaterials(Creature creature) {
-            yield return new WaitForSeconds(0.01f);
+            var creatureId = creature.data.id;
+            yield return Utils.waitSeconds_001;
 
             foreach (var rendererData in creature.renderers) {
                 if (rendererData.revealDecal != null && rendererData.revealDecal.revealMaterialController != null) {
                     rendererData.revealDecal.revealMaterialController.OnActivated += delegate (object sender, RevealMaterialController.ActivatedEventArgs e) {
-                        PaintRenderer(creature, e.activatedMaterials);
+                        PaintRenderer(creatureId, e.activatedMaterials);
                     };
                     rendererData.revealDecal.revealMaterialController.ActivateRevealMaterials();
                 }

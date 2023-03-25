@@ -14,15 +14,17 @@ namespace TOR {
             Player.onSpawn += OnPlayerSpawned;
 
             if (Level.current.options != null) {
-                if (Level.current.options.TryGetValue("grassDensity", out double val)) grassDensity = (float)val * 0.2f;
-                if (Level.current.options.TryGetValue("grassDistance", out val)) grassDistance = (float)val * 20f;
-                if (Level.current.options.TryGetValue("pollenDensity", out val)) pollenDensity = (float)val * 0.2f;
+                if (Level.current.options.TryGetValue("grassDensity", out string val)) grassDensity = float.Parse(val) * 0.2f;
+                if (Level.current.options.TryGetValue("grassDistance", out val)) grassDistance = float.Parse(val) * 20f;
+                if (Level.current.options.TryGetValue("pollenDensity", out val)) pollenDensity = float.Parse(val) * 0.2f;
             }
 
             pollenTrans = level.customReferences.Find(x => x.name == "Pollen").transforms[0];
-            var springs = level.customReferences.Find(x => x.name == "Springs").transforms[0];
-            foreach (Transform child in springs) {
-                child.gameObject.AddComponent<SpringController>();
+            var springs = level.customReferences.Find(x => x.name == "Springs");
+            if (springs != null) {
+                foreach (Transform child in springs.transforms[0]) {
+                    child.gameObject.AddComponent<SpringController>();
+                }
             }
             var sky = level.customReferences.Find(x => x.name == "Sky").transforms[0].gameObject.AddComponent<SkyController>();
             sky.speed = 0.25f;
@@ -53,16 +55,18 @@ namespace TOR {
         float waitTime;
         readonly float radius = 0.5f;
 
-        void Awake() {
-            var steam = transform.Find("Steam");
-            particle = steam.GetComponent<ParticleSystem>();
-            sounds = steam.GetComponents<AudioSource>();
-            zone = transform.Find("Zone").gameObject;
+        protected void Awake() {
+            if (!particle || sounds == null) {
+                var steam = transform.Find("Steam");
+                particle = steam.GetComponent<ParticleSystem>();
+                sounds = steam.GetComponents<AudioSource>();
+            }
+            if (!zone) zone = transform.Find("Zone").gameObject;
             zone.SetActive(false);
             waitTime = Random.Range(5f, 15f);
         }
 
-        void Update() {
+        protected void Update() {
             if (waitTime > 0) {
                 waitTime -= Time.deltaTime;
                 if (waitTime <= 0) {
@@ -88,7 +92,7 @@ namespace TOR {
         }
 
         IEnumerator DisableLate() {
-            yield return new WaitForSeconds(1f);
+            yield return Utils.waitSeconds_1;
             zone.SetActive(false);
         }
     }

@@ -18,8 +18,7 @@ namespace TOR {
         public string primaryModelID;
         public string secondaryModelID;
 
-        public override void OnItemLoaded(Item item)
-        {
+        public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemHelmet>(item.gameObject);
         }

@@ -1,4 +1,5 @@
 ﻿using ThunderRoad;
+using UnityEngine;
 
 namespace TOR {
     public class ItemModuleTaunt : ItemModule
@@ -15,16 +16,21 @@ namespace TOR {
         public string gripPrimaryAction = "";
         public string gripSecondaryAction = "playTaunt";
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(tauntSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntSound, ac => tauntAsset = ac, null);
-            if (!string.IsNullOrEmpty(tauntDropSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntDropSound, ac => tauntDropAsset = ac, null);
-        }
-
-        public override void OnItemLoaded(Item item)
-        {
+        public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             Utils.AddModule<ItemTaunt>(item.gameObject);
+        }
+
+        public override void OnItemDataRefresh(ItemData data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(tauntSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntSound, x => tauntAsset = x, null);
+            if (!string.IsNullOrEmpty(tauntDropSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntDropSound, x => tauntDropAsset = x, null);
+        }
+
+        public override void ReleaseAddressableAssets() {
+            base.ReleaseAddressableAssets();
+            Utils.ReleaseAsset(tauntAsset);
+            Utils.ReleaseAsset(tauntDropAsset);
         }
     }
 }

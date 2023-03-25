@@ -10,10 +10,17 @@ namespace TOR {
         public Color coreColour;
         public Color glowColour;
         MeshRenderer mesh;
-        MaterialPropertyBlock propBlock;
         Transform itemTrans;
         Transform leftHandTrans;
         Transform rightHandTrans;
+
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -24,10 +31,9 @@ namespace TOR {
             glowColour = new Color(module.glowColour[0], module.glowColour[1], module.glowColour[2], module.glowColour[3]);
 
             mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
-            propBlock = new MaterialPropertyBlock();
-            mesh.GetPropertyBlock(propBlock);
-            propBlock.SetColor("_BaseColor", coreColour);
-            mesh.SetPropertyBlock(propBlock);
+            mesh.GetPropertyBlock(PropBlock);
+            PropBlock.SetColor("_BaseColor", coreColour);
+            mesh.SetPropertyBlock(PropBlock);
 
             itemTrans = item.transform;
 
@@ -46,7 +52,7 @@ namespace TOR {
             catch { }
         }
 
-        public float getClosestHandDistance() {
+        public float GetClosestHandDistance() {
             if (!Player.local) return float.MaxValue;
             if (!leftHandTrans) leftHandTrans = Player.local.handLeft.transform;
             if (!rightHandTrans) rightHandTrans = Player.local.handRight.transform;
@@ -56,14 +62,14 @@ namespace TOR {
         }
 
         protected void Update() {
-            var distanceToHand = getClosestHandDistance();
+            var distanceToHand = GetClosestHandDistance();
             var minGlow = 0.33f;
             var maxGlow = 3f;
             var flicker = module.isUnstable ? Random.Range(-0.2f, 0.2f) : Random.Range(-0.04f, 0.04f);
             var intensity = Mathf.Clamp(maxGlow - (10 * distanceToHand) + flicker, minGlow, maxGlow);
-            mesh.GetPropertyBlock(propBlock);
-            propBlock.SetColor("_EmissionColor", new Color(bladeColour.r * intensity, bladeColour.g * intensity, bladeColour.b * intensity, bladeColour.a));
-            mesh.SetPropertyBlock(propBlock);
+            mesh.GetPropertyBlock(PropBlock);
+            PropBlock.SetColor("_EmissionColor", new Color(bladeColour.r * intensity, bladeColour.g * intensity, bladeColour.b * intensity, bladeColour.a));
+            mesh.SetPropertyBlock(PropBlock);
         }
     }
 }

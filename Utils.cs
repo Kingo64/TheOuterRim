@@ -4,6 +4,10 @@ using UnityEngine;
 
 namespace TOR {
     class Utils {
+        public static readonly WaitForSeconds waitSeconds_001 = new WaitForSeconds(0.01f);
+        public static readonly WaitForSeconds waitSeconds_01 = new WaitForSeconds(0.1f);
+        public static readonly WaitForSeconds waitSeconds_1 = new WaitForSeconds(1f);
+
         public static void AddModule<T>(GameObject gameObject) {
             if (!gameObject.TryGetComponent(typeof(T), out _)) {
                 gameObject.AddComponent(typeof(T));
@@ -17,7 +21,7 @@ namespace TOR {
                     foreach (var a in audioSource) a.outputAudioMixerGroup = defaultAudioMixer;
                 }
                 catch {
-                    Debug.LogWarning("The Outer Rim: Couldn't find AudioMixerGroup 'Effect'.");
+                    Utils.LogWarning("Couldn't find AudioMixerGroup 'Effect'");
                 }
             }
         }
@@ -26,6 +30,30 @@ namespace TOR {
             float horizontalDist = Vector3.Distance(origin.transform.position, new Vector3(target.transform.position.x, origin.transform.position.y, target.transform.position.z));
             float verticalDist = target.transform.position.y - origin.transform.position.y;
             return Mathf.Atan(verticalDist / horizontalDist) * Mathf.Rad2Deg;
+        }
+
+        public static int HashString(string str, bool toLower = true) {
+            if (toLower) str = str.ToLower();
+            return Animator.StringToHash(str);
+        }
+
+        public static HashSet<int> HashArray(string[] strings, bool toLower = true) {
+            HashSet<int> hashed = new HashSet<int>();
+            for (int i = 0, l = strings.Length; i < l; i++) hashed.Add(HashString(strings[i], toLower));
+            return hashed;
+        }
+
+        readonly static string LogPrefix = "The Outer Rim: ";
+        public static void Log(object message) {
+            Debug.Log(LogPrefix + message.ToString());
+        }
+
+        public static void LogError(object message) { 
+            Debug.LogError(LogPrefix + message.ToString());
+        }
+
+        public static void LogWarning(object message) {
+            Debug.LogWarning(LogPrefix + message.ToString());
         }
 
         public static class HapticIntensity {
@@ -48,7 +76,7 @@ namespace TOR {
         }
 
         public static void PlayParticleEffect(ParticleSystem effect, bool detachFromParent = false) {
-            if (effect != null) {
+            if (effect) {
                 if (detachFromParent) {
                     var clone = Object.Instantiate(effect);
                     var cloneTrans = clone.transform;
@@ -56,6 +84,7 @@ namespace TOR {
                     cloneTrans.position = effect.transform.position;
                     cloneTrans.rotation = effect.transform.rotation;
                     clone.Play();
+                    Object.Destroy(clone, 10f);
                 } else effect.Play();
             }
         }
@@ -69,7 +98,7 @@ namespace TOR {
         }
 
         public static void PlaySound(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
-            if (source != null) {
+            if (source) {
                 if (audioContainer != null) source.clip = audioContainer.PickAudioClip();
                 source.Play();
                 NoiseManager.AddNoise(source.transform.position, source.volume, sourceCreature);
@@ -81,7 +110,7 @@ namespace TOR {
         }
 
         public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
-            if (source != null) {
+            if (source) {
                 if (audioContainer != null) source.clip = audioContainer.PickAudioClip();
                 source.Play();
                 return NoiseManager.AddLoopNoise(source, sourceCreature);
@@ -94,7 +123,7 @@ namespace TOR {
         }
 
         public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
-            if (source != null) {
+            if (source) {
                 source.PlayOneShot(audioContainer ? audioContainer.PickAudioClip() : source.clip);
                 NoiseManager.AddNoise(source.transform.position, source.volume, sourceCreature);
             }
@@ -105,17 +134,30 @@ namespace TOR {
         }
 
         public static void StopSoundLoop(AudioSource source, ref NoiseManager.Noise noise) {
-            if (source != null) {
+            if (source) {
                 source.Stop();
                 NoiseManager.RemoveLoopNoise(source);
                 noise = null;
             }
         }
 
+        public static void ReleaseAsset<T>(T asset) where T : Object {
+            try {
+                if (asset) Catalog.ReleaseAsset(asset);
+            }
+            catch { }
+        }
+
         static System.Random random = new System.Random();
         public static T RandomEnum<T>() {
             var v = System.Enum.GetValues(typeof(T));
             return (T)v.GetValue(random.Next(v.Length));
+        }
+
+        public static T UpdateCustomData<T>(Item item, T data) where T : ContentCustomData {
+            if (item.HasCustomData<T>()) item.RemoveCustomData<T>();
+            item.AddCustomData(data);
+            return data;
         }
 
         public static Color UpdateHue(Color color, float hue) {
@@ -166,7 +208,7 @@ namespace TOR {
         public float zSpeed = 0.002f;
 
         // Update is called once per frame
-        void Update() {
+        protected void Update() {
             var ls = transform.localScale;
             transform.Rotate(Vector3.up * speed * Time.deltaTime);
             if ((ls.x > maxX && xSpeed > 0) || (ls.x < minX && xSpeed < 0)) {
