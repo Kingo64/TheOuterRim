@@ -55,7 +55,7 @@ namespace TOR {
         }
 
         void UpdateLiquidRender() {
-            if (renderers == null || liquid == null || !PlayerControl.userPresence || !PlayerControl.vrEnabled || !PlayerControl.userPresence || GameManager.timeStopped) {
+            if (renderers == null || liquid == null || !PlayerControl.userPresence || !PlayerControl.vrEnabled || !PlayerControl.userPresence || TimeManager.timeStopped) {
                 deferRenderTime = 1f;
                 return;
             }

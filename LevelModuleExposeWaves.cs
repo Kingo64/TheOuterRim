@@ -34,7 +34,7 @@ namespace TOR {
 
         public void UnrestrictWaves() {
             waveBackups = new HashSet<int>();
-            var waves = Catalog.GetDataList(Catalog.Category.Wave);
+            var waves = Catalog.GetDataList(Category.Wave);
             foreach (var wave in waves.Cast<WaveData>()) {
                 if (!wave.alwaysAvailable && wave.waveSelectors != null && wave.waveSelectors.Count > 0) {
                     waveBackups.Add(wave.hashId);
@@ -45,7 +45,7 @@ namespace TOR {
 
         public void RestoreWaves() {
             if (waveBackups == null) return;
-            var waves = Catalog.GetDataList(Catalog.Category.Wave);
+            var waves = Catalog.GetDataList(Category.Wave);
             foreach (var wave in waves.Cast<WaveData>()) {
                 wave.alwaysAvailable = false;
             }

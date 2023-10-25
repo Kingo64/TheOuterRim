@@ -6,7 +6,6 @@ namespace TOR {
     {
         public string animatorId;
         public bool animateOnIgnition;
-        public bool canThrow;
         public int fastCollisionMode = (int)CollisionDetectionMode.ContinuousDynamic;
         public float[] helicopterThrust = { 0f, 100f };
         public string kyberCrystalID = "KyberCrystalBlue";
@@ -23,17 +22,10 @@ namespace TOR {
         public string primaryGripPrimaryActionHold = "";
         public string primaryGripSecondaryAction = "toggleIgnition";
         public string primaryGripSecondaryActionHold = "";
-        public float controlHoldTime;
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
-            LoadGlobalSettings();
             Utils.AddModule<ItemLightsaber>(item.gameObject);
-        }
-
-        private void LoadGlobalSettings() {
-            if (canThrow) canThrow = GlobalSettings.SaberThrowable;
-            controlHoldTime = GlobalSettings.ControlsHoldDuration;
         }
     }
 }

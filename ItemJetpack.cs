@@ -202,8 +202,8 @@ namespace TOR {
                     var sparkVelocity = Mathf.Lerp(0.4f, 1.0f, throttleAmount);
                     idleSoundLeft.volume = volume;
                     idleSoundRight.volume = volume;
-                    if (idleNoiseLeft != null) idleNoiseLeft.UpdateVolume(volume);
-                    if (idleNoiseRight != null) idleNoiseRight.UpdateVolume(volume);
+                    idleNoiseLeft?.UpdateVolume(volume);
+                    idleNoiseRight?.UpdateVolume(volume);
                     idleSoundLeft.pitch = pitch;
                     idleSoundRight.pitch = pitch;
                     sparksVelocityLeft.speedModifierMultiplier = sparkVelocity;

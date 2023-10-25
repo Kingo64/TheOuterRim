@@ -1,10 +1,8 @@
 ﻿using UnityEngine;
 using ThunderRoad;
 using System;
-using System.Linq;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using System.Collections;
 
 namespace TOR {
     [Serializable]
@@ -42,7 +40,7 @@ namespace TOR {
         RagdollHand leftInteractor;
         RagdollHand rightInteractor;
 
-        List<Transform> spawnLocations = new List<Transform>();
+        readonly List<Transform> spawnLocations = new List<Transform>();
 
         MaterialPropertyBlock _propBlock;
         public MaterialPropertyBlock PropBlock {
@@ -208,10 +206,10 @@ namespace TOR {
                     StartCoroutine(creatureData.SpawnCoroutine(spawnPos, spawnRot, null, delegate (Creature creature) {
                         if (factionData.factionId != -999) creature.SetFaction(factionData.factionId);
                         if (creature.factionId == Player.currentCreature.factionId) {
-                            AllyBehaviour ally = creature.gameObject.AddComponent<AllyBehaviour>();
-                            ally.creature = creature;
+                            creature.brain.instance.tree.blackboard.UpdateVariable("FollowTarget", Player.currentCreature);
+                        } else {
+                            creature.spawnGroup = new WaveData.Group();
                         }
-                        creature.spawnGroup = new WaveData.Group();
                     }, true));
                     Utils.PlayHaptic(leftInteractor, rightInteractor, Utils.HapticIntensity.Moderate);
                     Utils.PlaySound(pingSound, null, item);
@@ -295,61 +293,6 @@ namespace TOR {
             Rebel,
             Republic,
             Sith 
-        }
-    }
-
-    public class AllyBehaviour : MonoBehaviour {
-        public Creature creature;
-        public BrainData brain;
-        public BrainModulePatrol patrol;
-        public IEnumerator follow;
-        public WayPoint wayPoint;
-        WaitForSeconds followInterval;
-
-        protected void Awake() {
-            creature = creature ?? GetComponent<Creature>();
-            if (!creature) {
-                Destroy(this);
-            }
-            var behaviours = GetComponents<AllyBehaviour>();
-            foreach (var behaviour in behaviours) {
-                if (behaviour != this) {
-                    Destroy(behaviour);
-                }
-            }
-            brain = creature.brain.instance;
-            if (brain == null) {
-                Destroy(this);
-            }
-            patrol = brain.GetModule<BrainModulePatrol>();
-        }
-
-        protected void OnEnable() {
-            if (patrol != null) {
-                follow = Follow();
-                StartCoroutine(follow);
-            }
-        }
-
-        protected void OnDisable() {
-            if (follow != null) StopCoroutine(follow);
-            Destroy(this);
-        }
-
-        private IEnumerator Follow() {
-            while (creature && brain != null) {
-                if (!wayPoint) {
-                    var wp = new GameObject();
-                    wayPoint = wp.AddComponent<WayPoint>();
-                    wp.transform.SetParent(Player.currentCreature.transform);
-                }
-
-                if (patrol.waypoints == null || !patrol.waypoints.Contains(wayPoint))
-                    patrol.waypoints = new WayPoint[] { wayPoint };
-
-                followInterval = followInterval ?? new WaitForSeconds(creature.brain.instance.cycleSpeed);
-                yield return followInterval;
-            }
         }
     }
 }

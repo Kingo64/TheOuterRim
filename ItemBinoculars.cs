@@ -53,8 +53,8 @@ namespace TOR {
                 storedCamera = scopeCamera;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
                 renderTexture = new RenderTexture(
-                    module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution[0],
-                    module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution[1],
+                    module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution,
+                    module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution,
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
                 scopeCamera.targetTexture = renderTexture;
                 scope.GetPropertyBlock(PropBlock);

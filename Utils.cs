@@ -17,7 +17,7 @@ namespace TOR {
         public static void ApplyStandardMixer(AudioSource[] audioSource) {
             if (audioSource != null) {
                 try {
-                    var defaultAudioMixer = GameManager.local.audioMixer.FindMatchingGroups("Effect")[0];
+                    var defaultAudioMixer = ThunderRoadSettings.GetAudioMixerGroup(AudioMixerName.Effect);
                     foreach (var a in audioSource) a.outputAudioMixerGroup = defaultAudioMixer;
                 }
                 catch {
@@ -148,7 +148,7 @@ namespace TOR {
             catch { }
         }
 
-        static System.Random random = new System.Random();
+        public static readonly System.Random random = new System.Random();
         public static T RandomEnum<T>() {
             var v = System.Enum.GetValues(typeof(T));
             return (T)v.GetValue(random.Next(v.Length));

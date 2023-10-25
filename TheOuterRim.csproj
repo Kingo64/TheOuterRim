@@ -32,10 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="chabuk.manikinmono, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\chabuk.manikinmono.dll</HintPath>
-    </Reference>
     <Reference Include="IngameDebugConsole.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\IngameDebugConsole.Runtime.dll</HintPath>
@@ -44,7 +40,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="RainyReignGames.Reveal, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
     <Reference Include="Sirenix.Serialization, Version=2.0.17.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Sirenix.Serialization.dll</HintPath>
@@ -63,7 +58,13 @@
     <Reference Include="ThunderRoad">
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\ThunderRoad.dll</HintPath>
     </Reference>
+    <Reference Include="ThunderRoad.Manikin">
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\ThunderRoad.Manikin.dll</HintPath>
+    </Reference>
     <Reference Include="ThunderRoad.Plugins, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
+    <Reference Include="ThunderRoad.Reveal">
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\ThunderRoad.Reveal.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\Unity.RenderPipelines.Core.Runtime.dll</HintPath>
@@ -113,6 +114,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DataManager.cs" />
     <Compile Include="ItemBottle.cs" />
     <Compile Include="ItemJetpack.cs" />
     <Compile Include="ItemBlasterPowerCell.cs" />
@@ -150,12 +152,11 @@
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
     <Compile Include="LevelModuleExposeWaves.cs" />
-    <Compile Include="LevelModuleLegacyHelmets.cs" />
-    <Compile Include="LevelModuleFixCreatureEthnicity.cs" />
-    <Compile Include="LevelModuleFixCreaturePhysics.cs" />
+    <Compile Include="ThunderScriptFixCreatureEthnicity.cs" />
     <Compile Include="LevelModuleForceDistanceShadowmask.cs" />
+    <Compile Include="ThunderScriptLoadingTips.cs" />
     <Compile Include="LevelModuleSaveManager.cs" />
-    <Compile Include="LevelModuleCreaturePainter.cs" />
+    <Compile Include="ThunderScriptCreaturePainter.cs" />
     <Compile Include="LevelModuleForceShadowDistance.cs" />
     <Compile Include="LevelModuleSpawnRelocator.cs" />
     <Compile Include="LevelModuleFixCreatureEvent.cs" />

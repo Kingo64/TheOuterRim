@@ -22,12 +22,13 @@ namespace TOR {
             audio = item.gameObject.AddComponent<AudioSource>();
             audio.spatialBlend = 0.5f;
             audio.volume = 0.5f;
-            audio.outputAudioMixerGroup = GameManager.local.audioMixer.FindMatchingGroups("Effect")[0];
+            audio.outputAudioMixerGroup = ThunderRoadSettings.GetAudioMixerGroup(AudioMixerName.Effect);
 
             item.OnGrabEvent += OnGrabEvent;
         }
 
         private void OnGrabEvent(Handle handle, RagdollHand ragdollHand) {
+            item.OnGrabEvent -= OnGrabEvent;
             if (LevelModuleSaveManager.saveData.discoveredItems.Contains(item.itemId)) {
                 Destroy(this);
             } else {
@@ -35,7 +36,6 @@ namespace TOR {
                 LevelModuleSaveManager.saveData.discoveredItems.Add(item.itemId);
                 LevelModuleSaveManager.Save();
                 LevelModuleSaveManager.ProcessDiscoveredItems();
-                item.OnGrabEvent -= OnGrabEvent;
             }
         }
     }

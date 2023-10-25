@@ -7,8 +7,8 @@ namespace TOR {
         protected Item item;
         protected ItemModuleAutoDrawHolder module;
 
-        HashSet<Holder> holders = new HashSet<Holder>();
-        HashSet<Holder> drawToHolders = new HashSet<Holder>();
+        readonly HashSet<Holder> holders = new HashSet<Holder>();
+        readonly HashSet<Holder> drawToHolders = new HashSet<Holder>();
 
         float drawTime;
         bool isDrawing;

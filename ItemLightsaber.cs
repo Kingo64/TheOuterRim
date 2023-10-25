@@ -61,6 +61,7 @@ namespace TOR {
         Rigidbody playerBody;
 
         protected void Awake() {
+            all.Add(this);
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleLightsaber>();
             body = item.GetComponent<Rigidbody>();
@@ -121,7 +122,9 @@ namespace TOR {
         }
 
         protected void OnDestroy() {
-            all.Remove(this);
+            if (all.Contains(this)) {
+                all.Remove(this);
+            }
             if (GlobalSettings.LightsaberColliders.ContainsKey(GetInstanceID())) {
                 GlobalSettings.LightsaberColliders.Remove(GetInstanceID());
             }
@@ -153,31 +156,23 @@ namespace TOR {
             else if (action == "turnOff") TurnOff();
         }
 
-        public struct AdjustBladeLength {
-            public bool allowDisarm;
-            public float lengthChange;
-        }
-
-        public void DecreaseBladeLength(AdjustBladeLength args) {
-            if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+        public void DecreaseBladeLength(float lengthChange) {
             for (int i = 0, l = blades.Count(); i < l; i++) {
-                if (blades[i].maxLength - args.lengthChange > 0) {
-                    blades[i].SetBladeLength(blades[i].maxLength - args.lengthChange);
+                if (blades[i].maxLength - lengthChange > 0) {
+                    blades[i].SetBladeLength(blades[i].maxLength - lengthChange);
                 }
             }
             UpdateCustomData();
         }
 
-        public void IncreaseBladeLength(AdjustBladeLength args) {
-            if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+        public void IncreaseBladeLength(float lengthChange) {
             for (int i = 0, l = blades.Count(); i < l; i++) {
-                blades[i].SetBladeLength(blades[i].maxLength + args.lengthChange);
+                blades[i].SetBladeLength(blades[i].maxLength + lengthChange);
             }
             UpdateCustomData();
         }
 
-        public void ResetBladeLength(AdjustBladeLength args) {
-            if (args.allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+        public void ResetBladeLength(float _) {
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 blades[i].SetBladeLength(module.lightsaberBlades[i].bladeLength / blades[i].saberBodyTrans.parent.localScale.z * 0.1f);
             }
@@ -198,7 +193,7 @@ namespace TOR {
                 coupledItem.data.slot = "Cork";
                 coupledItem.transform.MoveAlign(coupledItem.holderPoint, couplerTrans, couplerTrans);
                 couplerJoint = itemTrans.gameObject.AddComponent<FixedJoint>();
-                couplerJoint.connectedBody = coupledItem.rb;
+                couplerJoint.connectedBody = coupledItem.physicBody.rigidBody;
                 coupledLightsaber = coupledItem.GetComponent<ItemLightsaber>();
                 SetCouplerCollider(false);
                 UpdateCustomData();
@@ -292,6 +287,15 @@ namespace TOR {
                     firstEnabled = true;
                 }
                 ResetCollisions();
+
+                if (GlobalSettings.LightsaberColliders != null) {
+                    var activeBlades = blades.Select(blade => blade.collisionBlade).ToArray();
+                    if (!GlobalSettings.LightsaberColliders.ContainsKey(GetInstanceID())) {
+                        GlobalSettings.LightsaberColliders.Add(GetInstanceID(), activeBlades);
+                    } else {
+                        GlobalSettings.LightsaberColliders[GetInstanceID()] = activeBlades;
+                    }
+                }
             }
         }
 
@@ -371,7 +375,7 @@ namespace TOR {
             ResetCollisions();
 
             // throw the lightsaber
-            if (!thrown && body.velocity.magnitude > GlobalSettings.SaberThrowMinVelocity && module.canThrow) {
+            if (!thrown && body.velocity.magnitude > GlobalSettings.SaberThrowMinVelocity && GlobalSettings.SaberThrowable) {
                 playerHand = interactor.playerHand;
                 thrown = true;
             }
@@ -418,7 +422,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.primaryGripPrimaryActionHold)) {
                 // start primary control timer
                 if (action == Interactable.Action.UseStart) {
-                    primaryControlHoldTime = module.controlHoldTime;
+                    primaryControlHoldTime = GlobalSettings.ControlsHoldDuration;
                     if (interactor.side == Side.Right) {
                         rightInteractor = interactor;
                     } else {
@@ -439,7 +443,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.primaryGripSecondaryActionHold)) {
                 // start secondary control timer
                 if (action == Interactable.Action.AlternateUseStart) {
-                    secondaryControlHoldTime = module.controlHoldTime;
+                    secondaryControlHoldTime = GlobalSettings.ControlsHoldDuration;
                 } else if (action == Interactable.Action.AlternateUseStop) {
                     // if not held for long run standard action
                     if (secondaryControlHoldTime > 0 && secondaryControlHoldTime > (secondaryControlHoldTime / 2)) {
@@ -480,8 +484,7 @@ namespace TOR {
             }
         }
 
-        public void TryEjectCrystal(bool allowDisarm) {
-            if (allowDisarm && (item.leftNpcHand || item.rightNpcHand)) return;
+        public void TryEjectCrystal() {
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 if (!string.IsNullOrEmpty(blades[i].kyberCrystal)) {
                     TurnOff(isActive);
@@ -497,9 +500,11 @@ namespace TOR {
         protected void OnTriggerEnter(Collider other) {
             if (other.name == "CouplerCollider" && module.hasCoupler && coupledItem == null && ignoreCoupleTime <= 0 && isSnapped == false) {
                 var itemToCouple = other.attachedRigidbody.GetComponentInParent<Item>();
-                var lightsaberToCouple = other.attachedRigidbody.GetComponentInParent<ItemLightsaber>();
-                if (lightsaberToCouple && !lightsaberToCouple.isSnapped && lightsaberToCouple.coupledItem == null && lightsaberToCouple.item.data.slot != "Cork") {
-                    Couple(itemToCouple);
+                if ((item.leftPlayerHand || item.rightPlayerHand) && (itemToCouple.leftPlayerHand || itemToCouple.rightPlayerHand)) {
+                    var lightsaberToCouple = other.attachedRigidbody.GetComponentInParent<ItemLightsaber>();
+                    if (lightsaberToCouple && !lightsaberToCouple.isSnapped && lightsaberToCouple.coupledItem == null && lightsaberToCouple.item.data.slot != "Cork") {
+                        Couple(itemToCouple);
+                    }
                 }
             }
         }
@@ -561,7 +566,7 @@ namespace TOR {
             if (isHolding && telekinesis == null) {
                 thrown = false;
                 returning = false;
-                if (GlobalSettings.SaberExpensiveCollisions) body.collisionDetectionMode = (body.velocity.magnitude > GlobalSettings.SaberExpensiveCollisionsMinVelocity) ? (CollisionDetectionMode)module.fastCollisionMode : CollisionDetectionMode.Discrete;
+                if (GlobalSettings.SaberExpensiveCollisions) body.collisionDetectionMode = (body.velocity.magnitude > GlobalSettings.SaberExpensiveCollisionsMinVelocity) ? (CollisionDetectionMode)module.fastCollisionMode : CollisionDetectionMode.ContinuousSpeculative;
             } else if (telekinesis != null && telekinesis.spinMode && !isActive) {
                 TurnOn();
                 telekinesis.SetSpinMode(false);
@@ -602,6 +607,9 @@ namespace TOR {
 
             if (coupledItem) {
                 coupledItem.transform.MoveAlign(coupledItem.holderPoint, couplerTrans, couplerTrans);
+
+                if (!item.IsHanded() && coupledItem.IsHanded()) ForceCollisionDetection(item);
+                if (item.IsHanded() && !coupledItem.IsHanded()) ForceCollisionDetection(coupledItem);
             }
 
             if (fixBrokenPhysics) {
@@ -610,8 +618,21 @@ namespace TOR {
             }
         }
 
+        void ForceCollisionDetection(Item item) {
+            item.isThrowed = true;
+            item.IgnoreIsMoving();
+            item.SetColliderAndMeshLayer(GameManager.GetLayer(LayerName.MovingItem), false);
+            item.physicBody.collisionDetectionMode = Catalog.gameData.collisionDetection.grabbed;
+            if (!Item.allThrowed.Contains(item)) {
+                Item.allThrowed.Add(item);
+            }
+        }
+
         void ReturnSaber() {
+            item.Throw(0);
             var hand = PlayerControl.GetHand(playerHand.side);
+            item.IgnoreRagdollCollision(playerHand.ragdollHand.creature.ragdoll);
+
             float grabDistance = 0.3f;
             float returnSpeed = 10f;
             if (!tapToReturn) {
@@ -688,6 +709,7 @@ namespace TOR {
         public bool isUnstable;
         float originalWhooshMaxVel;
         float originalWhooshMinVel;
+        Vector3 originalSaberBodyTransLocalScale;
         bool trailRescaleZ;
 
         public Transform saberBodyTrans;
@@ -714,17 +736,16 @@ namespace TOR {
                 var tempSaberBody = parent.GetCustomReference(saberBodyRef);
                 saberBody = tempSaberBody.GetComponent<MeshRenderer>();
                 saberBodyTrans = tempSaberBody.transform;
-                saberBodyTrans.localScale = new Vector3(saberBodyTrans.localScale.x * GlobalSettings.SaberBladeThickness, saberBodyTrans.localScale.y * GlobalSettings.SaberBladeThickness, saberBodyTrans.localScale.z);
+                originalSaberBodyTransLocalScale = saberBodyTrans.localScale;
+                UpdateBladeThickness(GlobalSettings.SaberBladeThickness);
                 idleSoundSource = tempSaberBody.GetComponent<AudioSource>();
                 var tempUnstable = saberBodyTrans.Find("UnstableParticles");
                 if (tempUnstable) unstableParticles = tempUnstable.GetComponent<ParticleSystem>();
-                if (GlobalSettings.SaberTrailEnabled) {
-                    var trailTrans = saberBodyTrans.Find("Trail");
-                    trail = trailTrans.gameObject.AddComponent<LightsaberTrail>();
-                    trailMeshRenderer = trailTrans.gameObject.GetComponent<MeshRenderer>();
+                var trailTrans = saberBodyTrans.Find("Trail");
+                trail = trailTrans.gameObject.AddComponent<LightsaberTrail>();
+                trailMeshRenderer = trailTrans.gameObject.GetComponent<MeshRenderer>();
 
-                    trailRescaleZ = saberBodyTrans.parent != parent.transform;
-                }
+                trailRescaleZ = saberBodyTrans.parent != parent.transform;
             }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
             if (!string.IsNullOrEmpty(saberGlowRef)) {
@@ -789,6 +810,10 @@ namespace TOR {
             if (trail) trail.height = length * saberBodyTrans.parent.localScale.z;
             CalculateUnstableParticleSize();
             extendDelta = maxLength / ignitionDuration;
+        }
+
+        public void UpdateBladeThickness(float thickness) {
+            saberBodyTrans.localScale = new Vector3(originalSaberBodyTransLocalScale.x * thickness, originalSaberBodyTransLocalScale.y * thickness, originalSaberBodyTransLocalScale.z);
         }
 
         public void CalculateUnstableParticleSize() {
@@ -952,7 +977,7 @@ namespace TOR {
         public bool TryPenetrate() {
             if (!isActive) return false;
             if (Physics.Raycast(saberBodyTrans.position, -saberBodyTrans.forward, bladeLength, 201334784, QueryTriggerInteraction.Ignore)) {
-                parent.rb.AddForce(saberBodyTrans.forward * 20f, ForceMode.Impulse);
+                parent.physicBody.rigidBody.AddForce(saberBodyTrans.forward * 20f, ForceMode.Impulse);
                 return true;
             }
             return false;
@@ -975,9 +1000,6 @@ namespace TOR {
 
         public class LightsaberTrail : MonoBehaviour {
             public float height = 0.9f;
-            public float time = GlobalSettings.SaberTrailDuration;
-            public float desiredTime = GlobalSettings.SaberTrailDuration;
-            public float minVelocity = GlobalSettings.SaberTrailMinVelocity;
             public float timeTransitionSpeed = 5f;
             public Color startColor = Color.white;
             public Color endColor = new Color(1, 1, 1, 0);
@@ -1003,8 +1025,13 @@ namespace TOR {
             }
 
             protected void FixedUpdate() {
-                Iterate(Time.time);
-                UpdateTrail(Time.time, Time.deltaTime);
+                if (GlobalSettings.SaberTrailEnabled) {
+                    Iterate(Time.time);
+                    UpdateTrail(Time.time, Time.deltaTime);
+                } else {
+                    mesh.Clear();
+                    sections.Clear();
+                }
             }
 
             public void Iterate(float itterateTime) { // ** call everytime you sample animation **
@@ -1014,7 +1041,7 @@ namespace TOR {
                 var velocity = (lastRotation - trans.rotation.eulerAngles).sqrMagnitude;
                 lastRotation = trans.rotation.eulerAngles;
 
-                if (sections.Count == 0 || velocity > minVelocity) {
+                if (sections.Count == 0 || velocity > 0) {
                     TronTrailSection section = new TronTrailSection {
                         point = position,
                         upDir = trans.TransformDirection(Vector3.up),
@@ -1027,7 +1054,7 @@ namespace TOR {
             public void UpdateTrail(float currentTime, float deltaTime) {
                 mesh.Clear();
 
-                while (sections.Count > 0 && currentTime > sections[sections.Count - 1].time + time) {
+                while (sections.Count > 0 && currentTime > sections[sections.Count - 1].time + GlobalSettings.SaberTrailDuration) {
                     sections.RemoveAt(sections.Count - 1);
                 }
 
@@ -1043,7 +1070,7 @@ namespace TOR {
                 for (var i = 0; i < sections.Count; i++) {
                     currentSection = sections[i];
                     float u = 0.0f;
-                    if (i != 0) u = Mathf.Clamp01((currentTime - currentSection.time) / time);
+                    if (i != 0) u = Mathf.Clamp01((currentTime - currentSection.time) / GlobalSettings.SaberTrailDuration);
 
                     Vector3 upDir = currentSection.upDir;
 
@@ -1074,12 +1101,12 @@ namespace TOR {
                 mesh.uv = uv;
                 mesh.triangles = triangles;
 
-                if (time > desiredTime) {
-                    time -= deltaTime * timeTransitionSpeed;
-                    if (time <= desiredTime) time = desiredTime;
-                } else if (time < desiredTime) {
-                    time += deltaTime * timeTransitionSpeed;
-                    if (time >= desiredTime) time = desiredTime;
+                if (GlobalSettings.SaberTrailDuration > GlobalSettings.SaberTrailDuration) {
+                    GlobalSettings.SaberTrailDuration -= deltaTime * timeTransitionSpeed;
+                    if (GlobalSettings.SaberTrailDuration <= GlobalSettings.SaberTrailDuration) GlobalSettings.SaberTrailDuration = GlobalSettings.SaberTrailDuration;
+                } else if (GlobalSettings.SaberTrailDuration < GlobalSettings.SaberTrailDuration) {
+                    GlobalSettings.SaberTrailDuration += deltaTime * timeTransitionSpeed;
+                    if (GlobalSettings.SaberTrailDuration >= GlobalSettings.SaberTrailDuration) GlobalSettings.SaberTrailDuration = GlobalSettings.SaberTrailDuration;
                 }
             }
         }
@@ -1087,12 +1114,14 @@ namespace TOR {
 
     internal class LightsaberNPCAnimator : MonoBehaviour {
         public Creature creature;
+        float originalSpeed;
 
         public void SetCreature(Creature newCreature) {
             creature = newCreature;
             if (creature.brain.instance.id == "ForceSensitive") {
                 if (creature.animator) {
-                    creature.animator.speed *= GlobalSettings.SaberNPCAttackSpeed;
+                    originalSpeed = creature.animator.speed;
+                    creature.animator.speed = originalSpeed * GlobalSettings.SaberNPCAttackSpeed;
                 }
             }
             creature.OnKillEvent += OnKillEvent;
@@ -1106,7 +1135,7 @@ namespace TOR {
         protected void OnDestroy() {
             try {
                 if (creature.brain.instance.id == "ForceSensitive") {
-                    creature.animator.speed /= GlobalSettings.SaberNPCAttackSpeed;
+                    creature.animator.speed = originalSpeed;
                 }
             } catch {}
         }

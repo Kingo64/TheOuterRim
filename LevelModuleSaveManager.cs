@@ -1,18 +1,23 @@
 ﻿using ThunderRoad;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace TOR {
-    public class LevelModuleSaveManager : LevelModule {
+    public class LevelModuleSaveManager : ThunderScript {
 
         public static SaveData saveData = new SaveData();
 
-        public override IEnumerator OnLoadCoroutine() {
+        public override void ScriptLoaded(ModManager.ModData modData) {
+            base.ScriptLoaded(modData);
             EventManager.onLevelLoad += OnLevelLoad;
             EventManager.onLevelUnload += OnLevelUnload;
             EventManager.onReloadJson += OnReloadJson;
-            yield break;
+        }
+
+        public override void ScriptDisable() {
+            base.ScriptDisable();
+            EventManager.onLevelLoad -= OnLevelLoad;
+            EventManager.onLevelUnload -= OnLevelUnload;
+            EventManager.onReloadJson -= OnReloadJson;
         }
 
         private void OnLevelLoad(LevelData levelData, EventTime eventTime) {
@@ -61,21 +66,17 @@ namespace TOR {
         }
 
         public static void Load() {
-            if (DataManager.local.dataSource == DataManager.DataSource.Local) {
-                if (Player.characterData != null) {
-                    var data = DataManager.LoadLocalFile<SaveData>(Player.characterData.ID + ".tor_save");
-                    if (data != null) {
-                        saveData = data;
-                    }
+            if (Player.characterData != null) {
+                var data = DataManager.LoadLocalFile<SaveData>(Player.characterData.ID + ".tor_save");
+                if (data != null) {
+                    saveData = data;
                 }
             }
         }
 
         public static void Save() {
-            if (DataManager.local.dataSource == DataManager.DataSource.Local) {
-                if (Player.characterData != null) {
-                    DataManager.SaveLocalFile(saveData, Player.characterData.ID + ".tor_save");
-                }
+            if (Player.characterData != null) {
+                DataManager.SaveLocalFile(saveData, Player.characterData.ID + ".tor_save");
             }
         }
     }

@@ -156,6 +156,7 @@ namespace TOR {
         public float[] scopeZoom = { 10f, 6f, 18f };
 
         // AI settings
+        public int aiBurstAmount;
         public float aiShootDistanceMult = 1.0f;
         public bool aiMeleeEnabled;
 

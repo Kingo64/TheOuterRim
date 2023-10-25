@@ -34,7 +34,6 @@ namespace TOR {
         float detonateTime;
         float beepTime;
         bool[] lastBeep = { false, false, false };
-        readonly System.Random rand = new System.Random();
 
         MaterialPropertyBlock _propBlock;
         public MaterialPropertyBlock PropBlock {
@@ -105,9 +104,9 @@ namespace TOR {
             }
             if (isArmed) {
                 detonateTime = module.detonateTime;
-                if (item.currentRoom) {
-                    item.currentRoom.UnRegisterItem(item);
-                    item.currentRoom = null;
+                if (item.currentArea != null) {
+                    item.currentArea.SpawnedArea.UnRegisterItem(item);
+                    item.currentArea = null;
                 }
             }
         }
@@ -191,7 +190,7 @@ namespace TOR {
             beepTime = 0;
 
             renderer.enabled = false;
-            item.rb.isKinematic = true;
+            item.physicBody.rigidBody.isKinematic = true;
 
             foreach (var hit in colliders) {
                 var distance = Vector3.Distance(hit.transform.position, pos);
@@ -252,7 +251,7 @@ namespace TOR {
 
         bool[] RandomBeep() {
             bool RandomBool() {
-                return rand.Next() > (int.MaxValue / 2);
+                return Utils.random.Next() > (int.MaxValue / 2);
             }
             return new bool[] { RandomBool(), RandomBool(), RandomBool() };
         }

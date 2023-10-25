@@ -9,6 +9,8 @@ namespace TOR {
         protected Item item;
         protected ItemModuleBlasterBolt module;
         protected Rigidbody body;
+        protected Collider blasterCollider;
+        protected int blasterColliderMaterial;
 
         public TrailRenderer trail;
         public Color trailColor;
@@ -20,7 +22,7 @@ namespace TOR {
         int lastItemHitId;
         int ricochets;
 
-        List<DamagerData> originalDamagers = new List<DamagerData>();
+        readonly List<DamagerData> originalDamagers = new List<DamagerData>();
 
         MaterialPropertyBlock _propBlock;
         public MaterialPropertyBlock PropBlock {
@@ -34,6 +36,8 @@ namespace TOR {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlasterBolt>();
             body = GetComponent<Rigidbody>();
+            blasterCollider = GetComponentInChildren<Collider>();
+            blasterColliderMaterial = Utils.HashString(blasterCollider.material.name, false);
 
             ResetValues();
 
@@ -132,7 +136,7 @@ namespace TOR {
 
             if (module.disintegrate) {
                 var creature = collisionInstance.targetCollider.GetComponentInParent<Creature>();
-                if (creature) {
+                if (creature && (!creature.isPlayer || !Player.invincibility)) {
                     try {
                         foreach (var holder in creature.holders) {
                             holder.UnSnapAll();
@@ -143,9 +147,7 @@ namespace TOR {
                     creature?.handRight?.TryRelease();
                     creature.Kill(collisionInstance);
 
-                    if (module.impactEffect != null) {
-                        module.impactEffect.Spawn(collisionInstance.contactPoint, new Quaternion()).Play();
-                    }
+                    module.impactEffect?.Spawn(collisionInstance.contactPoint, new Quaternion()).Play();
 
                     creature.Despawn();
                 }
@@ -177,21 +179,19 @@ namespace TOR {
                             if (toRemove == null) toRemove = new List<int> { colliders.Key };
                             else toRemove.Add(colliders.Key);
                             break;
-                        }
-                        if (collider.enabled) {
+                        } else if (collider.enabled) {
                             var closest = collider.ClosestPoint(currentPos);
                             if (Mathf.Abs((currentPos - closest).sqrMagnitude) < GlobalSettings.SaberDeflectAssistDistance) {
                                 hasBeenAssisted = true;
-                                var lastHandler = item.lastHandler;
-
                                 if (ShouldReturnBolt()) {
-                                    if (lastHandler) {
-                                        var direction = lastHandler.creature.ragdoll.GetPart(Utils.RandomEnum<RagdollPart.Type>()).transform.position - transform.position;
+                                    if (item.lastHandler) {
+                                        var parts = item.lastHandler.creature.ragdoll.parts;
+                                        var randomPart = parts[Random.Range(0, parts.Count)];
+                                        var direction = randomPart.transform.position - transform.position;
                                         body.velocity = direction.normalized * body.velocity.magnitude;
                                     } else {
                                         body.velocity *= -1;
                                     }
-                                    var blasterCollider = GetComponentInChildren<Collider>();
                                     var collision = new CollisionInstance {
                                         sourceCollider = blasterCollider,
                                         targetCollider = collider,
@@ -200,16 +200,17 @@ namespace TOR {
                                     if (Physics.Linecast(transform.position, closest, out RaycastHit hit)) {
                                         collision.contactNormal = hit.normal;
                                     }
-                                    MaterialData.TryGetMaterials(Utils.HashString(blasterCollider.material.name, false), Utils.HashString(collider.material.name, false), out MaterialData sourceMaterial, out MaterialData targetMaterial);
+                                    MaterialData.TryGetMaterials(blasterColliderMaterial, Utils.HashString(collider.material.name, false), out MaterialData sourceMaterial, out MaterialData targetMaterial);
                                     if (collision.SpawnEffect(sourceMaterial, targetMaterial, false, out EffectInstance effect)) {
                                         effect.SetIntensity(Random.Range(0.06f, 0.12f));
                                         effect.Play();
                                     }
                                 } else {
-                                    if (Time.timeScale >= 1 ) body.position = closest;
+                                    if (Time.timeScale >= 1) body.position = closest;
                                     body.velocity = (currentPos - closest).normalized * body.velocity.magnitude;
                                 }
 
+                                item.lastHandler = null;
                                 lastItemHitId = colliders.Key;
                                 despawnTime = module.despawnTime;
                             }
@@ -230,29 +231,38 @@ namespace TOR {
             return GlobalSettings.SaberDeflectAssistReturnChance > deflectRoll;
         }
 
+        void DisableDamagers() {
+            foreach (CollisionHandler collisionHandler in item.collisionHandlers) {
+                collisionHandler.enabled = false;
+                foreach (Damager damager in collisionHandler.damagers) {
+                    damager.enabled = false;
+                }
+            }
+        }
+
         void ResetDamagers() {
             var i = 0;
             foreach (CollisionHandler collisionHandler in item.collisionHandlers) {
+                collisionHandler.enabled = true;
                 foreach (Damager damager in collisionHandler.damagers) {
                     damager.data = originalDamagers[i++];
+                    damager.enabled = true;
                 }
             }
         }
 
         protected void Update() {
             if (destroyNextTick) {
-                if (trail) {
-                    trail.emitting = false;
-                    trail.Clear();
-                }
-                ResetDamagers();
-                ResetValues();
-                var ignoreHandler = item.GetComponent<CollisionIgnoreHandler>();
-                if (ignoreHandler) ignoreHandler.ClearIgnoredCollisions();
-                item.Despawn();
+                Recycle();
                 return;
             }
+
             destroyNextTick = markForDeletion;
+            if (destroyNextTick) {
+                if (GlobalSettings.BlasterBoltInstantDespawn) Recycle();
+                else DisableDamagers();
+                return;
+            }
 
             if (item.isTelekinesisGrabbed) despawnTime = module.despawnTime;
             despawnTime -= Time.deltaTime;
@@ -262,12 +272,23 @@ namespace TOR {
                 DeflectAssist();
             }
         }
+
+        void Recycle() {
+            if (trail) {
+                trail.emitting = false;
+                trail.Clear();
+            }
+            ResetDamagers();
+            ResetValues();
+            var ignoreHandler = item.GetComponent<CollisionIgnoreHandler>();
+            if (ignoreHandler) ignoreHandler.ClearIgnoredCollisions();
+            item.Despawn();
+        }
     }
 
     public class StunGlow : MonoBehaviour {
         public float hue = 0.62f;
         public Dictionary<int, Material[]> originalMaterials = new Dictionary<int, Material[]>();
-        public MeshRenderer[] hatRenderers;
         public Creature creature;
         public static Material stunMaterial;
 
@@ -286,15 +307,6 @@ namespace TOR {
                     originalMaterials.Add(rendererData.GetHashCode(), rendererData.renderer.materials);
                 }
                 AssignMaterials(creature.renderers);
-
-                var holster = creature.holders.Find(x => x.name == LevelModuleLegacyHelmets.HAT_HOLDER_NAME);
-                if (holster && holster.items.Count > 0) {
-                    hatRenderers = holster.items[0].GetComponentsInChildren<MeshRenderer>();
-                    foreach (var mesh in hatRenderers) {
-                        originalMaterials.Add(mesh.GetHashCode(), mesh.materials);
-                    }
-                    AssignMaterials(hatRenderers);
-                }
             }
             if (creature.state == Creature.State.Alive) {
                 if (creature != Player.currentCreature) creature.ragdoll.SetState(Ragdoll.State.Destabilized);
@@ -309,7 +321,6 @@ namespace TOR {
         protected void OnDestroy() {
             if (creature) {
                 RestoreMaterials(creature.renderers);
-                if (hatRenderers != null) RestoreMaterials(hatRenderers);
             }
         }
 

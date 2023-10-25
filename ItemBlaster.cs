@@ -143,7 +143,7 @@ namespace TOR {
         float aiGrabForegripTime;
         ItemModuleAI.WeaponHandling aiOriginalWeaponHandling;
 
-        ItemModuleAI moduleAI;
+        internal ItemModuleAI moduleAI;
 
         MaterialPropertyBlock _propBlock;
         public MaterialPropertyBlock PropBlock {
@@ -284,7 +284,7 @@ namespace TOR {
             currentFiremode = module.fireModes[currentFiremodeIndex];
             currentFirerate = module.gunRPM[currentFirerateIndex];
             currentInstability = module.handlingBaseAccuracy;
-            aiBurstAmount = Mathf.Abs(module.fireModes.Max());
+            aiBurstAmount = module.aiBurstAmount != 0 ? module.aiBurstAmount : Mathf.Abs(module.fireModes.Max());
             aiOriginalWeaponHandling = moduleAI.weaponHandling;
             moduleAI.weaponHandling = ItemModuleAI.WeaponHandling.OneHanded;
 
@@ -292,7 +292,9 @@ namespace TOR {
         }
 
         protected void OnDestroy() {
-            all.Remove(this);
+            if (all.Contains(this)) {
+                all.Remove(this);
+            }
         }
 
         public void UpdateCustomData() {
@@ -368,20 +370,21 @@ namespace TOR {
                 scopeCamera.enabled = false;
                 scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
                 renderScopeTexture = new RenderTexture(
-                    module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution[0],
-                    module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution[1],
+                    module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution,
+                    module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution,
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
                 scopeCamera.targetTexture = renderScopeTexture;
 
                 scope.GetPropertyBlock(PropBlock);
                 PropBlock.SetTexture("_RenderTexture", renderScopeTexture);
-                PropBlock.SetTexture("_Reticle", GlobalSettings.BlasterScopeReticles ? module.scopeReticleTexture : null);
+                if (module.scopeReticleTexture) PropBlock.SetTexture("_Reticle", module.scopeReticleTexture);
                 PropBlock.SetFloat("_ReticleContrast", module.scopeReticleContrast);
                 PropBlock.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
                 scope.SetPropertyBlock(PropBlock);
 
                 UpdateScopeReticleColour();
                 if (GlobalSettings.BlasterScope3D) scope.material.EnableKeyword("_3D_SCOPE"); else scope.material.DisableKeyword("_3D_SCOPE");
+                if (GlobalSettings.BlasterScopeReticles) scope.material.EnableKeyword("_USE_RETICLE"); else scope.material.DisableKeyword("_USE_RETICLE");
             }
         }
 
@@ -667,7 +670,7 @@ namespace TOR {
                 Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
             } else if (module.spinTime > 0) {
                 if (GetSpinSpeed() >= module.spinSpeedMinToFire) {
-                    shotsLeftInBurst = currentFiremode;
+                    shotsLeftInBurst = aiBurstAmount;
                     Fire();
                 }
             } else {
@@ -714,7 +717,6 @@ namespace TOR {
                 return;
             }
             var activeDamager = GetActiveBoltDamagerData() ?? GetActiveProjectileData().damager;
-            var useGravity = altFireEnabled ? boltAltModule.useGravity : boltModule.useGravity;
 
             if (module.spinTime > 0) {
                 currentFirerate = module.gunRPM[currentFirerateIndex] * GetSpinSpeed();
@@ -751,7 +753,7 @@ namespace TOR {
                     catch { }
 
                     foreach (CollisionHandler collisionHandler in projectile.collisionHandlers) {
-                        collisionHandler.SetPhysicModifier(this, 0, useGravity ? 1 : 0);
+                        collisionHandler.SetPhysicModifier(this, activeProjectileData.useGravity ? 1 : 0, 1f, activeProjectileData.drag);
 
                         if (activeDamager != null) {
                             foreach (Damager damager in collisionHandler.damagers) {
@@ -1087,20 +1089,20 @@ namespace TOR {
             }
 
             // Run AI logic
-            //if (aiGrabForegripTime > 0) {
-            //    aiGrabForegripTime -= Time.deltaTime;
-            //    if (aiGrabForegripTime <= 0 && currentAI) {
-            //        currentAI.handLeft.TryRelease();
-            //        currentAI.handLeft.Grab(foreGrip);
-            //        // currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
-            //        // currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
-            //    }
-            //}
-
             if (currentAI && currentAIBrain != null && module.spinTime > 0) {
                 if (currentAI.brain.state == Brain.State.Combat || currentAI.brain.state == Brain.State.Alert || currentAI.brain.state == Brain.State.Grappled) {
                     if (!isSpinning) SpinStart();
                 } else SpinStop();
+            }
+
+            if (aiGrabForegripTime > 0) {
+                aiGrabForegripTime -= Time.deltaTime;
+                if (aiGrabForegripTime <= 0 && currentAI) {
+                    currentAI.handLeft.TryRelease();
+                    currentAI.handLeft.Grab(foreGrip);
+                    // currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
+                    // currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
+                }
             }
         }
     }

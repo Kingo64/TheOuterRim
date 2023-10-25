@@ -6,12 +6,25 @@ namespace TOR {
         protected Item item;
         protected ItemModuleLightsaberTool module;
 
-        public int currentMode;
-        public string[] modes = {"TryEjectCrystal", "IncreaseBladeLength", "DecreaseBladeLength", "ResetBladeLength"};
-        Material[] materials;
-        MeshRenderer renderer;
+        public int currentMode = 0;
+        public readonly string[] modes = {"TryEjectCrystal", "IncreaseBladeLength", "DecreaseBladeLength", "ResetBladeLength"};
+        public readonly Color[] modeColours = {
+            new Color(5.7f, 6f, 0.3f, 1f),
+            new Color(0.47f, 6f, 0.3f, 1f),
+            new Color(6f, 0.3f, 0.5f, 1f),
+            new Color(0.3f, 0.95f, 6f, 1f)
+        };
+        MeshRenderer mesh;
         bool holdingLeft;
         bool holdingRight;
+
+        MaterialPropertyBlock _propBlock;
+        public MaterialPropertyBlock PropBlock {
+            get {
+                if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+                return _propBlock;
+            }
+        }
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -25,8 +38,10 @@ namespace TOR {
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
 
-            renderer = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
-            materials = item.GetCustomReference("Modes").GetComponent<MeshRenderer>().materials;
+            mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
+            mesh.GetPropertyBlock(PropBlock);
+            PropBlock.SetColor("_EmissionColor", modeColours[currentMode]);
+            mesh.SetPropertyBlock(PropBlock);
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
@@ -43,12 +58,9 @@ namespace TOR {
             try {
                 if (collisionInstance.sourceColliderGroup.name == "CollisionLightsaberTool" && collisionInstance.targetColliderGroup.name == "CollisionHilt") {
                     if (currentMode == 0) {
-                        collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode], module.allowDisarm);
+                        collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode]);
                     } else {
-                        collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode], new ItemLightsaber.AdjustBladeLength() {
-                            allowDisarm = module.allowDisarm,
-                            lengthChange = module.lengthChange * 0.1f
-                        });
+                        collisionInstance.targetColliderGroup.transform.root.SendMessage(modes[currentMode], GlobalSettings.LightsaberToolAdjustIncrement * 0.1f);
                     }
                     Utils.PlayHaptic(holdingLeft, holdingRight, Utils.HapticIntensity.Major);
                 }
@@ -64,7 +76,9 @@ namespace TOR {
 
         public void CycleMode(RagdollHand interactor = null) {
             currentMode = (currentMode >= modes.Length - 1) ? 0 : currentMode + 1;
-            renderer.material = materials[currentMode];
+            mesh.GetPropertyBlock(PropBlock);
+            PropBlock.SetColor("_EmissionColor", modeColours[currentMode]);
+            mesh.SetPropertyBlock(PropBlock);
             Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
