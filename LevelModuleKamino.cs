@@ -55,10 +55,12 @@ namespace TOR {
 
     }
 
-    public class RainController : MonoBehaviour {
+    public class RainController : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         public Transform target;
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (target) transform.position = target.position;
         }
     }

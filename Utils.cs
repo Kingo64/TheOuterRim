@@ -168,7 +168,7 @@ namespace TOR {
         }
     }
 
-    public class CollisionIgnoreHandler : MonoBehaviour {
+    public class CollisionIgnoreHandler : ThunderBehaviour {
         public List<Item> ignoredItems = new List<Item>();
         public Item item;
 
@@ -198,7 +198,9 @@ namespace TOR {
         }
     }
 
-    public class SkyController : MonoBehaviour {
+    public class SkyController : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         public float speed = 0.2f;
         public float maxX = 1.1f;
         public float maxZ = 1.1f;
@@ -208,7 +210,7 @@ namespace TOR {
         public float zSpeed = 0.002f;
 
         // Update is called once per frame
-        protected void Update() {
+        protected override void ManagedUpdate() {
             var ls = transform.localScale;
             transform.Rotate(Vector3.up * speed * Time.deltaTime);
             if ((ls.x > maxX && xSpeed > 0) || (ls.x < minX && xSpeed < 0)) {

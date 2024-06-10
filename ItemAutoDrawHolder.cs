@@ -3,7 +3,9 @@ using ThunderRoad;
 using UnityEngine;
 
 namespace TOR {
-    public class ItemAutoDrawHolder : MonoBehaviour {
+    public class ItemAutoDrawHolder : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         protected Item item;
         protected ItemModuleAutoDrawHolder module;
 
@@ -50,7 +52,7 @@ namespace TOR {
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             drawTime -= Time.deltaTime;
             if (isDrawing && drawTime < 0) {
                 drawTime = 1;

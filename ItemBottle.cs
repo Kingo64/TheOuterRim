@@ -1,9 +1,10 @@
 ﻿using UnityEngine;
 using ThunderRoad;
-using System;
 
 namespace TOR {
-    public class ItemBottle : MonoBehaviour {
+    public class ItemBottle : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         protected Item item;
         protected ItemModuleBottle module;
         protected ItemModulePotion potion;
@@ -46,7 +47,7 @@ namespace TOR {
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             UpdateLiquidRender();
         }
 

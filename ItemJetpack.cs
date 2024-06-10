@@ -3,7 +3,9 @@ using ThunderRoad;
 using System.Collections;
 
 namespace TOR {
-    public class ItemJetpack : MonoBehaviour {
+    public class ItemJetpack : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.FixedUpdate | ManagedLoops.Update;
+
         internal Item item;
         internal ItemModuleJetpack module;
 
@@ -165,14 +167,14 @@ namespace TOR {
             if (destabiliseGrabbedCoroutine != null) StopCoroutine(destabiliseGrabbedCoroutine);
         }
 
-        protected void FixedUpdate() {
+        protected override void ManagedFixedUpdate() {
             if (equipped && isFlying && currentThrust != 0f) {
                 ApplyThrust(currentThrust);
                 currentThrust = 0;
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (equipped) {
                 if (locomotionController == null && steamController == null) return;
                 if (locomotionController != null && playerControl.locomotionController != locomotionSide) SetControllers();

@@ -3,7 +3,7 @@ using ThunderRoad;
 using System.Linq;
 
 namespace TOR {
-    public class ItemHelmet : MonoBehaviour {
+    public class ItemHelmet : ThunderBehaviour {
         protected Item item;
         protected ItemModuleHelmet module;
 

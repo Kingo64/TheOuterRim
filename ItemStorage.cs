@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using ThunderRoad;
-using UnityEngine;
 
 namespace TOR {
     [Serializable]
@@ -10,7 +9,7 @@ namespace TOR {
         public string data;
     }
 
-    public class ItemStorage : MonoBehaviour {
+    public class ItemStorage : ThunderBehaviour {
         protected Item item;
         protected ItemModuleStorage module;
 

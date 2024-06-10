@@ -2,7 +2,7 @@
 using ThunderRoad;
 
 namespace TOR {
-    public class ItemBlasterPowerCell : MonoBehaviour {
+    public class ItemBlasterPowerCell : ThunderBehaviour {
         protected Item item;
         protected ItemModuleBlasterPowerCell module;
 

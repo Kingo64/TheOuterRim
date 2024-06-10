@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 using UnityEngine;
 
 namespace ThunderRoad {
-    public class DataManager : MonoBehaviour {
+    public class DataManager : ThunderBehaviour {
         public static DataManager local;
 
         public bool editorLoadAddressableBundles;

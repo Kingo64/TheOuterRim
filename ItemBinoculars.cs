@@ -2,7 +2,7 @@
 using UnityEngine;
 
 namespace TOR {
-    public class ItemBinoculars : MonoBehaviour {
+    public class ItemBinoculars : ThunderBehaviour {
         protected Item item;
         protected ItemModuleBinoculars module;
 
@@ -58,7 +58,7 @@ namespace TOR {
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
                 scopeCamera.targetTexture = renderTexture;
                 scope.GetPropertyBlock(PropBlock);
-                PropBlock.SetTexture("_BaseMap", renderTexture);
+                PropBlock.SetTexture("_RenderTexture", renderTexture);
                 scope.SetPropertyBlock(PropBlock);
                 if (GlobalSettings.BlasterScope3D) scope.sharedMaterial.EnableKeyword("_3D_SCOPE"); else scope.sharedMaterial.DisableKeyword("_3D_SCOPE");
             }

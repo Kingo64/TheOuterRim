@@ -16,7 +16,7 @@ namespace TOR {
         public string zoomSoundsID = "ZoomSounds";
         
         // scope
-        public int scopeDepth;
+        public int scopeDepth = 24;
         public int[] scopeResolution;
         public float[] scopeZoom = { 10f, 6f, 18f };
 

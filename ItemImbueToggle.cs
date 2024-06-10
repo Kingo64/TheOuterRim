@@ -2,7 +2,9 @@
 using UnityEngine;
 
 namespace TOR {
-    public class ItemImbueToggle : MonoBehaviour {
+    public class ItemImbueToggle : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         protected Item item;
         protected ItemModuleImbueToggle module;
         SpellCastCharge castCharge;
@@ -110,7 +112,7 @@ namespace TOR {
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (primaryControlHoldTime > 0) {
                 primaryControlHoldTime -= Time.deltaTime;
                 if (primaryControlHoldTime <= 0) ExecuteAction(module.primaryActionHold);

@@ -2,7 +2,7 @@
 using UnityEngine;
 
 namespace TOR {
-    public class ItemTaunt : MonoBehaviour {
+    public class ItemTaunt : ThunderBehaviour {
         protected Item item;
         protected ItemModuleTaunt module;
 

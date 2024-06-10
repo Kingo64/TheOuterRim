@@ -2,7 +2,9 @@
 using ThunderRoad;
 
 namespace TOR {
-    public class ItemKyberCrystal : MonoBehaviour {
+    public class ItemKyberCrystal : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         public Item item;
         public ItemModuleKyberCrystal module;
 
@@ -61,7 +63,7 @@ namespace TOR {
             return (distanceToHandLeft < distanceToHandRight) ? distanceToHandLeft : distanceToHandRight;
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             var distanceToHand = GetClosestHandDistance();
             var minGlow = 0.33f;
             var maxGlow = 3f;

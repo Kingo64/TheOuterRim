@@ -19,7 +19,7 @@ namespace TOR {
         }
     }
 
-    public class CreatureZoneController : MonoBehaviour {
+    public class CreatureZoneController : ThunderBehaviour {
         GameObject trigger;
 
         protected void Awake() {
@@ -32,7 +32,7 @@ namespace TOR {
         }
     }
 
-    public class CreatureZoneTrigger : MonoBehaviour {
+    public class CreatureZoneTrigger : ThunderBehaviour {
         protected void OnTriggerEnter(Collider other) {
             if (other.gameObject.layer == Common.zoneLayer) {
                 Zone component = other.GetComponent<Zone>();

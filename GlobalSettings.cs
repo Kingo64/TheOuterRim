@@ -73,22 +73,22 @@ namespace TOR {
             new ModOptionInt("2048", 2048)
         };
 
-        [ModOption(name: "Automatic Reload", tooltip: "Automatically reload blaster when empty", category = "Blasters", defaultValueIndex = 1)]
+        [ModOption(name: "Automatic Reload", tooltip: "Automatically reload blaster when empty. (Default: True)", category = "Blasters", defaultValueIndex = 1)]
         public static bool BlasterAutomaticReload { get; set; }
 
-        [ModOption(name: "Bolt Speed", tooltip: "Global blaster bolt speed multiplier", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        [ModOption(name: "Bolt Speed", tooltip: "Global blaster bolt speed multiplier. (Default: 1.0)", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
         public static float BlasterBoltSpeed { get; set; }
 
-        [ModOption(name: "NPC Bolt Speed", tooltip: "Blaster bolt speed multiplier for NPCs", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        [ModOption(name: "NPC Bolt Speed", tooltip: "Blaster bolt speed multiplier for NPCs. (Default: 1.0)", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
         public static float BlasterBoltSpeedNPC { get; set; }
 
-        [ModOption(name: "Bolt instant despawn", tooltip: "Blaster bolts will instantly despawn upon collision detection rather than on next tick. Minor performance improvement but bolts may not be fully rendered.", category = "Blasters", defaultValueIndex = 0)]
+        [ModOption(name: "Bolt instant despawn", tooltip: "Blaster bolts will instantly despawn upon collision detection rather than on next tick. Minor performance improvement but bolts may not be fully rendered. (Default: False)", category = "Blasters", defaultValueIndex = 0)]
         public static bool BlasterBoltInstantDespawn { get; set; }
 
-        [ModOption(name: "Require Refill", tooltip: "Can only reload via a manual power cell refill", category = "Blasters", defaultValueIndex = 0)]
+        [ModOption(name: "Require Refill", tooltip: "Can only reload via a manual power cell refill. (Default: False)", category = "Blasters", defaultValueIndex = 0)]
         public static bool BlasterRequireRefill { get; set; }
 
-        [ModOption(name: "3D Scopes", tooltip: "Use 3D simulated scope", category = "Blasters", defaultValueIndex = 1)]
+        [ModOption(name: "3D Scopes", tooltip: "Use 3D simulated scope. (Default: True)", category = "Blasters", defaultValueIndex = 1)]
         public static bool BlasterScope3D {
             get => _blasterScope3D; 
             set {
@@ -100,7 +100,7 @@ namespace TOR {
         }
         public static bool _blasterScope3D;
 
-        [ModOption(name: "Scope Resolution", tooltip: "Resolution of scope render in pixels e.g. 512x512", category = "Blasters", valueSourceName = nameof(OptionsResolution), defaultValueIndex = 3)]
+        [ModOption(name: "Scope Resolution", tooltip: "Resolution of scope render in pixels. (Default: 512x512)", category = "Blasters", valueSourceName = nameof(OptionsResolution), defaultValueIndex = 3)]
         public static int BlasterScopeResolution {
             get => _blasterScopeResolution;
             set {
@@ -110,7 +110,7 @@ namespace TOR {
         }
         public static int _blasterScopeResolution = 512;
 
-        [ModOption(name: "Scope Reticles", tooltip: "Use scopes reticles", category = "Blasters", defaultValueIndex = 1)]
+        [ModOption(name: "Scope Reticles", tooltip: "Use scopes reticles. (Default: True)", category = "Blasters", defaultValueIndex = 1)]
         public static bool BlasterScopeReticles {
             get => _blasterScopeReticles;
             set {
@@ -122,13 +122,13 @@ namespace TOR {
         }
         private static bool _blasterScopeReticles = true;
 
-        [ModOption(name: "Controls Hold Duration", tooltip: "Duration to hold button to detect a long press in seconds (s)", category = "General", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 3)]
+        [ModOption(name: "Controls Hold Duration", tooltip: "Duration to hold button to detect a long press in seconds (s). (Default: 0.3s)", category = "General", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 3)]
         public static float ControlsHoldDuration { get; set; }
 
-        [ModOption(name: "Activate On Recall", tooltip: "Automatically activate lightsaber when recalling", category = "Lightsabers", defaultValueIndex = 0)]
+        [ModOption(name: "Activate On Recall", tooltip: "Automatically activate lightsaber when recalling. (Default: False)", category = "Lightsabers", defaultValueIndex = 0)]
         public static bool SaberActivateOnRecall { get; set; }
 
-        [ModOption(name: "Blade Thickness", tooltip: "Lightsaber blade thickness multiplier - will impact gameplay", category = "Lightsabers", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        [ModOption(name: "Blade Thickness", tooltip: "Lightsaber blade thickness multiplier - will impact gameplay. (Default: 1.0)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
         public static float SaberBladeThickness {
             get => _saberBladeThickness;
             set {
@@ -142,46 +142,46 @@ namespace TOR {
         }
         public static float _saberBladeThickness = 1f;
 
-        [ModOption(name: "Deactivate On Drop", tooltip: "Automatically deactivate lightsaber when dropped", category = "Lightsabers", defaultValueIndex = 0)]
+        [ModOption(name: "Deactivate On Drop", tooltip: "Automatically deactivate lightsaber when dropped. (Default: False)", category = "Lightsabers", defaultValueIndex = 0)]
         public static bool SaberDeactivateOnDrop { get; set; }
 
-        [ModOption(name: "Deactivate On Drop Delay", tooltip: "Time in seconds (s) until a lightsaber will automatically deactivate itself after being dropped", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 12)] // def: 3f
+        [ModOption(name: "Deactivate On Drop Delay", tooltip: "Time in seconds (s) until a lightsaber will automatically deactivate itself after being dropped. (Default: 3s)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 12)] // def: 3f
         public static float SaberDeactivateOnDropDelay { get; set; }
 
-        [ModOption(name: "Deflect Assist", tooltip: "Enable Deflect Assist module. Increases the deflection radius of lightsabers for both the player and NPCs", category = "Lightsabers", defaultValueIndex = 1)]
+        [ModOption(name: "Deflect Assist", tooltip: "Enable Deflect Assist module. Increases the deflection radius of lightsabers for both the player and NPCs. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
         public static bool SaberDeflectAssist { get; set; }
 
-        [ModOption(name: "Deflect Assist Distance", tooltip: "Deflect assist detection radius in metres", category = "Lightsabers", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 25)]
+        [ModOption(name: "Deflect Assist Distance", tooltip: "Deflect assist detection radius in metres. (Default: 0.25m)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 25)]
         public static float SaberDeflectAssistDistance { get; set; }
 
-        [ModOption(name: "Deflect Return Chance", tooltip: "Percent chance deflect assist will return bolts to the shooter", category = "Lightsabers", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 20)]
+        [ModOption(name: "Deflect Return Chance", tooltip: "Percent chance deflect assist will return bolts to the shooter. (Default: 20%)", category = "Lightsabers", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 20)]
         public static float SaberDeflectAssistReturnChance { get; set; }
 
-        [ModOption(name: "Deflect NPC Return Chance", tooltip: "Percent chance that saber NPCs will be able to perfectly return bolts to the shooter", category = "Lightsabers", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 5)]
+        [ModOption(name: "Deflect NPC Return Chance", tooltip: "Percent chance that saber NPCs will be able to perfectly return bolts to the shooter. (Default: 5%)", category = "Lightsabers", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 5)]
         public static float SaberDeflectAssistReturnNPCChance { get; set; }
 
-        [ModOption(name: "Use Expensive Collisions", tooltip: "Reduces instances of lightsabers passing through each other. It uses Unity's most accurate collision detection system available.", category = "Lightsabers", defaultValueIndex = 1)]
+        [ModOption(name: "Use Expensive Collisions", tooltip: "Reduces instances of lightsabers passing through each other. It uses Unity's most accurate collision detection system available. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
         public static bool SaberExpensiveCollisions { get; set; }
 
-        [ModOption(name: "Expensive Collisions Min Velocity", tooltip: "Minimum velocity (m/s) for lightsabers expensive collisions to enable", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 32)] // def: 8f
+        [ModOption(name: "Expensive Collisions Min Velocity", tooltip: "Minimum velocity (m/s) for lightsabers expensive collisions to enable. (Default: 8.0)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 32)] // def: 8f
         public static float SaberExpensiveCollisionsMinVelocity { get; set; }
 
-        [ModOption(name: "Saber NPC Attack Speed", tooltip: "Attack speed for force sensitive lightsaber wielders. High values will cause animation/physics anomalies. Applies to newly spawned NPCs.", category = "Lightsabers", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 12)]
+        [ModOption(name: "Saber NPC Attack Speed", tooltip: "Attack speed for force sensitive lightsaber wielders. High values will cause animation/physics anomalies. Applies to newly spawned NPCs. (Default: 1.2)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 12)]
         public static float SaberNPCAttackSpeed { get; set; }
 
-        [ModOption(name: "Saber Throwing", tooltip: "Lightsabers are able to be thrown and recalled", category = "Lightsabers", defaultValueIndex = 1)]
+        [ModOption(name: "Saber Throwing", tooltip: "Lightsabers are able to be thrown and recalled. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
         public static bool SaberThrowable { get; set; }
 
-        [ModOption(name: "Throw Min Velocity", tooltip: "Minimum velocity (m/s) for a thrown lightsaber to be able to be recalled", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 28)] // def: 7f
+        [ModOption(name: "Throw Min Velocity", tooltip: "Minimum velocity (m/s) for a thrown lightsaber to be able to be recalled. (Default: 7.0)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 28)] // def: 7f
         public static float SaberThrowMinVelocity { get; set; }
 
-        [ModOption(name: "Use Trails", tooltip: "Enable lightsaber trails", category = "Lightsabers", defaultValueIndex = 1)]
+        [ModOption(name: "Use Trails", tooltip: "Enable lightsaber trails. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
         public static bool SaberTrailEnabled { get; set; }
 
-        [ModOption(name: "Trail Duration", tooltip: "Time in seconds (s) a lightsaber trail will be visible", category = "Lightsabers", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 4)]
+        [ModOption(name: "Trail Duration", tooltip: "Time in seconds (s) a lightsaber trail will be visible. (Default: 0.04s)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 4)]
         public static float SaberTrailDuration { get; set; }
 
-        [ModOption(name: "Length Adjust Increment", tooltip: "Amount of length to adjust on a lightsaber blade per use", category = "Lightsaber Tool", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 5)]
+        [ModOption(name: "Length Adjust Increment", tooltip: "Amount of length to adjust on a lightsaber blade per use. (Default: 0.05m)", category = "Lightsaber Tool", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 5)]
         public static float LightsaberToolAdjustIncrement { get; set; }
 
 

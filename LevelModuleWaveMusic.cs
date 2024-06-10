@@ -53,13 +53,14 @@ namespace TOR {
 			}
 		}
 
-		public class MusicSelector : MonoBehaviour {
-			public WaveSpawner waveSpawner;
+		public class MusicSelector : ThunderBehaviour {
+            public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
+            public WaveSpawner waveSpawner;
 			public AudioSource audioSource;
 			public AudioContainer musicWaveAsset;
 
-
-			public void Setup() {
+            public void Setup() {
 				waveSpawner.OnWaveBeginEvent.AddListener(new UnityAction(OnWaveBeginEvent));
 				waveSpawner.OnWaveAnyEndEvent.AddListener(new UnityAction(OnWaveAnyEndEvent));
             }
@@ -76,8 +77,8 @@ namespace TOR {
 				audioSource?.Stop();
 			}
 
-			protected void Update() {
-				if (waveSpawner.isRunning && musicWaveAsset && audioSource && !audioSource.isPlaying) {
+            protected override void ManagedUpdate() {
+                if (waveSpawner.isRunning && musicWaveAsset && audioSource && !audioSource.isPlaying) {
 					audioSource.clip = musicWaveAsset.GetRandomAudioClip();
                     audioSource.Play();
 				}

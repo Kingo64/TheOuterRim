@@ -6,7 +6,9 @@ using System.Collections.Generic;
 using System;
 
 namespace TOR {
-    public class ItemThermalDetonator : MonoBehaviour {
+    public class ItemThermalDetonator : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         protected Item item;
         protected ItemModuleThermalDetonator module;
         Renderer renderer;
@@ -181,9 +183,9 @@ namespace TOR {
 
         public void Detonate() {
             var pos = transform.position;
-            var colliders = Physics.OverlapSphere(pos, module.radius);
-            var creatures = new List<Creature>();
-            var layerMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
+            List<Creature> hitCreatures = new List<Creature>();
+            var toHitMask = (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 24) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 31);
+            var raycastIgnoreMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
             var creatureMask = ~((1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
 
             Utils.StopSoundLoop(armedSound, ref armedNoise);
@@ -192,11 +194,12 @@ namespace TOR {
             renderer.enabled = false;
             item.physicBody.rigidBody.isKinematic = true;
 
+            var colliders = Physics.OverlapSphere(pos, module.radius, toHitMask, QueryTriggerInteraction.Ignore);
             foreach (var hit in colliders) {
                 var distance = Vector3.Distance(hit.transform.position, pos);
                 var multiplier = (module.radius - distance) / module.radius;
                 var rb = hit.GetComponent<Rigidbody>() ?? hit.GetComponentInParent<Rigidbody>();
-                if (rb && (distance < 0.3 || !Physics.Linecast(pos, hit.transform.position, layerMask, QueryTriggerInteraction.Ignore))) {
+                if (rb && (distance < 0.3 || !Physics.Linecast(pos, hit.transform.position, raycastIgnoreMask, QueryTriggerInteraction.Ignore))) {
                     rb.AddExplosionForce(module.impuse * multiplier, pos, module.radius, 1.0f);
                     var creature = hit.transform.GetComponentInParent<Creature>();
                     if (creature) {
@@ -209,8 +212,8 @@ namespace TOR {
                                 catch { }
                             }
                         }
-                        if (!creatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
-                            creatures.Add(creature);
+                        if (!hitCreatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
+                            hitCreatures.Add(creature);
                             var damage = new CollisionInstance(new DamageStruct(DamageType.Energy, module.damage), null, null);
                             damage.damageStruct.damage = module.damage * multiplier;
                             try {
@@ -270,7 +273,7 @@ namespace TOR {
             lastBeep = beep;
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (primaryControlHoldTime > 0) {
                 primaryControlHoldTime -= Time.deltaTime;
                 if (primaryControlHoldTime <= 0) ExecuteAction(module.gripPrimaryActionHold);

@@ -2,7 +2,7 @@
 using ThunderRoad;
 
 namespace TOR {
-    public class ItemLightsaberTool : MonoBehaviour {
+    public class ItemLightsaberTool : ThunderBehaviour {
         protected Item item;
         protected ItemModuleLightsaberTool module;
 

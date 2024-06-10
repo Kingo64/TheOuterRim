@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using ThunderRoad.Plugins;
 
 namespace TOR {
     [Serializable]
@@ -13,7 +14,9 @@ namespace TOR {
         public SavedLightsaber coupledLightsaber;
     }
 
-    public class ItemLightsaber : MonoBehaviour {
+    public class ItemLightsaber : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update | ManagedLoops.FixedUpdate;
+
         public static List<ItemLightsaber> all = new List<ItemLightsaber>();
         protected Item item;
         public ItemModuleLightsaber module;
@@ -118,7 +121,7 @@ namespace TOR {
             tapToReturn = !GameManager.options.GetController().holdGripForHandles;
             originalWeaponClass = item.data.moduleAI.weaponClass;
 
-            UpdateCustomData();
+            UpdateCustomData();            
         }
 
         protected void OnDestroy() {
@@ -536,7 +539,7 @@ namespace TOR {
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 blades[i].UpdateSize();
 
@@ -590,7 +593,7 @@ namespace TOR {
             }
         }
 
-        protected void FixedUpdate() {
+        protected override void ManagedFixedUpdate() {
             if (isHelicoptering && isActive) {
                 float thrustLeft = 0;
                 float thrustRight = 0;
@@ -735,6 +738,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(saberBodyRef)) {
                 var tempSaberBody = parent.GetCustomReference(saberBodyRef);
                 saberBody = tempSaberBody.GetComponent<MeshRenderer>();
+                parent.renderers.Remove(saberBody);
                 saberBodyTrans = tempSaberBody.transform;
                 originalSaberBodyTransLocalScale = saberBodyTrans.localScale;
                 UpdateBladeThickness(GlobalSettings.SaberBladeThickness);
@@ -749,10 +753,12 @@ namespace TOR {
             }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
             if (!string.IsNullOrEmpty(saberGlowRef)) {
-                saberGlow = parent.GetCustomReference(saberGlowRef).GetComponent<MeshRenderer>();
-                saberGlowLight = parent.GetCustomReference(saberGlowRef).GetComponent<Light>();
-                var mesh = parent.GetCustomReference(saberGlowRef).GetComponent<MeshFilter>();
-                UnityEngine.Object.Destroy(mesh);
+                var saberGlowTrans = parent.GetCustomReference(saberGlowRef);
+                saberGlowLight = saberGlowTrans.GetComponent<Light>();
+                var renderer = saberGlowTrans.GetComponent<MeshRenderer>();
+                renderer.enabled = false;
+                parent.renderers.Remove(renderer);
+                UnityEngine.Object.Destroy(saberGlowTrans.GetComponent<MeshFilter>());
             }
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
             if (!string.IsNullOrEmpty(whooshRef)) {
@@ -860,12 +866,6 @@ namespace TOR {
                 PropBlock.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
                 PropBlock.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
                 trailMeshRenderer.SetPropertyBlock(PropBlock);
-            }
-
-            if (saberGlow) {
-                saberGlow.GetPropertyBlock(PropBlock);
-                PropBlock.SetColor("_DiffuseColor", kyberCrystalObject.bladeColour);
-                saberGlow.SetPropertyBlock(PropBlock);
             }
 
             if (unstableParticles) {
@@ -998,7 +998,9 @@ namespace TOR {
             }
         }
 
-        public class LightsaberTrail : MonoBehaviour {
+        public class LightsaberTrail : ThunderBehaviour {
+            public override ManagedLoops EnabledManagedLoops => ManagedLoops.FixedUpdate;
+
             public float height = 0.9f;
             public float timeTransitionSpeed = 5f;
             public Color startColor = Color.white;
@@ -1024,7 +1026,7 @@ namespace TOR {
                 trans = transform;
             }
 
-            protected void FixedUpdate() {
+            protected override void ManagedFixedUpdate() {
                 if (GlobalSettings.SaberTrailEnabled) {
                     Iterate(Time.time);
                     UpdateTrail(Time.time, Time.deltaTime);
@@ -1112,7 +1114,7 @@ namespace TOR {
         }
     }
 
-    internal class LightsaberNPCAnimator : MonoBehaviour {
+    internal class LightsaberNPCAnimator : ThunderBehaviour {
         public Creature creature;
         float originalSpeed;
 

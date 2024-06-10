@@ -5,7 +5,9 @@ using System.Collections.Generic;
 
 namespace TOR {
     [RequireComponent(typeof(CollisionIgnoreHandler))]
-    public class ItemBlasterBolt : MonoBehaviour {
+    public class ItemBlasterBolt : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         protected Item item;
         protected ItemModuleBlasterBolt module;
         protected Rigidbody body;
@@ -62,7 +64,7 @@ namespace TOR {
             if (!Mathf.Approximately(module.colliderScale, 1.0f)) UpdateColliderScale(module.colliderScale);
         }
 
-        protected void OnEnable() {
+        protected override void ManagedOnEnable() {
             if (trail) trail.emitting = true;
         }
 
@@ -251,7 +253,7 @@ namespace TOR {
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (destroyNextTick) {
                 Recycle();
                 return;
@@ -286,7 +288,7 @@ namespace TOR {
         }
     }
 
-    public class StunGlow : MonoBehaviour {
+    public class StunGlow : ThunderBehaviour {
         public float hue = 0.62f;
         public Dictionary<int, Material[]> originalMaterials = new Dictionary<int, Material[]>();
         public Creature creature;

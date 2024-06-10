@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using ThunderRoad;
-using Unity.Collections;
 using UnityEngine;
 using static ThunderRoad.CreatureSpawner;
 
@@ -17,6 +16,7 @@ namespace TOR {
         public override IEnumerator OnLoadCoroutine() {
             EventManager.onLevelLoad += OnLevelLoad;
             EventManager.onLevelUnload += OnLevelUnload;
+            AreaManager.Instance.OnPlayerChangeAreaEvent += OnPlayerChangeAreaEvent; 
             yield break;
         }
 
@@ -24,15 +24,21 @@ namespace TOR {
             base.OnUnload();
             EventManager.onLevelLoad -= OnLevelLoad;
             EventManager.onLevelUnload -= OnLevelUnload;
+            AreaManager.Instance.OnPlayerChangeAreaEvent -= OnPlayerChangeAreaEvent;
         }
 
-        void OnLevelLoad(LevelData levelData, EventTime eventTime) {
+        private void OnPlayerChangeAreaEvent(SpawnableArea newArea, SpawnableArea previousArea) {
+            PatchArea(newArea.SpawnedArea);
+        }
+
+        private void OnLevelLoad(LevelData levelData, EventTime eventTime) {
             if (eventTime == EventTime.OnEnd) {
                 var tableData = Catalog.GetData<CreatureTable>(creatureTable);
                 tableData.TryPick(out var creatureData);
+                factionId = creatureData.factionId;
+
                 waveBackups.Clear();
                 foreach (SpawnableArea spawnableArea in AreaManager.Instance.CurrentTree) {
-                    var random = new System.Random(Level.seed + spawnableArea.managedId);
                     var area = spawnableArea.SpawnedArea;
                     while (area.creatures.Count > 0) {
                         Creature creature = area.creatures[0];
@@ -40,37 +46,57 @@ namespace TOR {
                         if (creature && creature != Player.currentCreature) creature.Despawn();
                     }
 
-                    foreach (var spawner in area.creatureSpawners) {
-                        spawner.creatureTableID = creatureTable;
-                    }
+                    PatchArea(area);
 
-                    foreach (var spawner in area.creatureNoLimiteSpawners) {
-                        spawner.creatureTableID = creatureTable;
-                    }
-
-                    foreach (WaveSpawner spawner in area.GetComponentsInChildren<WaveSpawner>(true)) {
-                        var data = Catalog.GetData<WaveData>(spawner.startWaveId, true);
-                        if (!waveBackups.ContainsKey(data.id)) {
-                            waveBackups.Add(data.id, JsonUtility.ToJson(data));
-                        }
-                        foreach (var faction in data.factions) {
-                            faction.factionID = creatureData.factionId;
-                        }
-                        foreach (var group in data.groups) {
-                            group.reference = WaveData.Group.Reference.Table;
-                            group.referenceID = creatureTable;
-                            group.creatureTableID = creatureTable;
-                            group.overrideContainer = false;
-                            group.overrideBrain = false;
-                        }
-                        data.OnCatalogRefresh();
-                        spawner.waveData = data;
-                        spawner.creatureQueue.Clear();
-                        spawner.spawnedCreatures.Clear();
-                    }
+                    var random = new System.Random(Level.seed + spawnableArea.managedId);
                     Level.current.StartCoroutine(InitCreature(area, random));
                 }
+
+                var allWaves = Catalog.GetDataList(Category.Wave);
+                foreach (var wave in allWaves) {
+                    if (wave.id.StartsWith("Dungeon")) {
+                        var data = Catalog.GetData<WaveData>(wave.id);
+                        PatchWave(data);
+                    }
+                }
             }
+        }
+
+        private void PatchArea(Area area) {
+            foreach (var spawner in area.creatureSpawners) {
+                spawner.creatureTableID = creatureTable;
+            }
+
+            foreach (var spawner in area.creatureNoLimiteSpawners) {
+                spawner.creatureTableID = creatureTable;
+            }
+
+            foreach (WaveSpawner spawner in area.GetComponentsInChildren<WaveSpawner>(true)) {
+                var data = Catalog.GetData<WaveData>(spawner.startWaveId, true);
+                PatchWave(data);
+                spawner.waveData = data;
+                if (!spawner.isRunning) {
+                    spawner.creatureQueue.Clear();
+                    spawner.spawnedCreatures.Clear();
+                }
+            }
+        }
+
+        private void PatchWave(WaveData data) {
+            if (!waveBackups.ContainsKey(data.id)) {
+                waveBackups.Add(data.id, JsonUtility.ToJson(data));
+            }
+            foreach (var faction in data.factions) {
+                faction.factionID = factionId;
+            }
+            foreach (var group in data.groups) {
+                group.reference = WaveData.Group.Reference.Table;
+                group.referenceID = creatureTable;
+                group.creatureTableID = creatureTable;
+                group.overrideContainer = false;
+                group.overrideBrain = false;
+            }
+            data.OnCatalogRefresh();
         }
 
         public IEnumerator InitCreature(Area area, System.Random rng) {

@@ -2,7 +2,7 @@
 using UnityEngine;
 
 namespace TOR {
-    public class ItemDiscoverable: MonoBehaviour {
+    public class ItemDiscoverable: ThunderBehaviour {
         protected Item item;
 
         AudioSource audio;

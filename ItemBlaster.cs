@@ -15,7 +15,9 @@ namespace TOR {
         public string projectileID;
     }
 
-    public class ItemBlaster : MonoBehaviour {
+    public class ItemBlaster : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.LateUpdate;
+
         public static List<ItemBlaster> all = new List<ItemBlaster>();
         internal Item item;
         internal ItemModuleBlaster module;
@@ -134,11 +136,6 @@ namespace TOR {
         Creature currentAI;
         BrainData currentAIBrain;
         BrainModuleFirearm currentAIFirearm;
-        ////BrainModuleDetection currentAIDetection;
-        //BrainModuleMelee currentAIMelee;
-        //BrainModuleParry currentAIParry;
-        //BrainModuleSightable currentAISightable;
-        //BrainModuleSpeak currentAISpeak;
         int aiBurstAmount;
         float aiGrabForegripTime;
         ItemModuleAI.WeaponHandling aiOriginalWeaponHandling;
@@ -572,23 +569,6 @@ namespace TOR {
                 currentAI = interactor.creature;
                 currentAIBrain = currentAI.brain.instance;
                 currentAIFirearm = currentAIBrain.GetModule<BrainModuleFirearm>();
-                //    currentAIBow = currentAIBrain.GetModule<BrainModuleBow>();
-                //    currentAIDetection = currentAIBrain.GetModule<BrainModuleDetection>();
-                //    currentAIMelee = currentAIBrain.GetModule<BrainModuleMelee>();
-                //    currentAISightable = currentAIBrain.GetModule<BrainModuleSightable>();
-                //    currentAISpeak = currentAIBrain.GetModule<BrainModuleSpeak>();
-                //    aiOriginalMeleeEnabled = currentAIMelee.meleeEnabled;
-                //    if (aiOriginalMeleeEnabled) {
-                //        aiOriginalMeleeDistMult = currentAIMelee.meleeMax;
-                //        aiOriginalParryDetectionRadius = currentAIParry.parryDetectionRadius;
-                //        aiOriginalParryMaxDist = currentAIParry.parryMaxDistance;
-                //        currentAIMelee.meleeEnabled = module.aiMeleeEnabled;
-                //        if (!module.aiMeleeEnabled) {
-                //            //currentAIMelee. = currentAIBow.bowDist * module.aiShootDistanceMult;
-                //            //currentAIParry.parryDetectionRadius = (currentAIBow.dist + 1f) * module.aiShootDistanceMult;
-                //            //currentAIParry.parryMaxDistance = (currentAIBow.bowDist + 1f) * module.aiShootDistanceMult;
-                //        }
-                //    }
                 if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
                     aiGrabForegripTime = 0.5f;
                 }
@@ -600,12 +580,6 @@ namespace TOR {
             else if (interactor.playerHand == Player.local.handLeft) holdingGunGripLeft = false;
 
             if (currentAI) {
-                //    if (aiOriginalMeleeEnabled) {
-                //        currentAIMelee.meleeEnabled = aiOriginalMeleeEnabled;
-                //        //currentAIMelee.meleeDistMult = aiOriginalMeleeDistMult;
-                //        currentAIParry.parryDetectionRadius = aiOriginalParryDetectionRadius;
-                //        currentAIParry.parryMaxDistance = aiOriginalParryMaxDist;
-                //    }
                 if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
                     currentAI.handLeft.TryRelease();
                 }
@@ -736,10 +710,8 @@ namespace TOR {
                     ignoreHandler.item = projectile;
                     ignoreHandler.IgnoreCollision(item);
                     if (projectileClones != null) {
-                        if (projectileClones.Count > 0) {
-                            foreach (var toIgnore in projectileClones) {
-                                ignoreHandler.IgnoreCollision(toIgnore);
-                            }
+                        foreach (var toIgnore in projectileClones) {
+                            ignoreHandler.IgnoreCollision(toIgnore);
                         }
                         projectileClones.Add(projectile);
                     }
@@ -768,7 +740,7 @@ namespace TOR {
                     projTransform.rotation = Quaternion.Euler(CalculateInaccuracy(bulletSpawn.rotation.eulerAngles));
                     var projectileBody = projectile.GetComponent<Rigidbody>();
                     projectileBody.mass /= GlobalSettings.BlasterBoltSpeed * (currentAI ? GlobalSettings.BlasterBoltSpeedNPC : 1f);
-                    projectile.Throw(1f);
+                    projectile.Throw(1f, Item.FlyDetection.Forced);
                     projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
                     boltData.trail?.Clear();
                 });
@@ -972,7 +944,7 @@ namespace TOR {
             }
         }
 
-        protected void LateUpdate() {
+        protected override void ManagedLateUpdate() {
             // update timers
             if (altFireTime > 0) altFireTime -= Time.deltaTime;
             if (fireTime > 0) fireTime -= Time.deltaTime;

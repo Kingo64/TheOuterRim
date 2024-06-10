@@ -48,7 +48,9 @@ namespace TOR {
         }
     }
 
-    public class SpringController : MonoBehaviour {
+    public class SpringController : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         ParticleSystem particle;
         AudioSource[] sounds;
         GameObject zone;
@@ -66,7 +68,7 @@ namespace TOR {
             waitTime = Random.Range(5f, 15f);
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (waitTime > 0) {
                 waitTime -= Time.deltaTime;
                 if (waitTime <= 0) {

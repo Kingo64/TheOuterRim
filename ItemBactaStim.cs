@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.Collections;
 
 namespace TOR {
-    public class ItemBactaStim : MonoBehaviour {
+    public class ItemBactaStim : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         protected Item item;
         protected ItemModuleBactaStim module;
 
@@ -116,7 +118,7 @@ namespace TOR {
             }
         }
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (currentCharge < 100) {
                 currentCharge = Mathf.Clamp(currentCharge + (module.chargeRate * Time.deltaTime), 0, 100);
                 text.text = Mathf.RoundToInt(currentCharge).ToString();
@@ -125,7 +127,9 @@ namespace TOR {
         }
     }
 
-    public class BactaStimHeal : MonoBehaviour {
+    public class BactaStimHeal : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         public float healAmount = 10f;
         public float healDuration = 10f;
         public Creature creature;
@@ -133,7 +137,7 @@ namespace TOR {
 
         float duration;
 
-        protected void Update() {
+        protected override void ManagedUpdate() {
             if (creature == null || creature.state == Creature.State.Dead || duration >= healDuration || creature.currentHealth >= creature.maxHealth) Destroy(this);
             creature.Heal(healAmount * Time.deltaTime, healer);
             duration += Time.deltaTime;

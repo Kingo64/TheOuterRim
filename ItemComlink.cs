@@ -11,7 +11,9 @@ namespace TOR {
         public int target = 0;
     }
 
-    public class ItemComlink : MonoBehaviour {
+    public class ItemComlink : ThunderBehaviour {
+        public override ManagedLoops EnabledManagedLoops => ManagedLoops.Update;
+
         internal Item item;
         internal ItemModuleComlink module;
 
@@ -261,7 +263,7 @@ namespace TOR {
             }
         }
 
-        public void Update() {
+        protected override void ManagedUpdate() {
             if (primaryControlHoldTime > 0) {
                 primaryControlHoldTime -= Time.deltaTime;
                 if (primaryControlHoldTime <= 0) ExecuteAction(module.gripPrimaryActionHold);
