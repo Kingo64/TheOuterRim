@@ -9,8 +9,8 @@ using ThunderRoad.Plugins;
 namespace TOR {
     [Serializable]
     public class ItemLightsaberSaveData : ContentCustomData {
-        public string[] kyberCrystals;
-        public float[] bladeLengths;
+        public string[] kyberCrystals = {};
+        public float[] bladeLengths = {};
         public SavedLightsaber coupledLightsaber;
     }
 
@@ -756,8 +756,10 @@ namespace TOR {
                 var saberGlowTrans = parent.GetCustomReference(saberGlowRef);
                 saberGlowLight = saberGlowTrans.GetComponent<Light>();
                 var renderer = saberGlowTrans.GetComponent<MeshRenderer>();
-                renderer.enabled = false;
-                parent.renderers.Remove(renderer);
+                if (renderer) {
+                    renderer.enabled = false;
+                    parent.renderers.Remove(renderer);
+                }
                 UnityEngine.Object.Destroy(saberGlowTrans.GetComponent<MeshFilter>());
             }
             if (!string.IsNullOrEmpty(saberParticlesRef)) saberParticles = parent.GetCustomReference(saberParticlesRef).GetComponent<ParticleSystem>();
@@ -842,6 +844,7 @@ namespace TOR {
         }
 
         public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
+            if (!saberBody) return;
             saberBody.GetPropertyBlock(PropBlock);
             PropBlock.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
             PropBlock.SetColor("_Color", kyberCrystalObject.coreColour);

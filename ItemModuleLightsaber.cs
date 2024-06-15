@@ -8,7 +8,6 @@ namespace TOR {
         public bool animateOnIgnition;
         public int fastCollisionMode = (int)CollisionDetectionMode.ContinuousDynamic;
         public float[] helicopterThrust = { 0f, 100f };
-        public string kyberCrystalID = "KyberCrystalBlue";
         public float ignitionDuration = 0.1f;
         public bool startActive;
         public LightsaberBlade[] lightsaberBlades;

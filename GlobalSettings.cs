@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
-// using IngameDebugConsole;
+using IngameDebugConsole;
 using System.Reflection;
 
 namespace TOR {
@@ -229,6 +229,23 @@ namespace TOR {
         }
 
         void SetupConsoleCommands() {
+            DebugLogConsole.AddCommand("tor_test_items", "Regression test: Spawn all items from TOR", () => {
+                var items = Catalog.GetDataList<ItemData>();
+                List<ContentCustomData> testData = new List<ContentCustomData> {
+                     new ItemLightsaberSaveData {
+                         kyberCrystals = new string[] { "" }
+                     }
+                };
+                foreach (var itemData in items) {
+                    if (string.IsNullOrEmpty(itemData.prefabAddress)) continue;
+                    if (itemData.prefabAddress.Contains("theouterrim")) {
+                        itemData.SpawnAsync(delegate (Item item) {
+                            Utils.Log(itemData.id);
+                            item.Despawn();
+                        }, null, null, null, true, testData);
+                    }
+                }
+            });
         }
 
         void SetupHandAudio(Creature creature) {
