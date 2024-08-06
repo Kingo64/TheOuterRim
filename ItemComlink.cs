@@ -44,13 +44,29 @@ namespace TOR {
 
         readonly List<Transform> spawnLocations = new List<Transform>();
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _hologramLogoMaterialInstance;
+        public MaterialInstance hologramLogoMaterialInstance {
             get {
-                _propBlock = _propBlock ?? new MaterialPropertyBlock();
-                return _propBlock;
+                if (_hologramLogoMaterialInstance == null) {
+                    hologramLogo.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _hologramLogoMaterialInstance = mi;
+                }
+                return _hologramLogoMaterialInstance;
             }
         }
+
+        MaterialInstance _hologramLightMaterialInstance;
+        public MaterialInstance hologramLightMaterialInstance {
+            get {
+                if (_hologramLightMaterialInstance == null) {
+                    hologramLight.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _hologramLightMaterialInstance = mi;
+                }
+                return _hologramLightMaterialInstance;
+            }
+        }
+
+        static readonly int colourId = Shader.PropertyToID("Colour");
 
         protected void Awake() {
             item = GetComponent<Item>();
@@ -156,23 +172,18 @@ namespace TOR {
         }
 
         public void SetGraphic() {
-            hologramLogo.material = materials[(int)reinforcementData.hologramLogo];
+            hologramLogoMaterialInstance.material = materials[(int)reinforcementData.hologramLogo];
             text.text = reinforcementData.description;
         }
 
         public void SetColour() {
             var newColour = Color.HSVToRGB(factionData.colour[0], factionData.colour[1], 1);
-            hologramLogo.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("Colour", newColour);
-            hologramLogo.SetPropertyBlock(PropBlock);
-            
-            hologramLight.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("Colour", newColour);
-            hologramLight.SetPropertyBlock(PropBlock);
+            hologramLogoMaterialInstance.material.SetColor(colourId, newColour);
+            hologramLightMaterialInstance.material.SetColor(colourId, newColour);
 
             light.color = newColour;
             text.color = newColour;
-            text.material.SetColor("Colour", newColour);
+            text.material.SetColor(colourId, newColour);
         }
 
         public void SummonTarget() {

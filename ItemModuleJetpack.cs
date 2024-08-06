@@ -17,12 +17,13 @@ namespace TOR {
             Utils.AddModule<ItemJetpack>(item.gameObject);
         }
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(idleSoundLeft)) Catalog.LoadAssetAsync<AudioContainer>(idleSoundLeft, x => idleSoundLeftAsset = x, null);
-            if (!string.IsNullOrEmpty(idleSoundRight)) Catalog.LoadAssetAsync<AudioContainer>(idleSoundRight, x => idleSoundRightAsset = x, null);
-            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, x => startSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, x => stopSoundAsset = x, null);
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(idleSoundLeft)) yield return Catalog.LoadAssetCoroutine(idleSoundLeft, delegate (AudioContainer x) { idleSoundLeftAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(idleSoundRight)) yield return Catalog.LoadAssetCoroutine(idleSoundRight, delegate (AudioContainer x) { idleSoundRightAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(startSound)) yield return Catalog.LoadAssetCoroutine(startSound, delegate (AudioContainer x) { startSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(stopSound)) yield return Catalog.LoadAssetCoroutine(stopSound, delegate (AudioContainer x) { stopSoundAsset = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

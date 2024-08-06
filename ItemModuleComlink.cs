@@ -21,9 +21,10 @@ namespace TOR {
             Utils.AddModule<ItemComlink>(item.gameObject);
         }
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(useSound)) Catalog.LoadAssetAsync<AudioContainer>(useSound, x => useSoundAsset = x, null);
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(useSound)) yield return Catalog.LoadAssetCoroutine(useSound, delegate (AudioContainer x) { useSoundAsset = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

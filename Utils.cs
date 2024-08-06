@@ -143,7 +143,7 @@ namespace TOR {
 
         public static void ReleaseAsset<T>(T asset) where T : Object {
             try {
-                if (asset) Catalog.ReleaseAsset(asset);
+                if (asset != null) Catalog.ReleaseAsset(asset);
             }
             catch { }
         }

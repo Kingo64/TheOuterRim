@@ -54,7 +54,7 @@ namespace TOR {
 
         void TurnOff() {
             if (imbue && isEnabled) {
-                imbue.energy = 0;
+                imbue.SetEnergyInstant(0);
                 Utils.PlayHaptic(holdingGripLeft, holdingGripRight, Utils.HapticIntensity.Minor);
                 isEnabled = false;
             }

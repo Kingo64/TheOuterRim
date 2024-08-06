@@ -11,9 +11,10 @@ namespace TOR {
             Utils.AddModule<ItemBlasterPowerCell>(item.gameObject);
         }
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(audioSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(audioSoundPath, x => audioAsset = x, null);
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(audioSoundPath)) yield return Catalog.LoadAssetCoroutine(audioSoundPath, delegate (AudioContainer x) { audioAsset = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

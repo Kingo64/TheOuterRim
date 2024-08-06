@@ -12,19 +12,36 @@ namespace TOR {
 		GameObject obj;
         AudioSource audioSource;
 
-		public override IEnumerator OnLoadCoroutine() {
-			yield return Catalog.LoadAssetCoroutine(musicWavePath, delegate (AudioContainer value) {
-				musicWaveAsset = value;
+        public string dynamicMusic = "";
 
-                obj = new GameObject("TOR_MusicPlayer");
-                audioSource = obj.AddComponent<AudioSource>();
-                audioSource.outputAudioMixerGroup = ThunderRoadSettings.GetAudioMixerGroup(AudioMixerName.Music);
-                audioSource.spatialBlend = 0;
-                audioSource.playOnAwake = false;
+        public override IEnumerator OnLoadCoroutine() {
+            if (GlobalSettings.TORSoundtrack) {
+                yield return Catalog.LoadAssetCoroutine(musicWavePath, delegate (AudioContainer value) {
+                    musicWaveAsset = value;
 
-                observe = level.StartCoroutine(Observe());
-            }, "ModuleWaveMusic");
-			yield break;
+                    obj = new GameObject("TOR_MusicPlayer");
+                    audioSource = obj.AddComponent<AudioSource>();
+                    audioSource.outputAudioMixerGroup = ThunderRoadSettings.GetAudioMixerGroup(AudioMixerName.Music);
+                    audioSource.spatialBlend = 0;
+                    audioSource.playOnAwake = false;
+
+                    observe = level.StartCoroutine(Observe());
+                }, "ModuleWaveMusic");
+            } else {
+                if (!Catalog.gameData.useDynamicMusic) yield break;
+
+                if (level.options.TryGetValue(LevelOption.DynamicMusicId.Get(), out string musicOverride)) {
+                    dynamicMusic = musicOverride;
+                }
+                if (!string.IsNullOrEmpty(dynamicMusic) && ThunderBehaviourSingleton<MusicManager>.HasInstance) {
+                    MusicManager musicManager = ThunderBehaviourSingleton<MusicManager>.Instance;
+                    musicManager.UnLoadMusic();
+                    yield return musicManager.LoadMusics(dynamicMusic);
+                    musicManager.Volume = 1f;
+                    musicManager = null;
+                }
+            }
+            yield break;
 		}
 
 		IEnumerator Observe() {
@@ -48,7 +65,11 @@ namespace TOR {
 		}
 
 		public override void OnUnload() {
-			if (musicWaveAsset) {
+            base.OnUnload();
+            if (ThunderBehaviourSingleton<MusicManager>.HasInstance) {
+                ThunderBehaviourSingleton<MusicManager>.Instance.UnLoadMusic();
+            }
+            if (musicWaveAsset) {
 				Catalog.ReleaseAsset(musicWaveAsset);
 			}
 		}

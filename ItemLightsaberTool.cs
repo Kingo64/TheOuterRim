@@ -18,13 +18,17 @@ namespace TOR {
         bool holdingLeft;
         bool holdingRight;
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _materialInstance;
+        public MaterialInstance materialInstance {
             get {
-                if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
-                return _propBlock;
+                if (_materialInstance == null) {
+                    mesh.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _materialInstance = mi;
+                }
+                return _materialInstance;
             }
         }
+        static readonly int emissionColorId = Shader.PropertyToID("_EmissionColor");
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -39,9 +43,7 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
 
             mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
-            mesh.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("_EmissionColor", modeColours[currentMode]);
-            mesh.SetPropertyBlock(PropBlock);
+            materialInstance.material.SetColor(emissionColorId, modeColours[currentMode]);
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
@@ -76,9 +78,7 @@ namespace TOR {
 
         public void CycleMode(RagdollHand interactor = null) {
             currentMode = (currentMode >= modes.Length - 1) ? 0 : currentMode + 1;
-            mesh.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("_EmissionColor", modeColours[currentMode]);
-            mesh.SetPropertyBlock(PropBlock);
+            materialInstance.material.SetColor(emissionColorId, modeColours[currentMode]);
             Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 

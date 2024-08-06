@@ -34,6 +34,7 @@ namespace TOR {
         public override void ScriptUnload() {
             base.ScriptUnload();
             creatureHashes = null;
+            Object.Destroy(moesGreen);
             moesGreen = null;
         }
 

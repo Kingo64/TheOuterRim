@@ -20,14 +20,14 @@ namespace TOR {
             EventManager.onReloadJson -= OnReloadJson;
         }
 
-        private void OnLevelLoad(LevelData levelData, EventTime eventTime) {
+        private void OnLevelLoad(LevelData levelData, LevelData.Mode mode, EventTime eventTime) {
             if (eventTime == EventTime.OnStart) {
                 Load();
                 ProcessDiscoveredItems();
             }
         }
 
-        private void OnLevelUnload(LevelData levelData, EventTime eventTime) {
+        private void OnLevelUnload(LevelData levelData, LevelData.Mode mode, EventTime eventTime) {
             if (eventTime == EventTime.OnStart) {
                 Save();
             }
@@ -43,7 +43,7 @@ namespace TOR {
             foreach (var itemId in saveData.discoveredItems) {
                 try {
                     var item = Catalog.GetData<ItemData>(itemId);
-                    item.purchasable = true;
+                    item.allowedStorage = item.allowedStorage | ItemData.Storage.SandboxAllItems;
                 }
                 catch { }
             }

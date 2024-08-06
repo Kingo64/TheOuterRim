@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using ThunderRoad.Skill.SpellPower;
 
 namespace TOR {
     [System.Serializable]
@@ -142,11 +143,14 @@ namespace TOR {
 
         internal ItemModuleAI moduleAI;
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _scopeMaterialInstance;
+        public MaterialInstance scopeMaterialInstance {
             get {
-                _propBlock = _propBlock ?? new MaterialPropertyBlock();
-                return _propBlock;
+                if (_scopeMaterialInstance == null) {
+                    scope.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _scopeMaterialInstance = mi;
+                }
+                return _scopeMaterialInstance;
             }
         }
 
@@ -210,8 +214,8 @@ namespace TOR {
 
             var moduleAIFireable = GetComponent<AIFireable>();
             if (moduleAIFireable) {
-                moduleAIFireable.OnAIFire = new AIFireable.FireableEvent(OnAIFire);
-                moduleAIFireable.OnAITryReload = new AIFireable.FireableEvent(OnAITryReload);
+                moduleAIFireable.fireEvent.AddListener(OnAIFire);
+                moduleAIFireable.reloadEvent.AddListener(OnAITryReload);
             }
 
             // setup item events
@@ -289,6 +293,16 @@ namespace TOR {
         }
 
         protected void OnDestroy() {
+            if (scopeCamera?.targetTexture) {
+                scopeCamera.targetTexture.Release();
+                scopeCamera.targetTexture = null;
+            }
+            if (renderScopeTexture) {
+                if (renderScopeTexture.IsCreated()) renderScopeTexture.Release();
+                Destroy(renderScopeTexture);
+                renderScopeTexture = null;
+            }
+
             if (all.Contains(this)) {
                 all.Remove(this);
             }
@@ -370,45 +384,42 @@ namespace TOR {
                     module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution,
                     module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution,
                     module.scopeDepth, RenderTextureFormat.DefaultHDR);
-                scopeCamera.targetTexture = renderScopeTexture;
 
-                scope.GetPropertyBlock(PropBlock);
-                PropBlock.SetTexture("_RenderTexture", renderScopeTexture);
-                if (module.scopeReticleTexture) PropBlock.SetTexture("_Reticle", module.scopeReticleTexture);
-                PropBlock.SetFloat("_ReticleContrast", module.scopeReticleContrast);
-                PropBlock.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
-                scope.SetPropertyBlock(PropBlock);
+                scopeMaterialInstance.material.SetTexture("_RenderTexture", renderScopeTexture);
+                if (module.scopeReticleTexture) scopeMaterialInstance.material.SetTexture("_Reticle", module.scopeReticleTexture);
+                scopeMaterialInstance.material.SetFloat("_ReticleContrast", module.scopeReticleContrast);
+                scopeMaterialInstance.material.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
 
                 UpdateScopeReticleColour();
-                if (GlobalSettings.BlasterScope3D) scope.material.EnableKeyword("_3D_SCOPE"); else scope.material.DisableKeyword("_3D_SCOPE");
-                if (GlobalSettings.BlasterScopeReticles) scope.material.EnableKeyword("_USE_RETICLE"); else scope.material.DisableKeyword("_USE_RETICLE");
+                if (GlobalSettings.BlasterScope3D) scopeMaterialInstance.material.EnableKeyword("_3D_SCOPE"); else scopeMaterialInstance.material.DisableKeyword("_3D_SCOPE");
+                if (GlobalSettings.BlasterScopeReticles) scopeMaterialInstance.material.EnableKeyword("_USE_RETICLE"); else scopeMaterialInstance.material.DisableKeyword("_USE_RETICLE");
             }
         }
 
         public void UpdateScopeReticleColour() {
-            if (scope && scope.material) {
+            if (scope) {
                 var activeProjectileData = GetActiveProjectileData();
-                scope.GetPropertyBlock(PropBlock);
                 if (module.scopeReticleUseBoltHue && activeProjectileData != null) {
-                    PropBlock.SetColor("_ReticleColour", Color.HSVToRGB(activeProjectileData.boltHue, 1, 1));
+                    scopeMaterialInstance.material.SetColor("_ReticleColour", Color.HSVToRGB(activeProjectileData.boltHue, 1, 1));
                 } else {
-                    PropBlock.SetColor("_ReticleColour", new Color(module.scopeReticleColour[0], module.scopeReticleColour[1], module.scopeReticleColour[2], 1));
+                    scopeMaterialInstance.material.SetColor("_ReticleColour", new Color(module.scopeReticleColour[0], module.scopeReticleColour[1], module.scopeReticleColour[2], 1));
                 }
-                scope.SetPropertyBlock(PropBlock);
             }
         }
 
         void EnableScopeRender() {
             if (scope == null) return;
             if (!renderScopeTexture.IsCreated()) renderScopeTexture.Create();
+            scopeCamera.targetTexture = renderScopeTexture;
             scopeCamera.enabled = true;
-            scope.material.EnableKeyword("_SCOPE_ACTIVE");
+            scopeMaterialInstance.material.EnableKeyword("_SCOPE_ACTIVE");
         }
 
         void DisableScopeRender() {
             if (scope == null) return;
             scopeCamera.enabled = false;
-            scope.material.DisableKeyword("_SCOPE_ACTIVE");
+            scopeCamera.targetTexture = null;
+            scopeMaterialInstance.material.DisableKeyword("_SCOPE_ACTIVE");
             renderScopeTexture.Release();
         }
 
@@ -474,7 +485,7 @@ namespace TOR {
             // toggle scope for performance reasons
             if (module.hasScope) DisableScopeRender();
         }
-        
+
         public void OnSnapEvent(Holder holder) {
             Utils.UpdateCustomData(item, new ItemBlasterSaveData {
                 altFire = altFireEnabled,
@@ -627,7 +638,7 @@ namespace TOR {
             else if (interactor.playerHand == Player.local.handLeft) holdingSecondaryGripLeft = false;
         }
 
-        public void OnTelekinesisReleaseEvent(Handle handle, SpellTelekinesis teleGrabber) {
+        public void OnTelekinesisReleaseEvent(Handle handle, SpellTelekinesis teleGrabber, bool tryThrow, bool isGrabbing) {
             telekinesis = null;
         }
 
@@ -635,7 +646,7 @@ namespace TOR {
             telekinesis = teleGrabber;
         }
 
-        public bool OnAIFire(AIFireable fireable, RagdollHand hand, bool finished) {
+        public void OnAIFire() {
             if (module.fireDelay > 0) {
                 fireDelayTime = module.fireDelay;
                 isDelayingFire = true;
@@ -651,12 +662,10 @@ namespace TOR {
                 shotsLeftInBurst = aiBurstAmount;
                 Fire();
             }
-            return true;
         }
 
-        public bool OnAITryReload(AIFireable fireable, RagdollHand hand, bool finished) {
+        public void OnAITryReload() {
             Reload();
-            return true;
         }
 
         public void DropBlaster() {
@@ -670,7 +679,7 @@ namespace TOR {
         }
 
         public void Fire() {
-            var shooterHand = gunGrip.handlers.FirstOrDefault() ?? gunGrip.telekinesisHandler?.ragdollHand;
+            var shooterHand = gunGrip.handlers.FirstOrDefault() ?? gunGrip.telekinesisHandlers.FirstOrDefault()?.ragdollHand;
             var shooter = shooterHand?.creature;
 
             if (ammoLeft == 0 || isOverheated) {
@@ -991,14 +1000,12 @@ namespace TOR {
                             Utils.PlaySound(preFireSound, module.preFireSoundAsset, item);
                             Utils.PlaySound(preFireSound2, module.preFireSoundAsset2, item);
                             Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
-                        } 
-                        else if (module.spinTime > 0) {
+                        } else if (module.spinTime > 0) {
                             if (GetSpinSpeed() >= module.spinSpeedMinToFire) {
                                 shotsLeftInBurst = currentFiremode;
                                 Fire();
                             }
-                        }
-                        else {
+                        } else {
                             shotsLeftInBurst = currentFiremode;
                             Fire();
                         }

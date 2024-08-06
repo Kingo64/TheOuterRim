@@ -40,10 +40,15 @@ namespace TOR {
 
         public override void OnItemDataRefresh(ItemData data) {
             base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(idleSound)) Catalog.LoadAssetAsync<AudioContainer>(idleSound, x => idleSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(startSound)) Catalog.LoadAssetAsync<AudioContainer>(startSound, x => startSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(stopSound)) Catalog.LoadAssetAsync<AudioContainer>(stopSound, x => stopSoundAsset = x, null);
             if (!string.IsNullOrEmpty(whooshFX)) whoosh = Catalog.GetData<EffectData>(whooshFX, true);
+        }
+
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(idleSound)) yield return Catalog.LoadAssetCoroutine(idleSound, delegate (AudioContainer x) { idleSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(startSound)) yield return Catalog.LoadAssetCoroutine(startSound, delegate (AudioContainer x) { startSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(stopSound)) yield return Catalog.LoadAssetCoroutine(stopSound, delegate (AudioContainer x) { stopSoundAsset = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

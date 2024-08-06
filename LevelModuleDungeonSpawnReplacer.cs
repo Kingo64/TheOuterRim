@@ -31,7 +31,7 @@ namespace TOR {
             PatchArea(newArea.SpawnedArea);
         }
 
-        private void OnLevelLoad(LevelData levelData, EventTime eventTime) {
+        private void OnLevelLoad(LevelData levelData, LevelData.Mode mode, EventTime eventTime) {
             if (eventTime == EventTime.OnEnd) {
                 var tableData = Catalog.GetData<CreatureTable>(creatureTable);
                 tableData.TryPick(out var creatureData);
@@ -171,7 +171,7 @@ namespace TOR {
             yield break;
         }
 
-        private void OnLevelUnload(LevelData levelData, EventTime eventTime) {
+        private void OnLevelUnload(LevelData levelData, LevelData.Mode mode, EventTime eventTime) {
             foreach (var backup in waveBackups) {
                 var data = Catalog.GetData<WaveData>(backup.Key, true);
                 var waveData = JsonUtility.FromJson<WaveData>(backup.Value);

@@ -21,10 +21,11 @@ namespace TOR {
             Utils.AddModule<ItemTaunt>(item.gameObject);
         }
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(tauntSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntSound, x => tauntAsset = x, null);
-            if (!string.IsNullOrEmpty(tauntDropSound)) Catalog.LoadAssetAsync<AudioContainer>(tauntDropSound, x => tauntDropAsset = x, null);
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(tauntSound)) yield return Catalog.LoadAssetCoroutine(tauntSound, delegate (AudioContainer x) { tauntAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(tauntDropSound)) yield return Catalog.LoadAssetCoroutine(tauntDropSound, delegate (AudioContainer x) { tauntDropAsset = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

@@ -71,9 +71,9 @@ namespace TOR {
             creature.OnKillEvent += delegate { UnassignItem(); };
             equipped = creature == Player.local.creature;
             locomotion = equipped ? Player.local.locomotion : creature.locomotion;
-            originalAirSpeed = locomotion.airSpeed;
+            originalAirSpeed = locomotion.horizontalAirSpeed;
 
-            creatureRb = locomotion.rb;
+            creatureRb = locomotion.physicBody.rigidBody;
 
             waterHandler = creature.waterHandler;
             waterHandler.OnWaterEnter += TurnOff;
@@ -140,7 +140,7 @@ namespace TOR {
             isFlying = true;
             groundIgnoreTime = 0.1f;
 
-            locomotion.airSpeed = module.airSpeed;
+            locomotion.horizontalAirSpeed = module.airSpeed;
             creatureRb.drag = module.drag;
             creatureRb.useGravity = false;
 
@@ -158,7 +158,7 @@ namespace TOR {
             isFlying = false;
 
             try {
-                locomotion.airSpeed = originalAirSpeed;
+                locomotion.horizontalAirSpeed = originalAirSpeed;
                 creatureRb.drag = locomotion.isGrounded ? locomotion.groundDrag : locomotion.flyDrag;
                 creatureRb.useGravity = true;
             }

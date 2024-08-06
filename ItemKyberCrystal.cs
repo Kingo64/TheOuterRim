@@ -16,13 +16,17 @@ namespace TOR {
         Transform leftHandTrans;
         Transform rightHandTrans;
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _materialInstance;
+        public MaterialInstance materialInstance {
             get {
-                if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
-                return _propBlock;
+                if (_materialInstance == null) {
+                    mesh.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _materialInstance = mi;
+                }
+                return _materialInstance;
             }
         }
+        static readonly int emissionColorId = Shader.PropertyToID("_EmissionColor");
 
         protected void Awake() {
             item = this.GetComponent<Item>();
@@ -33,9 +37,7 @@ namespace TOR {
             glowColour = new Color(module.glowColour[0], module.glowColour[1], module.glowColour[2], module.glowColour[3]);
 
             mesh = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
-            mesh.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("_BaseColor", coreColour);
-            mesh.SetPropertyBlock(PropBlock);
+            materialInstance.material.SetColor("_BaseColor", coreColour);
 
             itemTrans = item.transform;
 
@@ -69,9 +71,7 @@ namespace TOR {
             var maxGlow = 3f;
             var flicker = module.isUnstable ? Random.Range(-0.2f, 0.2f) : Random.Range(-0.04f, 0.04f);
             var intensity = Mathf.Clamp(maxGlow - (10 * distanceToHand) + flicker, minGlow, maxGlow);
-            mesh.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("_EmissionColor", new Color(bladeColour.r * intensity, bladeColour.g * intensity, bladeColour.b * intensity, bladeColour.a));
-            mesh.SetPropertyBlock(PropBlock);
+            materialInstance.material.SetColor(emissionColorId, new Color(bladeColour.r * intensity, bladeColour.g * intensity, bladeColour.b * intensity, bladeColour.a));
         }
     }
 }

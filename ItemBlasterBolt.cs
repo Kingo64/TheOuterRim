@@ -26,13 +26,17 @@ namespace TOR {
 
         readonly List<DamagerData> originalDamagers = new List<DamagerData>();
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _materialInstance;
+        public MaterialInstance materialInstance {
             get {
-                _propBlock = _propBlock ?? new MaterialPropertyBlock();
-                return _propBlock;
+                if (_materialInstance == null) {
+                    trail.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _materialInstance = mi;
+                }
+                return _materialInstance;
             }
         }
+        static readonly int colorId = Shader.PropertyToID("_Color");
 
         protected void Awake() {
             item = GetComponent<Item>();
@@ -115,10 +119,8 @@ namespace TOR {
             }
 
             if (trail != null) {
-                if (trailColor == Color.clear) trailColor = trail.material.GetColor("_Color");
-                trail.GetPropertyBlock(PropBlock);
-                PropBlock.SetColor("_Color", Utils.UpdateHue(trailColor, module.boltHue));
-                trail.SetPropertyBlock(PropBlock);
+                if (trailColor == Color.clear) trailColor = materialInstance.material.GetColor(colorId);
+                materialInstance.material.SetColor(colorId, Utils.UpdateHue(trailColor, module.boltHue));
             }
         }
 

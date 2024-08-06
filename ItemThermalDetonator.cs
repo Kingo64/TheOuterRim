@@ -4,6 +4,7 @@ using ThunderRoad;
 using System.Linq;
 using System.Collections.Generic;
 using System;
+using ThunderRoad.Skill.SpellPower;
 
 namespace TOR {
     public class ItemThermalDetonator : ThunderBehaviour {
@@ -37,11 +38,14 @@ namespace TOR {
         float beepTime;
         bool[] lastBeep = { false, false, false };
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _materialInstance;
+        public MaterialInstance materialInstance {
             get {
-                _propBlock = _propBlock ?? new MaterialPropertyBlock();
-                return _propBlock;
+                if (_materialInstance == null) {
+                    renderer.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _materialInstance = mi;
+                }
+                return _materialInstance;
             }
         }
 
@@ -113,7 +117,7 @@ namespace TOR {
             }
         }
 
-        public void OnTelekinesisReleaseEvent(Handle handle, SpellTelekinesis teleGrabber) {
+        public void OnTelekinesisReleaseEvent(Handle handle, SpellTelekinesis teleGrabber, bool tryThrow, bool isGrabbing) {
             telekinesis = null;
         }
 
@@ -260,11 +264,9 @@ namespace TOR {
         }
 
         void SetLights(bool[] beep) {
-            renderer.GetPropertyBlock(PropBlock);
-            PropBlock.SetFloat("Light1", beep[0] ? 1f : 0f);
-            PropBlock.SetFloat("Light2", beep[1] ? 1f : 0f);
-            PropBlock.SetFloat("Light3", beep[2] ? 1f : 0f);
-            renderer.SetPropertyBlock(PropBlock);
+            materialInstance.material.SetFloat("Light1", beep[0] ? 1f : 0f);
+            materialInstance.material.SetFloat("Light2", beep[1] ? 1f : 0f);
+            materialInstance.material.SetFloat("Light3", beep[2] ? 1f : 0f);
 
             var handler = item?.lastHandler?.creature;
             if (beep[0]) Utils.PlaySound(beepSound1, null, handler);

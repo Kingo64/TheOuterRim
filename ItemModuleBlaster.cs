@@ -149,7 +149,7 @@ namespace TOR {
 
         public string scopeReticle;
         public Texture2D scopeReticleTexture;
-        public float[] scopeReticleColour = { 0, 0, 0, 0};
+        public float[] scopeReticleColour = { 0, 0, 0, 0 };
         public float scopeReticleContrast = 1f;
         public bool scopeReticleUseBoltHue;
 
@@ -165,56 +165,57 @@ namespace TOR {
             Utils.AddModule<ItemBlaster>(item.gameObject);
         }
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(altFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath, x => altFireSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(altFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(altFireSoundPath2, x => altFireSoundAsset2 = x, null);
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(altFireSoundPath)) yield return Catalog.LoadAssetCoroutine(altFireSoundPath, delegate (AudioContainer x) { altFireSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(altFireSoundPath2)) yield return Catalog.LoadAssetCoroutine(altFireSoundPath2, delegate (AudioContainer x) { altFireSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(chargeFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath, x => chargeFireSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(chargeFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath2, x => chargeFireSoundAsset2 = x, null);
-            if (!string.IsNullOrEmpty(chargeFireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(chargeFireSoundPath3, x => chargeFireSoundAsset3 = x, null);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath)) yield return Catalog.LoadAssetCoroutine(chargeFireSoundPath, delegate (AudioContainer x) { chargeFireSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath2)) yield return Catalog.LoadAssetCoroutine(chargeFireSoundPath2, delegate (AudioContainer x) { chargeFireSoundAsset2 = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(chargeFireSoundPath3)) yield return Catalog.LoadAssetCoroutine(chargeFireSoundPath3, delegate (AudioContainer x) { chargeFireSoundAsset3 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(chargeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath, x => chargeSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(chargeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeSoundPath2, x => chargeSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(chargeSoundPath)) yield return Catalog.LoadAssetCoroutine(chargeSoundPath, delegate (AudioContainer x) { chargeSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(chargeSoundPath2)) yield return Catalog.LoadAssetCoroutine(chargeSoundPath2, delegate (AudioContainer x) { chargeSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(chargeReadySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath, x => chargeReadySoundAsset = x, null);
-            if (!string.IsNullOrEmpty(chargeReadySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeReadySoundPath2, x => chargeReadySoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(chargeReadySoundPath)) yield return Catalog.LoadAssetCoroutine(chargeReadySoundPath, delegate (AudioContainer x) { chargeReadySoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(chargeReadySoundPath2)) yield return Catalog.LoadAssetCoroutine(chargeReadySoundPath2, delegate (AudioContainer x) { chargeReadySoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(chargeStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath, x => chargeStartSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(chargeStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(chargeStartSoundPath2, x => chargeStartSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(chargeStartSoundPath)) yield return Catalog.LoadAssetCoroutine(chargeStartSoundPath, delegate (AudioContainer x) { chargeStartSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(chargeStartSoundPath2)) yield return Catalog.LoadAssetCoroutine(chargeStartSoundPath2, delegate (AudioContainer x) { chargeStartSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(emptySoundPath)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath, x => emptySoundAsset = x, null);
-            if (!string.IsNullOrEmpty(emptySoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(emptySoundPath2, x => emptySoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(emptySoundPath)) yield return Catalog.LoadAssetCoroutine(emptySoundPath, delegate (AudioContainer x) { emptySoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(emptySoundPath2)) yield return Catalog.LoadAssetCoroutine(emptySoundPath2, delegate (AudioContainer x) { emptySoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(fireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath, x => fireSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(fireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath2, x => fireSoundAsset2 = x, null);
-            if (!string.IsNullOrEmpty(fireSoundPath3)) Catalog.LoadAssetAsync<AudioContainer>(fireSoundPath3, x => fireSoundAsset3 = x, null);
+            if (!string.IsNullOrEmpty(fireSoundPath)) yield return Catalog.LoadAssetCoroutine(fireSoundPath, delegate (AudioContainer x) { fireSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(fireSoundPath2)) yield return Catalog.LoadAssetCoroutine(fireSoundPath2, delegate (AudioContainer x) { fireSoundAsset2 = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(fireSoundPath3)) yield return Catalog.LoadAssetCoroutine(fireSoundPath3, delegate (AudioContainer x) { fireSoundAsset3 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(fireModeSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath, x => fireModeSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(fireModeSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(fireModeSoundPath2, x => fireModeSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(fireModeSoundPath)) yield return Catalog.LoadAssetCoroutine(fireModeSoundPath, delegate (AudioContainer x) { fireModeSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(fireModeSoundPath2)) yield return Catalog.LoadAssetCoroutine(fireModeSoundPath2, delegate (AudioContainer x) { fireModeSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(overheatSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath, x => overheatSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(overheatSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(overheatSoundPath2, x => overheatSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(overheatSoundPath)) yield return Catalog.LoadAssetCoroutine(overheatSoundPath, delegate (AudioContainer x) { overheatSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(overheatSoundPath2)) yield return Catalog.LoadAssetCoroutine(overheatSoundPath2, delegate (AudioContainer x) { overheatSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(preFireSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath, x => preFireSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(preFireSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(preFireSoundPath2, x => preFireSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(preFireSoundPath)) yield return Catalog.LoadAssetCoroutine(preFireSoundPath, delegate (AudioContainer x) { preFireSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(preFireSoundPath2)) yield return Catalog.LoadAssetCoroutine(preFireSoundPath2, delegate (AudioContainer x) { preFireSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(reloadSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath, x => reloadSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(reloadSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadSoundPath2, x => reloadSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(reloadSoundPath)) yield return Catalog.LoadAssetCoroutine(reloadSoundPath, delegate (AudioContainer x) { reloadSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(reloadSoundPath2)) yield return Catalog.LoadAssetCoroutine(reloadSoundPath2, delegate (AudioContainer x) { reloadSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(reloadEndSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath, x => reloadEndSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(reloadEndSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(reloadEndSoundPath2, x => reloadEndSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(reloadEndSoundPath)) yield return Catalog.LoadAssetCoroutine(reloadEndSoundPath, delegate (AudioContainer x) { reloadEndSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(reloadEndSoundPath2)) yield return Catalog.LoadAssetCoroutine(reloadEndSoundPath2, delegate (AudioContainer x) { reloadEndSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(spinStartSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath, x => spinStartSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(spinStartSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStartSoundPath2, x => spinStartSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(spinStartSoundPath)) yield return Catalog.LoadAssetCoroutine(spinStartSoundPath, delegate (AudioContainer x) { spinStartSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(spinStartSoundPath2)) yield return Catalog.LoadAssetCoroutine(spinStartSoundPath2, delegate (AudioContainer x) { spinStartSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(spinLoopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath, x => spinLoopSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(spinLoopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinLoopSoundPath2, x => spinLoopSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(spinLoopSoundPath)) yield return Catalog.LoadAssetCoroutine(spinLoopSoundPath, delegate (AudioContainer x) { spinLoopSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(spinLoopSoundPath2)) yield return Catalog.LoadAssetCoroutine(spinLoopSoundPath2, delegate (AudioContainer x) { spinLoopSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(spinStopSoundPath)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath, x => spinStopSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(spinStopSoundPath2)) Catalog.LoadAssetAsync<AudioContainer>(spinStopSoundPath2, x => spinStopSoundAsset2 = x, null);
+            if (!string.IsNullOrEmpty(spinStopSoundPath)) yield return Catalog.LoadAssetCoroutine(spinStopSoundPath, delegate (AudioContainer x) { spinStopSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(spinStopSoundPath2)) yield return Catalog.LoadAssetCoroutine(spinStopSoundPath2, delegate (AudioContainer x) { spinStopSoundAsset2 = x; }, GetType().Name);
 
-            if (!string.IsNullOrEmpty(scopeReticle)) Catalog.LoadAssetAsync<Texture2D>(scopeReticle, x => scopeReticleTexture = x, null);
+            if (!string.IsNullOrEmpty(scopeReticle)) yield return Catalog.LoadAssetCoroutine(scopeReticle, delegate (Texture2D x) { scopeReticleTexture = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

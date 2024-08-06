@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ThunderRoad;
 
 namespace TOR {
@@ -14,7 +15,7 @@ namespace TOR {
         protected ItemModuleStorage module;
 
         readonly Dictionary<Holder, Container> holderContainer = new Dictionary<Holder, Container>();
-        public Dictionary<string, List<ContainerData.Content>> holderContents;
+        public Dictionary<string, List<ContainerContent>> holderContents;
 
         bool ignoreSnaps;
 
@@ -34,7 +35,7 @@ namespace TOR {
                 item.TryGetCustomData<ItemStorageSaveData>(out var savedData);
                 if (savedData != null && !string.IsNullOrEmpty(savedData.data)) {
                     try {
-                        var holderContents = JsonConvert.DeserializeObject<Dictionary<string, List<ContainerData.Content>>>(savedData.data, Catalog.GetJsonNetSerializerSettings());
+                        var holderContents = JsonConvert.DeserializeObject<Dictionary<string, List<ContainerContent>>>(savedData.data, Catalog.GetJsonNetSerializerSettings());
                         holderContents.TryGetValue(holderPath, out var contents);
                         if (contents != null) {
                             foreach (var content in contents) {
@@ -42,7 +43,7 @@ namespace TOR {
                             }
                             container.Load(contents);
                             var itemsSnapped = 0;
-                            foreach (var content in container.contents) {
+                            foreach (var content in container.contents.Cast<ItemContent>()) {
                                 ignoreSnaps = true;
                                 content.OnCatalogRefresh();
                                 content.Spawn(spawnedItem => {
@@ -68,28 +69,19 @@ namespace TOR {
                 holderContainer.TryGetValue(entry.Key, out var container);
                 container.contents.Clear();
                 foreach (var storedItem in entry.Key.items) {
-                    var containerData = new ContainerData.Content(storedItem.data, null, (storedItem.contentCustomData != null) ? new List<ContentCustomData>(storedItem.contentCustomData) : null);
+                    var containerData = new ItemContent(storedItem.data, null, (storedItem.contentCustomData != null) ? new List<ContentCustomData>(storedItem.contentCustomData) : null);
                     container.contents.Add(containerData);
                 }
             }
 
             var saveData = new ItemStorageSaveData();
-            var holderContents = new Dictionary<string, List<ContainerData.Content>>();
+            var holderContents = new Dictionary<string, List<ContainerContent>>();
 
             foreach (var hc in holderContainer) {
                 holderContents.Add(hc.Key.transform.name, hc.Value.contents);
             }
             saveData.data = JsonConvert.SerializeObject(holderContents, Catalog.GetJsonNetSerializerSettings());
             Utils.UpdateCustomData(item, saveData);
-            var holder = item.holder;
-            if (!holder) return;
-            if (item.holder.linkedContainer) {
-                for (int j = item.holder.linkedContainer.contents.Count - 1; j >= 0; j--) {
-                    if (item.holder.linkedContainer.contents[j].TryGetState(out ContentStateHolder contentStateHolder) && contentStateHolder.holderName == item.holder.name) {
-                        item.holder.linkedContainer.contents[j].customDataList = item.contentCustomData;
-                    }
-                }
-            }
         }
 
         void OnHolderSnapped(Item snappedItem) {

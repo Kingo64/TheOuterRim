@@ -22,10 +22,11 @@ namespace TOR {
             Utils.AddModule<ItemThermalDetonator>(item.gameObject);
         }
 
-        public override void OnItemDataRefresh(ItemData data) {
-            base.OnItemDataRefresh(data);
-            if (!string.IsNullOrEmpty(explosionSound)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound, x => explosionSoundAsset = x, null);
-            if (!string.IsNullOrEmpty(explosionSound2)) Catalog.LoadAssetAsync<AudioContainer>(explosionSound2, x => explosionSoundAsset2 = x, null);
+        public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {
+            if (!string.IsNullOrEmpty(explosionSound)) yield return Catalog.LoadAssetCoroutine(explosionSound, delegate (AudioContainer x) { explosionSoundAsset = x; }, GetType().Name);
+            if (!string.IsNullOrEmpty(explosionSound2)) yield return Catalog.LoadAssetCoroutine(explosionSound2, delegate (AudioContainer x) { explosionSoundAsset2 = x; }, GetType().Name);
+            yield return base.LoadAddressableAssetsCoroutine(data);
+            yield break;
         }
 
         public override void ReleaseAddressableAssets() {

@@ -22,11 +22,25 @@ namespace TOR {
 
         int currentScopeZoom;
 
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+        MaterialInstance _scopeMaterialInstanceL;
+        public MaterialInstance scopeMaterialInstanceL {
             get {
-                _propBlock = _propBlock ?? new MaterialPropertyBlock();
-                return _propBlock;
+                if (_scopeMaterialInstanceL == null) {
+                    scopeL.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _scopeMaterialInstanceL = mi;
+                }
+                return _scopeMaterialInstanceL;
+            }
+        }
+
+        MaterialInstance _scopeMaterialInstanceR;
+        public MaterialInstance scopeMaterialInstanceR {
+            get {
+                if (_scopeMaterialInstanceR == null) {
+                    scopeR.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _scopeMaterialInstanceR = mi;
+                }
+                return _scopeMaterialInstanceR;
             }
         }
 
@@ -40,39 +54,55 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnHeldActionEvent += OnHeldAction;
 
-            SetupScope(item.GetCustomReference(module.leftScopeID), item.GetCustomReference(module.leftScopeCameraID).GetComponent<Camera>(), ref scopeL, ref scopeCameraL, ref renderScopeTextureL);
-            SetupScope(item.GetCustomReference(module.rightScopeID), item.GetCustomReference(module.rightScopeCameraID).GetComponent<Camera>(), ref scopeR, ref scopeCameraR, ref renderScopeTextureR);
+            scopeL = item.GetCustomReference(module.leftScopeID).GetComponent<Renderer>();
+            scopeR = item.GetCustomReference(module.rightScopeID).GetComponent<Renderer>();
+            SetupScope(item.GetCustomReference(module.leftScopeCameraID).GetComponent<Camera>(), scopeMaterialInstanceL, ref scopeCameraL, ref renderScopeTextureL);
+            SetupScope(item.GetCustomReference(module.rightScopeCameraID).GetComponent<Camera>(), scopeMaterialInstanceR, ref scopeCameraR, ref renderScopeTextureR);
             if (!string.IsNullOrEmpty(module.zoomSoundsID)) zoomSounds = item.GetCustomReference(module.zoomSoundsID).GetComponents<AudioSource>();
         }
 
-        void SetupScope(Transform scopeTransform, Camera scopeCamera, ref Renderer scope, ref Camera storedCamera, ref RenderTexture renderTexture) {
-            if (scopeTransform != null) {
-                scope = scopeTransform.GetComponent<Renderer>();
-
-                scopeCamera.enabled = false;
-                storedCamera = scopeCamera;
-                scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
-                renderTexture = new RenderTexture(
-                    module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution,
-                    module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution,
-                    module.scopeDepth, RenderTextureFormat.DefaultHDR);
-                scopeCamera.targetTexture = renderTexture;
-                scope.GetPropertyBlock(PropBlock);
-                PropBlock.SetTexture("_RenderTexture", renderTexture);
-                scope.SetPropertyBlock(PropBlock);
-                if (GlobalSettings.BlasterScope3D) scope.sharedMaterial.EnableKeyword("_3D_SCOPE"); else scope.sharedMaterial.DisableKeyword("_3D_SCOPE");
+        protected void OnDestroy() {
+            if (scopeCameraL) scopeCameraL.targetTexture = null;
+            if (scopeCameraR) scopeCameraR.targetTexture = null;
+            if (renderScopeTextureL) {
+                if (renderScopeTextureL.IsCreated()) {
+                    renderScopeTextureL.Release();
+                }
+                Destroy(renderScopeTextureL);
+                renderScopeTextureL = null;
+            }
+            if (renderScopeTextureR) {
+                if (renderScopeTextureR.IsCreated()) {
+                    renderScopeTextureR.Release();
+                }
+                Destroy(renderScopeTextureR);
+                renderScopeTextureR = null;
             }
         }
 
-        void SetScopeRender(Renderer scope, Camera scopeCamera, bool state, ref RenderTexture renderTexture) {
-            if (scope == null) return;
+        void SetupScope(Camera scopeCamera, MaterialInstance scopeMaterial, ref Camera storedCamera, ref RenderTexture renderTexture) {
+            scopeCamera.enabled = false;
+            storedCamera = scopeCamera;
+            scopeCamera.fieldOfView = module.scopeZoom[currentScopeZoom];
+            renderTexture = new RenderTexture(
+                module.scopeResolution != null ? module.scopeResolution[0] : GlobalSettings.BlasterScopeResolution,
+                module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution,
+                module.scopeDepth, RenderTextureFormat.DefaultHDR);
+            scopeMaterial.material.SetTexture("_RenderTexture", renderTexture);
+            if (GlobalSettings.BlasterScope3D) scopeMaterial.material.EnableKeyword("_3D_SCOPE"); else scopeMaterial.material.DisableKeyword("_3D_SCOPE");
+        }
+
+        void SetScopeRender(MaterialInstance scopeMaterial, Camera scopeCamera, bool state, ref RenderTexture renderTexture) {
+            if (scopeMaterial == null) return;
             scopeCamera.enabled = state;
             if (state) {
                 if (!renderTexture.IsCreated()) renderTexture.Create();
-                scope.material.EnableKeyword("_SCOPE_ACTIVE");
+                scopeCamera.targetTexture = renderTexture;
+                scopeMaterial.material.EnableKeyword("_SCOPE_ACTIVE");
             } else {
+                scopeCamera.targetTexture = null;
                 renderTexture.Release();
-                scope.material.DisableKeyword("_SCOPE_ACTIVE");
+                scopeMaterial.material.DisableKeyword("_SCOPE_ACTIVE");
             }
         }
 
@@ -107,15 +137,15 @@ namespace TOR {
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             // toggle scope for performance reasons
             if (interactor.playerHand) {
-                SetScopeRender(scopeL, scopeCameraL, true, ref renderScopeTextureL);
-                SetScopeRender(scopeR, scopeCameraR, true, ref renderScopeTextureR);
+                SetScopeRender(scopeMaterialInstanceL, scopeCameraL, true, ref renderScopeTextureL);
+                SetScopeRender(scopeMaterialInstanceR, scopeCameraR, true, ref renderScopeTextureR);
             }
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             // toggle scope for performance reasons
-            SetScopeRender(scopeL, scopeCameraL, false, ref renderScopeTextureL);
-            SetScopeRender(scopeR, scopeCameraR, false, ref renderScopeTextureR);
+            SetScopeRender(scopeMaterialInstanceL, scopeCameraL, false, ref renderScopeTextureL);
+            SetScopeRender(scopeMaterialInstanceR, scopeCameraR, false, ref renderScopeTextureR);
         }
 
         public void OnHeldAction(RagdollHand interactor, Handle handle, Interactable.Action action) {

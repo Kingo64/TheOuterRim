@@ -20,13 +20,13 @@ namespace TOR {
             EventManager.onLevelUnload -= OnLevelUnload;
         }
 
-        void OnLevelLoad(LevelData levelData, EventTime eventTime) {
+        void OnLevelLoad(LevelData levelData, LevelData.Mode mode, EventTime eventTime) {
             if (eventTime == EventTime.OnStart) {
                 UnrestrictWaves();
             }
         }
 
-        private void OnLevelUnload(LevelData levelData, EventTime eventTime) {
+        private void OnLevelUnload(LevelData levelData, LevelData.Mode mode, EventTime eventTime) {
             if (eventTime == EventTime.OnStart) {
                 RestoreWaves();
             }

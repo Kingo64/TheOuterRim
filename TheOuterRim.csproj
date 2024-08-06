@@ -61,7 +61,10 @@
     <Reference Include="ThunderRoad.Manikin">
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\ThunderRoad.Manikin.dll</HintPath>
     </Reference>
-    <Reference Include="ThunderRoad.Plugins, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
+    <Reference Include="ThunderRoad.MaterialInstance, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\ThunderRoad.MaterialInstance.dll</HintPath>
+    </Reference>
     <Reference Include="ThunderRoad.Reveal">
       <HintPath>..\..\..\..\BladeAndSorcery_Data\Managed\ThunderRoad.Reveal.dll</HintPath>
     </Reference>
@@ -152,6 +155,9 @@
     <Compile Include="ItemModuleTaunt.cs" />
     <Compile Include="ItemModuleLightsaber.cs" />
     <Compile Include="LevelModuleExposeWaves.cs" />
+    <Compile Include="LevelModuleSurvivalExtended.cs" />
+    <Compile Include="OptionSpawnLocation.cs" />
+    <Compile Include="SkillForceLightningAI.cs" />
     <Compile Include="ThunderScriptFixCreatureEthnicity.cs" />
     <Compile Include="LevelModuleForceDistanceShadowmask.cs" />
     <Compile Include="ThunderScriptLoadingTips.cs" />

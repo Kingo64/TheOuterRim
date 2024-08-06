@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using ThunderRoad.Plugins;
+using ThunderRoad.Skill.SpellPower;
 
 namespace TOR {
     [Serializable]
@@ -119,7 +119,7 @@ namespace TOR {
             else TurnOff(false);
 
             tapToReturn = !GameManager.options.GetController().holdGripForHandles;
-            originalWeaponClass = item.data.moduleAI.weaponClass;
+            originalWeaponClass = item.data.moduleAI.primaryClass;
 
             UpdateCustomData();            
         }
@@ -413,7 +413,7 @@ namespace TOR {
             deactivateOnDropTime = -1;
         }
 
-        public void OnTeleUngrabEvent(Handle handle, SpellTelekinesis teleGrabber) {
+        public void OnTeleUngrabEvent(Handle handle, SpellTelekinesis teleGrabber, bool tryThrow, bool isGrabbing) {
             telekinesis = null;
             ResetCollisions();
 
@@ -483,7 +483,7 @@ namespace TOR {
                     }
                 }
                 // Allow AI to use lightsaber again
-                if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) item.data.moduleAI.weaponClass = originalWeaponClass;
+                if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) item.data.moduleAI.primaryClass = originalWeaponClass;
             }
         }
 
@@ -491,7 +491,7 @@ namespace TOR {
             for (int i = 0, l = blades.Count(); i < l; i++) {
                 if (!string.IsNullOrEmpty(blades[i].kyberCrystal)) {
                     TurnOff(isActive);
-                    item.data.moduleAI.weaponClass = 0; // Tell NPCs not to use lightsaber
+                    item.data.moduleAI.primaryClass = ItemModuleAI.WeaponClass.None; // Tell NPCs not to use lightsaber
                     blades[i].RemoveCrystal();
                     UpdateCustomData();
                     ignoreCrystalTime = 0.5f;
@@ -600,7 +600,7 @@ namespace TOR {
                 if (leftInteractor) thrustLeft = PlayerControl.GetHand(leftInteractor.side).useAxis;
                 if (rightInteractor) thrustRight = PlayerControl.GetHand(rightInteractor.side).useAxis;
                 float maxThrust = Mathf.Max(thrustLeft, thrustRight);
-                if (!playerBody) playerBody = Player.local.locomotion.rb;
+                if (!playerBody) playerBody = Player.local.locomotion.physicBody.rigidBody;
                 playerBody.AddForce(itemTrans.right * Mathf.Lerp(module.helicopterThrust[0], module.helicopterThrust[1], maxThrust), ForceMode.Force);
 
                 for (int i = 0, l = animators.Count(); i < l; i++) {
@@ -716,11 +716,26 @@ namespace TOR {
         bool trailRescaleZ;
 
         public Transform saberBodyTrans;
-        MaterialPropertyBlock _propBlock;
-        public MaterialPropertyBlock PropBlock {
+
+        MaterialInstance _saberBodyMaterialInstance;
+        public MaterialInstance saberBodyMaterialInstance {
             get {
-                _propBlock = _propBlock ?? new MaterialPropertyBlock();
-                return _propBlock;
+                if (_saberBodyMaterialInstance == null) {
+                    saberBody.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _saberBodyMaterialInstance = mi;
+                }
+                return _saberBodyMaterialInstance;
+            }
+        }
+
+        MaterialInstance _trailMaterialInstance;
+        public MaterialInstance trailMaterialInstance {
+            get {
+                if (_trailMaterialInstance == null) {
+                    trailMeshRenderer.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
+                    _trailMaterialInstance = mi;
+                }
+                return _trailMaterialInstance;
             }
         }
 
@@ -796,10 +811,13 @@ namespace TOR {
                 }
             }
             if (unstableParticles) {
-                if (state && isUnstable) unstableParticles.Play();
-                else {
+                if (state && isUnstable) {
+                    unstableParticles.gameObject.SetActive(true);
+                    unstableParticles.Play();
+                } else {
                     unstableParticles.Stop();
                     unstableParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear); // destroy leftover beam particles
+                    unstableParticles.gameObject.SetActive(false);
                 }
             }
             if (trail) {
@@ -845,30 +863,26 @@ namespace TOR {
 
         public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
             if (!saberBody) return;
-            saberBody.GetPropertyBlock(PropBlock);
-            PropBlock.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
-            PropBlock.SetColor("_Color", kyberCrystalObject.coreColour);
-            PropBlock.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
-            PropBlock.SetFloat("_OuterGlow", kyberCrystalObject.module.outerGlow);
-            PropBlock.SetFloat("_CoreRadius", kyberCrystalObject.module.coreRadius);
-            PropBlock.SetFloat("_CoreStrength", kyberCrystalObject.module.coreStrength);
-            PropBlock.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
-            PropBlock.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
-            PropBlock.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
-            saberBody.SetPropertyBlock(PropBlock);
+            saberBodyMaterialInstance.material.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
+            saberBodyMaterialInstance.material.SetColor("_Color", kyberCrystalObject.coreColour);
+            saberBodyMaterialInstance.material.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
+            saberBodyMaterialInstance.material.SetFloat("_OuterGlow", kyberCrystalObject.module.outerGlow);
+            saberBodyMaterialInstance.material.SetFloat("_CoreRadius", kyberCrystalObject.module.coreRadius);
+            saberBodyMaterialInstance.material.SetFloat("_CoreStrength", kyberCrystalObject.module.coreStrength);
+            saberBodyMaterialInstance.material.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
+            saberBodyMaterialInstance.material.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
+            saberBodyMaterialInstance.material.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
 
             if (trailMeshRenderer) {
-                trailMeshRenderer.GetPropertyBlock(PropBlock);
-                PropBlock.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
-                PropBlock.SetColor("_Color", kyberCrystalObject.coreColour);
-                PropBlock.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
-                PropBlock.SetFloat("_OuterGlow", kyberCrystalObject.module.outerGlow * (kyberCrystalObject.module.innerGlow <= 0.01 ? 0.5f : 1f));
-                PropBlock.SetFloat("_CoreRadius", kyberCrystalObject.module.innerGlow <= 0.01 ? 0 : kyberCrystalObject.module.coreRadius);
-                PropBlock.SetFloat("_CoreStrength", kyberCrystalObject.module.innerGlow <= 0.01 ? 0 : kyberCrystalObject.module.coreStrength);
-                PropBlock.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
-                PropBlock.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
-                PropBlock.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
-                trailMeshRenderer.SetPropertyBlock(PropBlock);
+                trailMaterialInstance.material.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
+                trailMaterialInstance.material.SetColor("_Color", kyberCrystalObject.coreColour);
+                trailMaterialInstance.material.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
+                trailMaterialInstance.material.SetFloat("_OuterGlow", kyberCrystalObject.module.outerGlow * (kyberCrystalObject.module.innerGlow <= 0.01 ? 0.5f : 1f));
+                trailMaterialInstance.material.SetFloat("_CoreRadius", kyberCrystalObject.module.innerGlow <= 0.01 ? 0 : kyberCrystalObject.module.coreRadius);
+                trailMaterialInstance.material.SetFloat("_CoreStrength", kyberCrystalObject.module.innerGlow <= 0.01 ? 0 : kyberCrystalObject.module.coreStrength);
+                trailMaterialInstance.material.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
+                trailMaterialInstance.material.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
+                trailMaterialInstance.material.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
             }
 
             if (unstableParticles) {
@@ -1005,6 +1019,7 @@ namespace TOR {
             public override ManagedLoops EnabledManagedLoops => ManagedLoops.FixedUpdate;
 
             public float height = 0.9f;
+            public float time;
             public float timeTransitionSpeed = 5f;
             public Color startColor = Color.white;
             public Color endColor = new Color(1, 1, 1, 0);
@@ -1106,12 +1121,12 @@ namespace TOR {
                 mesh.uv = uv;
                 mesh.triangles = triangles;
 
-                if (GlobalSettings.SaberTrailDuration > GlobalSettings.SaberTrailDuration) {
-                    GlobalSettings.SaberTrailDuration -= deltaTime * timeTransitionSpeed;
-                    if (GlobalSettings.SaberTrailDuration <= GlobalSettings.SaberTrailDuration) GlobalSettings.SaberTrailDuration = GlobalSettings.SaberTrailDuration;
-                } else if (GlobalSettings.SaberTrailDuration < GlobalSettings.SaberTrailDuration) {
-                    GlobalSettings.SaberTrailDuration += deltaTime * timeTransitionSpeed;
-                    if (GlobalSettings.SaberTrailDuration >= GlobalSettings.SaberTrailDuration) GlobalSettings.SaberTrailDuration = GlobalSettings.SaberTrailDuration;
+                if (time > GlobalSettings.SaberTrailDuration) {
+                    time -= deltaTime * timeTransitionSpeed;
+                    if (time <= GlobalSettings.SaberTrailDuration) time = GlobalSettings.SaberTrailDuration;
+                } else if (time < GlobalSettings.SaberTrailDuration) {
+                    time += deltaTime * timeTransitionSpeed;
+                    if (time >= GlobalSettings.SaberTrailDuration) time = GlobalSettings.SaberTrailDuration;
                 }
             }
         }
