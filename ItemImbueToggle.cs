@@ -44,7 +44,7 @@ namespace TOR {
             }
         }
 
-        void TurnOn() {
+        public void TurnOn() {
             if (imbue && !isEnabled) {
                 imbue.Transfer(castCharge, imbue.maxEnergy);
                 Utils.PlayHaptic(holdingGripLeft, holdingGripRight, Utils.HapticIntensity.Moderate);
@@ -52,7 +52,7 @@ namespace TOR {
             }
         }
 
-        void TurnOff() {
+        public void TurnOff() {
             if (imbue && isEnabled) {
                 imbue.SetEnergyInstant(0);
                 Utils.PlayHaptic(holdingGripLeft, holdingGripRight, Utils.HapticIntensity.Minor);

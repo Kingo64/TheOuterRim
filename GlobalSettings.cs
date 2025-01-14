@@ -64,6 +64,10 @@ namespace TOR {
             return options;
         }
 
+        public static ModOptionString[] OptionsFuncButton = {
+            new ModOptionString("Submit", "Submit")
+        };
+
         public static ModOptionInt[] OptionsResolution = {
             new ModOptionInt("64", 64),
             new ModOptionInt("128", 128),
@@ -73,6 +77,7 @@ namespace TOR {
             new ModOptionInt("2048", 2048)
         };
 
+        // BLASTERS
         [ModOption(name: "Automatic Reload", tooltip: "Automatically reload blaster when empty. (Default: True)", category = "Blasters", defaultValueIndex = 1)]
         public static bool BlasterAutomaticReload = true;
 
@@ -85,7 +90,13 @@ namespace TOR {
         [ModOption(name: "Bolt instant despawn", tooltip: "Blaster bolts will instantly despawn upon collision detection rather than on next tick. Minor performance improvement but bolts may not be fully rendered. (Default: False)", category = "Blasters", defaultValueIndex = 0)]
         public static bool BlasterBoltInstantDespawn = false;
 
-        [ModOption(name: "Require Refill", tooltip: "Can only reload via a manual power cell refill. (Default: False)", category = "Blasters", defaultValueIndex = 0)]
+        [ModOption(name: "Overheat Cooling Rate", tooltip: "Speed at which blasters cool down before overheating. (Default: 1.0)", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float BlasterCoolingRate = 1.0f;
+
+        [ModOption(name: "Overheat Heat Rate", tooltip: "Speed at which blasters heat up before overheating. (Default: 1.0)", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float BlasterOverheatRate = 1.0f;
+
+        [ModOption(name: "Require Manual Refill", tooltip: "Can only reload via a manual power cell refill. (Default: False)", category = "Blasters", defaultValueIndex = 0)]
         public static bool BlasterRequireRefill = false;
 
         public static bool BlasterScope3D = true;
@@ -114,12 +125,23 @@ namespace TOR {
         }
         private static bool _blasterScopeReticles = true;
 
+        // GENERAL
         [ModOption(name: "Controls Hold Duration", tooltip: "Duration to hold button to detect a long press in seconds (s). (Default: 0.3s)", category = "General", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 3)]
         public static float ControlsHoldDuration = 0.3f;
+
+        [ModOption(name: "Jetpack activates with Jump button only", tooltip: "Prevents pushing the aiming joystick Up from activating the jetpacks. Instead can only be activated with the Jump button when in the air. (Default: False)", category = "General", defaultValueIndex = 0)]
+        public static bool JetpackJumpButtonOnly = false;
 
         [ModOption(name: "TOR Soundtrack", tooltip: "Use the TOR non-dynamic soundtrack instead of vanilla dynamic music on TOR levels. Requires a reloading level to apply. (Default: True)", category = "General", defaultValueIndex = 1)]
         public static bool TORSoundtrack = true;
 
+        [ModOption(name: "Thermal Detonator Damage", tooltip: "Multiplies the damage of thermal detonators. Higher = more damage. (Default: 1.0x)", category = "General", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float ThermalDetonatorDamage = 1.0f;
+
+        [ModOption(name: "Thermal Detonator Range", tooltip: "Multiplies the blast range of thermal detonators. Higher = wider radius. (Default: 1.0x)", category = "General", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float ThermalDetonatorRange = 1.0f;
+
+        // LIGHTSABERS
         [ModOption(name: "Activate On Recall", tooltip: "Automatically activate lightsaber when recalling. (Default: False)", category = "Lightsabers", defaultValueIndex = 0)]
         public static bool SaberActivateOnRecall = false;
 
@@ -150,9 +172,11 @@ namespace TOR {
         public static float SaberDeflectAssistDistance = 0.25f;
 
         [ModOption(name: "Deflect Return Chance", tooltip: "Percent chance deflect assist will return bolts to the shooter. (Default: 20%)", category = "Lightsabers", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 20)]
+        [ModOptionSlider]
         public static float SaberDeflectAssistReturnChance = 0.2f;
 
         [ModOption(name: "Deflect NPC Return Chance", tooltip: "Percent chance that saber NPCs will be able to perfectly return bolts to the shooter. (Default: 5%)", category = "Lightsabers", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 5)]
+        [ModOptionSlider]
         public static float SaberDeflectAssistReturnNPCChance = 0.05f;
 
         [ModOption(name: "Expensive Collisions", tooltip: "Reduces instances of lightsabers passing through each other. It uses Unity's most accurate collision detection system available. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
@@ -160,9 +184,6 @@ namespace TOR {
 
         [ModOption(name: "Expensive Collisions Min Velocity", tooltip: "Minimum velocity (m/s) for lightsabers expensive collisions to enable. (Default: 8.0)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 32)] // def: 8f
         public static float SaberExpensiveCollisionsMinVelocity = 8f;
-
-        [ModOption(name: "Saber NPC Attack Speed", tooltip: "Attack speed for force sensitive lightsaber wielders. High values will cause animation/physics anomalies. Applies to newly spawned NPCs. (Default: 1.2)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 12)]
-        public static float SaberNPCAttackSpeed = 1.2f;
 
         [ModOption(name: "Saber Throwing", tooltip: "Lightsabers are able to be thrown and recalled. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
         public static bool SaberThrowable = true;
@@ -179,6 +200,41 @@ namespace TOR {
         [ModOption(name: "Length Adjust Increment", tooltip: "Amount of length to adjust on a lightsaber blade per use. (Default: 0.05m)", category = "Lightsaber Tool", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 5)]
         public static float LightsaberToolAdjustIncrement = 0.05f;
 
+        // NPCs
+        [ModOption(name: "Allow NPC force powers", tooltip: "Determines whether force users will be able to cast force powers. Will render weaponless 'caster' NPCs useless. Disabling it makes you a big baby.", category = "NPCs", defaultValueIndex = 1)]
+        public static bool AllowNPCForcePowers = true;
+
+        [ModOption(name: "Cast force power delay multiplier", tooltip: "Multiplies the delay before an NPC is allowed to cast a force ability. Lower = more frequently and higher = less frequently. Applies when NPC spawns or enters combat. (Default: 1.0x)", category = "NPCs", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float CastForcePowerDelayMultiplier = 1.0f;
+
+        [ModOption(name: "Force Push/Pull/Throw strength multiplier", tooltip: "Strength multiplier for the NPC force push/pull/throw abilities. Lower = weaker and higher = stronger. Applies to newly spawned NPCs. (Default: 1.0x)", category = "NPCs", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float NPCForceGravityMultiplier = 1.0f;
+
+        [ModOption(name: "Blaster NPC two handing", category = "NPCs", defaultValueIndex = 1)]
+        public static bool BlasterNPCTwoHanding = true;
+
+        [ModOption(name: "Blaster NPC accuracy", tooltip: "Adjusts the accuracy of blaster wielding NPCs. Higher values make them more accurate. (Default: 1.0)", category = "NPCs", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float BlasterNPCAccuracy = 1.0f;
+
+        [ModOption(name: "Blaster NPC fire upon death chance", tooltip: "Chance that when a blaster wielding NPC dies that they accidentally fire their weapon. (Default: 33%)", category = "NPCs", valueSourceName = nameof(OptionsPercentage), defaultValueIndex = 33)]
+        [ModOptionSlider]
+        public static float BlasterNPCFireUponDeathChance = 0.33f;
+
+        [ModOption(name: "NPCs fire pooled bolts (higher perf + unstable)", tooltip: "NPCs will fire pooled bolt instances which may improve CPU performance and reduce stuttering. Disabled by default as blaster bolts may glitch out with enough combat. If blaster bolts glitch out you can regenerate the pools by clicking the button below. (Default: Off)", category = "NPCs", defaultValueIndex = 0)]
+        public static bool BlasterNPCUsePooledBolts = false;
+
+        [ModOption(name: "Regenerate all pooled items (debug)", tooltip: "Will regenerate all pooled items instances in the game. Use this if blaster bolts are glitching out.", category = "NPCs", valueSourceName = nameof(OptionsFuncButton), defaultValueIndex = 0)]
+        [ModOptionButton]
+        [ModOptionDontSave]
+        public static void RegenerateAllPooledItems(string _) {
+            if (ModManager.gameModsLoaded && ModManager.modCatalogAddressablesLoaded && LevelManager.IsPoolsGenerated) {
+                ItemData.GeneratePool().AsSynchronous();
+                Utils.Log("All item pools have been regenerated");
+            }
+        }
+
+        [ModOption(name: "Saber NPC Attack Speed", tooltip: "Attack speed for force sensitive lightsaber wielders. High values will cause animation/physics anomalies. Applies to newly spawned NPCs. (Default: 1.2)", category = "NPCs", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 12)]
+        public static float SaberNPCAttackSpeed = 1.2f;
 
         internal static AudioContainer SaberRecallSound { get; private set; }
 

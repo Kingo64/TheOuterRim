@@ -190,7 +190,12 @@ namespace TOR {
                 foreach (Collider sourceCollider in colliderGroup.colliders) {
                     foreach (ColliderGroup colliderGroup2 in target.colliderGroups) {
                         foreach (Collider targetCollider in colliderGroup2.colliders) {
-                            Physics.IgnoreCollision(sourceCollider, targetCollider, ignore);
+                            try {
+                                Physics.IgnoreCollision(sourceCollider, targetCollider, ignore);
+                            }
+                            catch (System.Exception e) {
+                                Utils.LogError(e);
+                            }
                         }
                     }
                 }

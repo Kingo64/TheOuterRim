@@ -37,12 +37,12 @@ namespace TOR {
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
-            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value < module.aiTauntChance)
+            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value <= module.aiTauntChance)
                 PlayTaunt(module.tauntAsset);
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool thrown) {
-            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value < module.aiTauntChance)
+            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value <= module.aiTauntChance)
                 PlayTaunt(module.tauntDropAsset);
         }
 

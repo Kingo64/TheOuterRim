@@ -3,7 +3,7 @@ using ThunderRoad.Skill;
 using ThunderRoad;
 
 namespace TOR {
-    public class SkillForceLightningAI : SpellSkillData {
+    public class SkillForceLightningAI : AISkillData {
         public bool applyBurning;
         public float damageIntensity = 2f;
         public float range = 2f;

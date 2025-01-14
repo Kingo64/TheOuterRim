@@ -121,14 +121,15 @@ namespace TOR {
             tapToReturn = !GameManager.options.GetController().holdGripForHandles;
             originalWeaponClass = item.data.moduleAI.primaryClass;
 
-            UpdateCustomData();            
+            UpdateCustomData();
+            item.ignoreGravityPush = true;
         }
 
         protected void OnDestroy() {
             if (all.Contains(this)) {
                 all.Remove(this);
             }
-            if (GlobalSettings.LightsaberColliders.ContainsKey(GetInstanceID())) {
+            if (GlobalSettings.LightsaberColliders != null && GlobalSettings.LightsaberColliders.ContainsKey(GetInstanceID())) {
                 GlobalSettings.LightsaberColliders.Remove(GetInstanceID());
             }
         }
@@ -224,7 +225,7 @@ namespace TOR {
             }
         }
 
-        void ToggleAnimation(RagdollHand interactor = null) {
+        public void ToggleAnimation(RagdollHand interactor = null) {
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
             isOpen = !isOpen;
             for (int i = 0, l = animators.Count(); i < l; i++) {
@@ -233,7 +234,7 @@ namespace TOR {
             }
         }
 
-        void ToggleHelicopter(RagdollHand interactor = null) {
+        public void ToggleHelicopter(RagdollHand interactor = null) {
             ToggleAnimation(interactor);
             isHelicoptering = !isHelicoptering;
             if (isHelicoptering) {
@@ -268,14 +269,14 @@ namespace TOR {
             }
         }
 
-        void ToggleLightsaber(RagdollHand interactor = null) {
+        public void ToggleLightsaber(RagdollHand interactor = null) {
             if (isActive) TurnOff();
             else TurnOn();
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
         }
 
         // Turn on only first blade - used for saber staff
-        void ToggleSingle(RagdollHand interactor = null) {
+        public void ToggleSingle(RagdollHand interactor = null) {
             if (interactor) PlayerControl.GetHand(interactor.playerHand.side).HapticShort(1f);
             var singleAlreadyActive = blades[0].isActive;
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
@@ -302,7 +303,7 @@ namespace TOR {
             }
         }
 
-        void TurnOn(bool playSound = true) {
+        public void TurnOn(bool playSound = true) {
             if (module.animateOnIgnition && !isOpen) ToggleAnimation();
             if (blades.All(blade => !string.IsNullOrEmpty(blade.kyberCrystal))) {
                 isActive = true;
@@ -322,7 +323,7 @@ namespace TOR {
             }
         }
 
-        void TurnOff(bool playSound = true) {
+        public void TurnOff(bool playSound = true) {
             isActive = false;
 
             if (module.animateOnIgnition && isOpen) ToggleAnimation();
@@ -1148,8 +1149,10 @@ namespace TOR {
         }
 
         void OnKillEvent(CollisionInstance collisionStruct, EventTime eventTime) {
-            creature.OnKillEvent -= OnKillEvent;
-            Destroy(this);
+            if (eventTime == EventTime.OnStart) {
+                creature.OnKillEvent -= OnKillEvent;
+                Destroy(this);
+            }
         }
 
         protected void OnDestroy() {

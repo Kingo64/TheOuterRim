@@ -87,7 +87,7 @@ namespace TOR {
             }
 
 			void OnWaveBeginEvent() {
-				if (musicWaveAsset && audioSource) {
+                if (musicWaveAsset && audioSource) {
 					audioSource.clip = musicWaveAsset.GetRandomAudioClip();
                     audioSource.loop = false;
 					audioSource.Play();

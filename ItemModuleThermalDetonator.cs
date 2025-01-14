@@ -19,7 +19,13 @@ namespace TOR {
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
+            item.OnSpawnEvent += AddCustomModules;
+        }
+
+        public void AddCustomModules(EventTime eventTime) {
+            if (eventTime == EventTime.OnStart) return;
             Utils.AddModule<ItemThermalDetonator>(item.gameObject);
+            item.OnSpawnEvent -= AddCustomModules;
         }
 
         public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {

@@ -156,13 +156,17 @@ namespace TOR {
         public float[] scopeZoom = { 10f, 6f, 18f };
 
         // AI settings
-        public int aiBurstAmount;
-        public float aiShootDistanceMult = 1.0f;
-        public bool aiMeleeEnabled;
+        public int[] aiBurstAmounts;
 
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
+            item.OnSpawnEvent += AddCustomModules;
+        }
+
+        public void AddCustomModules(EventTime eventTime) {
+            if (eventTime == EventTime.OnStart) return;
             Utils.AddModule<ItemBlaster>(item.gameObject);
+            item.OnSpawnEvent -= AddCustomModules;
         }
 
         public override System.Collections.IEnumerator LoadAddressableAssetsCoroutine(ItemData data) {

@@ -16,21 +16,25 @@ namespace TOR {
 
         readonly Dictionary<Holder, Container> holderContainer = new Dictionary<Holder, Container>();
         public Dictionary<string, List<ContainerContent>> holderContents;
+        public List<Holder> holders;
 
         bool ignoreSnaps;
 
         protected void Awake() {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleStorage>();
+            EventManager.onUnpossess += OnUnpossess;
 
+            holders = new List<Holder>();
             foreach (var holderPath in module.holders) {
                 var holderTransform = transform.Find(holderPath);
                 var holder = holderTransform.GetComponent<Holder>();
+                holders.Add(holder);
                 var container = holderTransform.GetComponent<Container>();
 
                 holderContainer.Add(holder, container);
                 holder.Snapped += OnHolderSnapped;
-                holder.UnSnapped += OnHolderSnapped;
+                holder.UnSnapped += OnHolderUnSnapped;
 
                 item.TryGetCustomData<ItemStorageSaveData>(out var savedData);
                 if (savedData != null && !string.IsNullOrEmpty(savedData.data)) {
@@ -49,7 +53,7 @@ namespace TOR {
                                 content.Spawn(spawnedItem => {
                                     itemsSnapped++;
                                     holder.Snap(spawnedItem, true);
-                                    if (itemsSnapped == container.contents.Count) {
+                                    if (itemsSnapped >= container.contents.Count) {
                                         ignoreSnaps = false;
                                     }
                                 });
@@ -59,6 +63,15 @@ namespace TOR {
                     catch (Exception e) {
                         Utils.LogError(e);
                     }
+                }
+            }
+        }
+
+        private void OnUnpossess(Creature creature, EventTime eventTime) {
+            if (eventTime == EventTime.OnStart && creature == Player.currentCreature) {
+                foreach (var holder in holders) {
+                    holder.Snapped -= OnHolderSnapped;
+                    holder.UnSnapped -= OnHolderUnSnapped;
                 }
             }
         }
@@ -85,8 +98,21 @@ namespace TOR {
         }
 
         void OnHolderSnapped(Item snappedItem) {
-            if (!snappedItem || ignoreSnaps) return;
-            UpdateCustomData();
+            if (!snappedItem) return;
+            if (!ignoreSnaps) UpdateCustomData();
+            if (module.hideStoredItems || !Player.selfCollision) snappedItem.SetColliders(false);
+            if (module.hideStoredItems) {
+                snappedItem.UnRegisterArea();
+                snappedItem.Hide(true);
+            }
+        }
+
+        void OnHolderUnSnapped(Item snappedItem) {
+            if (!snappedItem) return;
+            if (!ignoreSnaps) UpdateCustomData();
+            if (module.hideStoredItems) {
+                snappedItem.Hide(false);
+            }
         }
     }
 }

@@ -157,6 +157,8 @@
     <Compile Include="LevelModuleExposeWaves.cs" />
     <Compile Include="LevelModuleSurvivalExtended.cs" />
     <Compile Include="OptionSpawnLocation.cs" />
+    <Compile Include="SkillDelayCastTillCombat.cs" />
+    <Compile Include="SpellCastForceGravityNPC.cs" />
     <Compile Include="SkillForceLightningAI.cs" />
     <Compile Include="ThunderScriptFixCreatureEthnicity.cs" />
     <Compile Include="LevelModuleForceDistanceShadowmask.cs" />
@@ -168,7 +170,6 @@
     <Compile Include="LevelModuleFixCreatureEvent.cs" />
     <Compile Include="LevelModuleKamino.cs" />
     <Compile Include="LevelModuleFelucia.cs" />
-    <Compile Include="LevelModuleDungeonSpawnReplacer.cs" />
     <Compile Include="LevelModuleWaveMusic.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="GlobalSettings.cs" />
@@ -177,7 +178,8 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>IF EXIST "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\Mods\The Outer Rim" (
-copy "$(TargetPath)" "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\Mods\The Outer Rim\TheOuterRim.dll" /Y
+xcopy /y /d  "$(ProjectDir)$(OutDir)\TheOuterRim.dll" "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\Mods\The Outer Rim"
+xcopy /y /d  "$(ProjectDir)$(OutDir)\TheOuterRim.pdb" "$(ProjectDir)..\..\..\..\BladeAndSorcery_Data\StreamingAssets\Mods\The Outer Rim"
 )</PostBuildEvent>
   </PropertyGroup>
 </Project>

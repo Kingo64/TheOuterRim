@@ -83,7 +83,7 @@ namespace TOR {
             renderer = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
 
             obstacle = GetComponent<NavMeshObstacle>();
-            obstacle.radius = module.radius;
+            obstacle.radius = GlobalSettings.ThermalDetonatorRange * module.radius;
 
             item.OnCullEvent += OnCullEvent;
         }
@@ -198,13 +198,14 @@ namespace TOR {
             renderer.enabled = false;
             item.physicBody.rigidBody.isKinematic = true;
 
-            var colliders = Physics.OverlapSphere(pos, module.radius, toHitMask, QueryTriggerInteraction.Ignore);
+            var radius = module.radius * GlobalSettings.ThermalDetonatorRange;
+            var colliders = Physics.OverlapSphere(pos, radius, toHitMask, QueryTriggerInteraction.Ignore);
             foreach (var hit in colliders) {
                 var distance = Vector3.Distance(hit.transform.position, pos);
-                var multiplier = (module.radius - distance) / module.radius;
+                var multiplier = (radius - distance) / radius;
                 var rb = hit.GetComponent<Rigidbody>() ?? hit.GetComponentInParent<Rigidbody>();
                 if (rb && (distance < 0.3 || !Physics.Linecast(pos, hit.transform.position, raycastIgnoreMask, QueryTriggerInteraction.Ignore))) {
-                    rb.AddExplosionForce(module.impuse * multiplier, pos, module.radius, 1.0f);
+                    rb.AddExplosionForce(module.impuse * multiplier, pos, radius, 1.0f);
                     var creature = hit.transform.GetComponentInParent<Creature>();
                     if (creature) {
                         if (creature != Player.currentCreature) {
@@ -219,7 +220,7 @@ namespace TOR {
                         if (!hitCreatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
                             hitCreatures.Add(creature);
                             var damage = new CollisionInstance(new DamageStruct(DamageType.Energy, module.damage), null, null);
-                            damage.damageStruct.damage = module.damage * multiplier;
+                            damage.damageStruct.damage = module.damage * GlobalSettings.ThermalDetonatorDamage * multiplier;
                             try {
                                 creature.Damage(damage);
                             }

@@ -230,9 +230,9 @@ namespace TOR {
         }
 
         bool ShouldReturnBolt() {
-            var deflectRoll = Random.Range(0, 1f);
-            if (!item.lastHandler || item.lastHandler.creature == Player.currentCreature) return GlobalSettings.SaberDeflectAssistReturnNPCChance > deflectRoll;
-            return GlobalSettings.SaberDeflectAssistReturnChance > deflectRoll;
+            var deflectRoll = Random.value;
+            if (!item.lastHandler || item.lastHandler.creature == Player.currentCreature) return deflectRoll <= GlobalSettings.SaberDeflectAssistReturnNPCChance;
+            return deflectRoll <= GlobalSettings.SaberDeflectAssistReturnChance;
         }
 
         void DisableDamagers() {

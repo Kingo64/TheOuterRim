@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using ThunderRoad;
 using System.Collections;
+using ThunderRoad.Skill.SpellPower;
 
 namespace TOR {
     public class ItemJetpack : ThunderBehaviour {
@@ -77,6 +78,16 @@ namespace TOR {
 
             waterHandler = creature.waterHandler;
             waterHandler.OnWaterEnter += TurnOff;
+
+            SpellPowerSlowTime.OnTimeScaleChangeEvent += OnTimeScaleChangeEvent; ;
+        }
+
+        private void OnTimeScaleChangeEvent(SpellPowerSlowTime spell, float scale) {
+            if (isFlying && creature == Player.currentCreature) {
+                locomotion.horizontalAirSpeed = module.airSpeed;
+                creatureRb.drag = module.drag;
+                creatureRb.useGravity = false;
+            }
         }
 
         public void OnUnSnapEvent(Holder holder) {
@@ -128,7 +139,7 @@ namespace TOR {
             }
         }
 
-        void TurnOn() {
+        public void TurnOn() {
             idleNoiseLeft = Utils.PlaySoundLoop(idleSoundLeft, module.idleSoundLeftAsset, item);
             idleNoiseRight = Utils.PlaySoundLoop(idleSoundRight, module.idleSoundRightAsset, item);
             Utils.PlaySound(startSound, module.startSoundAsset, item);
@@ -147,10 +158,12 @@ namespace TOR {
             if (equipped) destabiliseGrabbedCoroutine = StartCoroutine(DestabliseGrabbedCoroutine());
         }
 
-        void TurnOff() {
-            if (idleSoundLeft.isPlaying || idleSoundRight.isPlaying) Utils.PlaySound(stopSound, module.stopSoundAsset, item);
-            Utils.StopSoundLoop(idleSoundLeft, ref idleNoiseLeft);
-            Utils.StopSoundLoop(idleSoundRight, ref idleNoiseRight);
+        public void TurnOff() {
+            if (idleSoundLeft && idleSoundRight) {
+                if (idleSoundLeft.isPlaying || idleSoundRight.isPlaying) Utils.PlaySound(stopSound, module.stopSoundAsset, item);
+                Utils.StopSoundLoop(idleSoundLeft, ref idleNoiseLeft);
+                Utils.StopSoundLoop(idleSoundRight, ref idleNoiseRight);
+            }
 
             thrusterLeft.Stop();
             thrusterRight.Stop();
@@ -184,7 +197,7 @@ namespace TOR {
                     if (!Pointer.GetActive() || !Pointer.GetActive().isPointingUI) {
                         var yMult = steeringController != null ? steeringController.thumbstick.GetValue().y : steamController.turnAction.axis.y;
                         if (Mathf.Abs(yMult) > playerControl.axisTurnDeadZone) {
-                            if (!isFlying && yMult > module.startDeadzone) {
+                            if (!isFlying && yMult > module.startDeadzone && !GlobalSettings.JetpackJumpButtonOnly) {
                                 TurnOn();
                             }
                             if (isFlying) currentThrust = yMult;

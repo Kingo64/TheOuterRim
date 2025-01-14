@@ -136,9 +136,6 @@ namespace TOR {
         // AI settings
         Creature currentAI;
         BrainData currentAIBrain;
-        BrainModuleFirearm currentAIFirearm;
-        int aiBurstAmount;
-        float aiGrabForegripTime;
         ItemModuleAI.WeaponHandling aiOriginalWeaponHandling;
 
         internal ItemModuleAI moduleAI;
@@ -285,7 +282,6 @@ namespace TOR {
             currentFiremode = module.fireModes[currentFiremodeIndex];
             currentFirerate = module.gunRPM[currentFirerateIndex];
             currentInstability = module.handlingBaseAccuracy;
-            aiBurstAmount = module.aiBurstAmount != 0 ? module.aiBurstAmount : Mathf.Abs(module.fireModes.Max());
             aiOriginalWeaponHandling = moduleAI.weaponHandling;
             moduleAI.weaponHandling = ItemModuleAI.WeaponHandling.OneHanded;
 
@@ -576,13 +572,19 @@ namespace TOR {
             holdingGunGripRight = interactor.playerHand == Player.local.handRight;
             holdingGunGripLeft = interactor.playerHand == Player.local.handLeft;
 
-            if (!holdingGunGripLeft && !holdingGunGripRight) {
+            if (eventTime == EventTime.OnEnd && !holdingGunGripLeft && !holdingGunGripRight) {
                 currentAI = interactor.creature;
                 currentAIBrain = currentAI.brain.instance;
-                currentAIFirearm = currentAIBrain.GetModule<BrainModuleFirearm>();
-                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    aiGrabForegripTime = 0.5f;
+                currentAI.OnKillEvent += NPCDeathFire;
+            }
+        }
+
+        private void NPCDeathFire(CollisionInstance collisionInstance, EventTime eventTime) {
+            if (eventTime == EventTime.OnStart) {
+                if (currentAIBrain != null && currentAIBrain.isActive && Random.value <= GlobalSettings.BlasterNPCFireUponDeathChance) {
+                    AIFire(true);
                 }
+                if (currentAI) currentAI.OnKillEvent -= NPCDeathFire;
             }
         }
 
@@ -590,16 +592,15 @@ namespace TOR {
             if (interactor.playerHand == Player.local.handRight) holdingGunGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingGunGripLeft = false;
 
-            if (currentAI) {
-                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    currentAI.handLeft.TryRelease();
+            if (eventTime == EventTime.OnStart) {
+                if (currentAI) {
+                    currentAI.OnKillEvent -= NPCDeathFire;
+                    currentAI = null;
+                    currentAIBrain = null;
                 }
-                currentAI = null;
-                currentAIBrain = null;
-                currentAIFirearm = null;
+                ChargedFireStop();
+                SpinStop();
             }
-            ChargedFireStop();
-            SpinStop();
         }
 
         public void OnForeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
@@ -610,12 +611,6 @@ namespace TOR {
         public void OnForeGripUnGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
             if (interactor.playerHand == Player.local.handRight) holdingForeGripRight = false;
             else if (interactor.playerHand == Player.local.handLeft) holdingForeGripLeft = false;
-
-            if (currentAI && !currentAI.handLeft.grabbedHandle) {
-                if (aiOriginalWeaponHandling == ItemModuleAI.WeaponHandling.TwoHanded && foreGrip) {
-                    aiGrabForegripTime = 0.5f;
-                }
-            }
         }
 
         public void OnScopeGripGrabbed(RagdollHand interactor, Handle handle, EventTime eventTime) {
@@ -646,7 +641,17 @@ namespace TOR {
             telekinesis = teleGrabber;
         }
 
+        public int GetAIBurstAmount(bool uncontrolledFire = false) {
+            if (module.aiBurstAmounts?.Length > 0 && (!uncontrolledFire || (uncontrolledFire && module.fireModes.Contains(-1))))
+                return module.aiBurstAmounts[Random.Range(0, module.aiBurstAmounts.Length)];
+            return Mathf.Abs(module.fireModes.Max());
+        }
+
         public void OnAIFire() {
+            AIFire();
+        }
+
+        public void AIFire(bool uncontrolledFire = false) {
             if (module.fireDelay > 0) {
                 fireDelayTime = module.fireDelay;
                 isDelayingFire = true;
@@ -655,11 +660,11 @@ namespace TOR {
                 Utils.PlayParticleEffect(preFireEffect, module.preFireEffectDetachFromParent);
             } else if (module.spinTime > 0) {
                 if (GetSpinSpeed() >= module.spinSpeedMinToFire) {
-                    shotsLeftInBurst = aiBurstAmount;
+                    shotsLeftInBurst = GetAIBurstAmount(uncontrolledFire);
                     Fire();
                 }
             } else {
-                shotsLeftInBurst = aiBurstAmount;
+                shotsLeftInBurst = GetAIBurstAmount(uncontrolledFire);
                 Fire();
             }
         }
@@ -699,7 +704,7 @@ namespace TOR {
                 Utils.LogError("Couldn't retrieve ProjectileData/ItemData for " + item.name);
                 return;
             }
-            var activeDamager = GetActiveBoltDamagerData() ?? GetActiveProjectileData().damager;
+            var activeDamager = GetActiveProjectileData().damager ?? GetActiveBoltDamagerData();
 
             if (module.spinTime > 0) {
                 currentFirerate = module.gunRPM[currentFirerateIndex] * GetSpinSpeed();
@@ -707,6 +712,7 @@ namespace TOR {
 
             Transform[] spawns = module.multishot || (isChargedFire && module.chargeMultishot) ? bulletSpawns : new Transform[] { bulletSpawns[0] };
             List<Item> projectileClones = spawns.Length > 1 ? new List<Item>() : null;
+            bool usePooled = GlobalSettings.BlasterNPCUsePooledBolts || holdingGunGripLeft || holdingGunGripRight;
             foreach (var bulletSpawn in spawns) {
                 activeProjectileItemData.SpawnAsync(projectile => {
                     var boltData = projectile.gameObject.GetComponent<ItemBlasterBolt>();
@@ -734,7 +740,7 @@ namespace TOR {
                     catch { }
 
                     foreach (CollisionHandler collisionHandler in projectile.collisionHandlers) {
-                        collisionHandler.SetPhysicModifier(this, activeProjectileData.useGravity ? 1 : 0, 1f, activeProjectileData.drag);
+                        collisionHandler.SetPhysicModifier(this, gravityMultiplier: activeProjectileData.useGravity ? 1 : 0, massMultiplier: 1f, drag: activeProjectileData.drag);
 
                         if (activeDamager != null) {
                             foreach (Damager damager in collisionHandler.damagers) {
@@ -752,7 +758,7 @@ namespace TOR {
                     projectile.Throw(1f, Item.FlyDetection.Forced);
                     projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
                     boltData.trail?.Clear();
-                });
+                }, pooled: usePooled);
             }
 
             // Apply haptic feedback
@@ -762,7 +768,7 @@ namespace TOR {
             if (module.recoil) ApplyRecoil();
 
             if (module.magazineSize > 0) ammoLeft--;
-            if (module.overheatRate > 0) currentHeat += module.overheatRate;
+            if (module.overheatRate > 0) currentHeat += module.overheatRate * GlobalSettings.BlasterOverheatRate;
             if (module.handlingInstabilityRate > 0 && currentInstability < module.handlingInstabilityMax) {
                 var handlers = item.handlers.Count > 0 ? item.handlers.Count : 1;
                 var handlerRate = Mathf.Clamp(module.handlingInstabilityRate / (handlers * 0.8f), 1, float.MaxValue);
@@ -934,9 +940,11 @@ namespace TOR {
         }
 
         Vector3 CalculateInaccuracy(Vector3 initial, bool addCurrent = true) {
+            var instability = currentInstability;
+            if (currentAI) instability /= Mathf.Clamp(GlobalSettings.BlasterNPCAccuracy, 0.01f, float.MaxValue);
             var baseInaccuracy = addCurrent ? new Vector3(
-                        initial.x + Random.Range(-currentInstability, currentInstability),
-                        initial.y + Random.Range(-currentInstability, currentInstability),
+                        initial.x + Random.Range(-instability, instability),
+                        initial.y + Random.Range(-instability, instability),
                         initial.z) : initial;
             return baseInaccuracy;
         }
@@ -959,7 +967,7 @@ namespace TOR {
             if (fireTime > 0) fireTime -= Time.deltaTime;
             if (fireDelayTime > 0) fireDelayTime -= Time.deltaTime;
             if (reloadTime > 0) reloadTime -= Time.deltaTime;
-            if (currentHeat > 0) currentHeat -= Time.deltaTime;
+            if (currentHeat > 0) currentHeat -= Time.deltaTime * GlobalSettings.BlasterCoolingRate;
             if (currentInstability > module.handlingBaseAccuracy) {
                 currentInstability -= Time.deltaTime * (module.handlingStabilityMultiplier * module.handlingInstabilityRate);
                 if (item.handlers.Count == 0) currentInstability = module.handlingBaseAccuracy;
@@ -1072,16 +1080,6 @@ namespace TOR {
                 if (currentAI.brain.state == Brain.State.Combat || currentAI.brain.state == Brain.State.Alert || currentAI.brain.state == Brain.State.Grappled) {
                     if (!isSpinning) SpinStart();
                 } else SpinStop();
-            }
-
-            if (aiGrabForegripTime > 0) {
-                aiGrabForegripTime -= Time.deltaTime;
-                if (aiGrabForegripTime <= 0 && currentAI) {
-                    currentAI.handLeft.TryRelease();
-                    currentAI.handLeft.Grab(foreGrip);
-                    // currentAI.ragdoll.GetPart(RagdollPart.Type.RightHand).DisableCharJointLimit();
-                    // currentAI.ragdoll.GetPart(RagdollPart.Type.LeftHand).DisableCharJointLimit();
-                }
             }
         }
     }
