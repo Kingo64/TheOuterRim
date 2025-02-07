@@ -171,13 +171,13 @@ namespace TOR {
                     armedByPlayer = true;
                 } else armedByPlayer = false;
                 if (isArmed) {
-                    armedNoise = Utils.PlaySoundLoop(armedSound, null, item);
+                    armedNoise = Utils.PlaySoundLoop(armedSound, null, item, Utils.NoiseLevel.LOUD);
                     Utils.StopSoundLoop(idleSound, ref idleNoise);
                     beepTime = 1f;
                     obstacle.enabled = true;
                 } else {
                     Utils.StopSoundLoop(armedSound, ref armedNoise);
-                    idleNoise = Utils.PlaySoundLoop(idleSound, null, item);
+                    idleNoise = Utils.PlaySoundLoop(idleSound, null, item, Utils.NoiseLevel.LOUD);
                     beepTime = 0;
                     SetLights(new bool[] { false, false, false });
                     obstacle.enabled = false;
@@ -235,8 +235,8 @@ namespace TOR {
             var handler = item?.lastHandler?.creature;
             Utils.PlayParticleEffect(particles, true);
 
-            Utils.PlaySound(explosionSound, module.explosionSoundAsset, handler);
-            Utils.PlaySound(explosionSound2, module.explosionSoundAsset2, handler);
+            Utils.PlaySound(explosionSound, module.explosionSoundAsset, handler, Utils.NoiseLevel.VERY_LOUD);
+            Utils.PlaySound(explosionSound2, module.explosionSoundAsset2, handler, Utils.NoiseLevel.VERY_LOUD);
 
             item.Despawn(3f);
         }
@@ -246,7 +246,7 @@ namespace TOR {
             isOpen = !isOpen;
             animator.SetTrigger(isOpen ? "open" : "close");
             animator.ResetTrigger(isOpen ? "close" : "open");
-            if (isOpen) idleNoise = Utils.PlaySoundLoop(idleSound, null, item);
+            if (isOpen) idleNoise = Utils.PlaySoundLoop(idleSound, null, item, Utils.NoiseLevel.MODERATE);
             else {
                 Utils.StopSoundLoop(idleSound, ref idleNoise);
                 Utils.StopSoundLoop(armedSound, ref armedNoise);

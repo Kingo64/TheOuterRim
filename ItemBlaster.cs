@@ -756,7 +756,7 @@ namespace TOR {
                     var projectileBody = projectile.GetComponent<Rigidbody>();
                     projectileBody.mass /= GlobalSettings.BlasterBoltSpeed * (currentAI ? GlobalSettings.BlasterBoltSpeedNPC : 1f);
                     projectile.Throw(1f, Item.FlyDetection.Forced);
-                    projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce);
+                    projectileBody.AddForce(projectileBody.transform.forward * module.bulletForce / Time.timeScale);
                     boltData.trail?.Clear();
                 }, pooled: usePooled);
             }
@@ -789,14 +789,14 @@ namespace TOR {
             Utils.PlayParticleEffect(fireEffect, module.fireEffectDetachFromParent);
 
             if (altFireEnabled) {
-                Utils.PlaySoundOneShot(altFireSound, module.altFireSoundAsset, shooter);
+                Utils.PlaySoundOneShot(altFireSound, module.altFireSoundAsset, shooter, Utils.NoiseLevel.VERY_LOUD);
                 Utils.PlaySoundOneShot(altFireSound2, module.altFireSoundAsset2, shooter);
             } else if (isChargedFire) {
-                Utils.PlaySoundOneShot(chargeFireSound, module.chargeFireSoundAsset, shooter);
+                Utils.PlaySoundOneShot(chargeFireSound, module.chargeFireSoundAsset, shooter, Utils.NoiseLevel.VERY_LOUD);
                 Utils.PlaySoundOneShot(chargeFireSound2, module.chargeFireSoundAsset2, shooter);
                 Utils.PlaySoundOneShot(chargeFireSound3, module.chargeFireSoundAsset3, shooter);
             } else {
-                Utils.PlaySoundOneShot(fireSound, module.fireSoundAsset, shooter);
+                Utils.PlaySoundOneShot(fireSound, module.fireSoundAsset, shooter, Utils.NoiseLevel.VERY_LOUD);
                 Utils.PlaySoundOneShot(fireSound2, module.fireSoundAsset2, shooter);
                 Utils.PlaySoundOneShot(fireSound3, module.fireSoundAsset3, shooter);
             }
@@ -1060,8 +1060,8 @@ namespace TOR {
                 }
 
                 if (isSpinning) {
-                    if (spinLoopSound && !spinLoopSound.isPlaying) spinLoopNoise = Utils.PlaySoundLoop(spinLoopSound, module.spinLoopSoundAsset, item);
-                    if (spinLoopSound2 && !spinLoopSound2.isPlaying) spinLoopNoise2 = Utils.PlaySoundLoop(spinLoopSound2, module.spinLoopSoundAsset2, item);
+                    if (spinLoopSound && !spinLoopSound.isPlaying) spinLoopNoise = Utils.PlaySoundLoop(spinLoopSound, module.spinLoopSoundAsset, item, Utils.NoiseLevel.LOUD);
+                    if (spinLoopSound2 && !spinLoopSound2.isPlaying) spinLoopNoise2 = Utils.PlaySoundLoop(spinLoopSound2, module.spinLoopSoundAsset2, item, Utils.NoiseLevel.LOUD);
                     Utils.PlayHaptic(holdingGunGripLeft || holdingForeGripLeft, holdingGunGripRight || holdingForeGripRight, Utils.HapticIntensity.Minor);
                 }
 

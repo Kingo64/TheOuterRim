@@ -693,6 +693,8 @@ namespace TOR {
         public ParticleSystem unstableParticles;
         public WhooshPoint whooshBlade;
         public Collider collisionBlade;
+        public Damager damagerSlash;
+        public Damager damagerStab;
         public AudioContainer idleSound;
         public AudioContainer startSound;
         public AudioContainer stopSound;
@@ -758,13 +760,24 @@ namespace TOR {
                 saberBodyTrans = tempSaberBody.transform;
                 originalSaberBodyTransLocalScale = saberBodyTrans.localScale;
                 UpdateBladeThickness(GlobalSettings.SaberBladeThickness);
+
+                var damagers = saberBodyTrans.GetComponentsInChildren<Damager>();
+                foreach (var damager in damagers) {
+                    if (damager.penetrationLength > 0) {
+                        damagerSlash = damager;
+                    } else {
+                        damagerStab = damager;
+                    }
+                }
+
                 idleSoundSource = tempSaberBody.GetComponent<AudioSource>();
+
                 var tempUnstable = saberBodyTrans.Find("UnstableParticles");
                 if (tempUnstable) unstableParticles = tempUnstable.GetComponent<ParticleSystem>();
+
                 var trailTrans = saberBodyTrans.Find("Trail");
                 trail = trailTrans.gameObject.AddComponent<LightsaberTrail>();
                 trailMeshRenderer = trailTrans.gameObject.GetComponent<MeshRenderer>();
-
                 trailRescaleZ = saberBodyTrans.parent != parent.transform;
             }
             if (!string.IsNullOrEmpty(saberTipGlowRef)) saberTipGlow = parent.GetCustomReference(saberTipGlowRef).GetComponent<Light>();
@@ -834,7 +847,10 @@ namespace TOR {
 
         public void SetBladeLength(float length) {
             maxLength = length;
-            if (trail) trail.height = length * saberBodyTrans.parent.localScale.z;
+            var scaledLength = length * saberBodyTrans.parent.localScale.z;
+            damagerSlash.penetrationLength = scaledLength * 10;
+            damagerStab.penetrationDepth = scaledLength * 10;
+            if (trail) trail.height = scaledLength;
             CalculateUnstableParticleSize();
             extendDelta = maxLength / ignitionDuration;
         }
@@ -955,8 +971,8 @@ namespace TOR {
         public void TurnOn(bool playSound = true) {
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 isActive = true;
-                if (playSound) Utils.PlaySoundOneShot(startSoundSource, startSound, parent);
-                idleSoundNoise = Utils.PlaySoundLoop(idleSoundSource, idleSound, parent);
+                if (playSound) Utils.PlaySoundOneShot(startSoundSource, startSound, parent, Utils.NoiseLevel.LOUD);
+                idleSoundNoise = Utils.PlaySoundLoop(idleSoundSource, idleSound, parent, Utils.NoiseLevel.MODERATE);
                 SetComponentState(true);
             }
         }
@@ -964,7 +980,7 @@ namespace TOR {
         public void TurnOff(bool playSound = true) {
             if (!string.IsNullOrEmpty(kyberCrystal)) {
                 isActive = false;
-                if (playSound) Utils.PlaySoundOneShot(stopSoundSource, stopSound, parent);
+                if (playSound) Utils.PlaySoundOneShot(stopSoundSource, stopSound, parent, Utils.NoiseLevel.MODERATE);
             }
         }
 

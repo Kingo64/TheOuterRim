@@ -81,6 +81,16 @@ namespace TOR {
         [ModOption(name: "Automatic Reload", tooltip: "Automatically reload blaster when empty. (Default: True)", category = "Blasters", defaultValueIndex = 1)]
         public static bool BlasterAutomaticReload = true;
 
+        [ModOption(name: "Bolt Damage", tooltip: "Global blaster bolt damage multiplier. (Default: 1.0)", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float BlasterBoltDamage {
+            get => _blasterBoltDamage;
+            set {
+                _blasterBoltDamage = value;
+                Utils.ModifyDamageModifiers("Blaster", _blasterBoltDamage);
+            }
+        }
+        public static float _blasterBoltDamage = 1f;
+
         [ModOption(name: "Bolt Speed", tooltip: "Global blaster bolt speed multiplier. (Default: 1.0)", category = "Blasters", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
         public static float BlasterBoltSpeed = 1.0f;
 
@@ -184,6 +194,18 @@ namespace TOR {
 
         [ModOption(name: "Expensive Collisions Min Velocity", tooltip: "Minimum velocity (m/s) for lightsabers expensive collisions to enable. (Default: 8.0)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatQuarter), defaultValueIndex = 32)] // def: 8f
         public static float SaberExpensiveCollisionsMinVelocity = 8f;
+
+        [ModOption(name: "Lightsaber Damage", tooltip: "Global lightsaber blade damage multiplier. (Default: 1.0)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatDeci), defaultValueIndex = 10)]
+        public static float LightsaberDamage {
+            get => _lightsaberDamage;
+            set {
+                _lightsaberDamage = value;
+                Utils.ModifyDamageModifiers("LightsaberBlunt", _lightsaberDamage);
+                Utils.ModifyDamageModifiers("LightsaberPierce", _lightsaberDamage);
+                Utils.ModifyDamageModifiers("LightsaberSlash", _lightsaberDamage);
+            }
+        }
+        public static float _lightsaberDamage = 1f;
 
         [ModOption(name: "Saber Throwing", tooltip: "Lightsabers are able to be thrown and recalled. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
         public static bool SaberThrowable = true;

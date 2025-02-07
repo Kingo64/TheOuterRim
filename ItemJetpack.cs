@@ -140,8 +140,8 @@ namespace TOR {
         }
 
         public void TurnOn() {
-            idleNoiseLeft = Utils.PlaySoundLoop(idleSoundLeft, module.idleSoundLeftAsset, item);
-            idleNoiseRight = Utils.PlaySoundLoop(idleSoundRight, module.idleSoundRightAsset, item);
+            idleNoiseLeft = Utils.PlaySoundLoop(idleSoundLeft, module.idleSoundLeftAsset, item, Utils.NoiseLevel.LOUD);
+            idleNoiseRight = Utils.PlaySoundLoop(idleSoundRight, module.idleSoundRightAsset, item, Utils.NoiseLevel.LOUD);
             Utils.PlaySound(startSound, module.startSoundAsset, item);
             stopSound.Stop();
 
@@ -217,8 +217,6 @@ namespace TOR {
                     var sparkVelocity = Mathf.Lerp(0.4f, 1.0f, throttleAmount);
                     idleSoundLeft.volume = volume;
                     idleSoundRight.volume = volume;
-                    idleNoiseLeft?.UpdateVolume(volume);
-                    idleNoiseRight?.UpdateVolume(volume);
                     idleSoundLeft.pitch = pitch;
                     idleSoundRight.pitch = pitch;
                     sparksVelocityLeft.speedModifierMultiplier = sparkVelocity;

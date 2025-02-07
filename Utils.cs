@@ -56,6 +56,21 @@ namespace TOR {
             Debug.LogWarning(LogPrefix + message.ToString());
         }
 
+        public static Dictionary<string, DamageModifierData> originalDamageModifiers = new Dictionary<string, DamageModifierData>();
+        public static void ModifyDamageModifiers(string name, float multiplier) {
+            var damageModifier = Catalog.GetData<DamageModifierData>(name, true);
+            if (!originalDamageModifiers.ContainsKey(name)) {
+                originalDamageModifiers[name] = damageModifier.CloneJson();
+            }
+            damageModifier.collisions = originalDamageModifiers[name].CloneJson().collisions;
+            foreach (var collision in damageModifier.collisions) {
+                foreach (var modifier in collision.modifiers) {
+                    modifier.damageMultiplier *= multiplier;
+                }
+            }
+            damageModifier.OnCatalogRefresh();
+        }
+
         public static class HapticIntensity {
             public const float Minor = 0.3f;
             public const float Moderate = 0.6f;
@@ -97,40 +112,42 @@ namespace TOR {
             }
         }
 
-        public static void PlaySound(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
+        public static void PlaySound(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null, float volume = 0) {
             if (source) {
                 if (audioContainer != null) source.clip = audioContainer.PickAudioClip();
                 source.Play();
-                NoiseManager.AddNoise(source.transform.position, source.volume, sourceCreature);
+                NoiseManager.AddNoise(source.transform.position, volume > 0 ? volume : source.volume, sourceCreature);
             }
         }
 
-        public static void PlaySound(AudioSource source, AudioContainer audioContainer, Item item = null) {
-            PlaySound(source, audioContainer, item?.lastHandler?.creature);
+        public static void PlaySound(AudioSource source, AudioContainer audioContainer, Item item = null, float volume = 0) {
+            PlaySound(source, audioContainer, item?.lastHandler?.creature, volume);
         }
 
-        public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
+        public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null, float volume = 0) {
             if (source) {
                 if (audioContainer != null) source.clip = audioContainer.PickAudioClip();
                 source.Play();
-                return NoiseManager.AddLoopNoise(source, sourceCreature);
+                var noise = NoiseManager.AddLoopNoise(source, sourceCreature);
+                if (noise != null && volume > 0) noise.UpdateVolume(volume);
+                return noise;
             }
             return null;
         }
 
-        public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Item item = null) {
-            return PlaySoundLoop(source, audioContainer, item?.lastHandler?.creature);
+        public static NoiseManager.Noise PlaySoundLoop(AudioSource source, AudioContainer audioContainer = null, Item item = null, float volume = 0) {
+            return PlaySoundLoop(source, audioContainer, item?.lastHandler?.creature, volume);
         }
 
-        public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null) {
+        public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer = null, Creature sourceCreature = null, float volume = 0) {
             if (source) {
                 source.PlayOneShot(audioContainer ? audioContainer.PickAudioClip() : source.clip);
-                NoiseManager.AddNoise(source.transform.position, source.volume, sourceCreature);
+                NoiseManager.AddNoise(source.transform.position, volume > 0 ? volume : source.volume, sourceCreature);
             }
         }
 
-        public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer, Item item = null) {
-            PlaySoundOneShot(source, audioContainer, item?.lastHandler?.creature);
+        public static void PlaySoundOneShot(AudioSource source, AudioContainer audioContainer, Item item = null, float volume = 0) {
+            PlaySoundOneShot(source, audioContainer, item?.lastHandler?.creature, volume);
         }
 
         public static void StopSoundLoop(AudioSource source, ref NoiseManager.Noise noise) {
@@ -139,6 +156,12 @@ namespace TOR {
                 NoiseManager.RemoveLoopNoise(source);
                 noise = null;
             }
+        }
+
+        public static class NoiseLevel {
+            public const float MODERATE = 0.8f;
+            public const float LOUD = 1f;
+            public const float VERY_LOUD = 2f;
         }
 
         public static void ReleaseAsset<T>(T asset) where T : Object {

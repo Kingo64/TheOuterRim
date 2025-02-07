@@ -33,7 +33,7 @@ namespace TOR {
         }
 
         public void PlayTaunt(AudioContainer audioContainer) {
-            Utils.PlaySound(tauntSource, audioContainer, item);
+            Utils.PlaySound(tauntSource, audioContainer, item, Utils.NoiseLevel.VERY_LOUD);
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
