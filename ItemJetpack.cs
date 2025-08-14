@@ -38,6 +38,7 @@ namespace TOR {
         ParticleSystem thrusterRight;
         ParticleSystem.VelocityOverLifetimeModule sparksVelocityLeft;
         ParticleSystem.VelocityOverLifetimeModule sparksVelocityRight;
+        bool useSmokeParticles;
 
         float originalAirSpeed;
 
@@ -53,6 +54,7 @@ namespace TOR {
             stopSound = item.GetCustomReference("stopSound").GetComponent<AudioSource>();
             thrusterLeft = item.GetCustomReference("thrusterLeft").GetComponent<ParticleSystem>();
             thrusterRight = item.GetCustomReference("thrusterRight").GetComponent<ParticleSystem>();
+            useSmokeParticles = GlobalSettings.JetpackSmokeParticles;
 
             sparksVelocityLeft = thrusterLeft.transform.Find("Sparks").GetComponent<ParticleSystem>().velocityOverLifetime;
             sparksVelocityRight = thrusterRight.transform.Find("Sparks").GetComponent<ParticleSystem>().velocityOverLifetime;
@@ -185,6 +187,7 @@ namespace TOR {
                 ApplyThrust(currentThrust);
                 currentThrust = 0;
             }
+            UpdateSettings();
         }
 
         protected override void ManagedUpdate() {
@@ -225,6 +228,16 @@ namespace TOR {
                 }
             }
             if (groundIgnoreTime > 0) groundIgnoreTime -= Time.deltaTime;
+        }
+
+        void UpdateSettings() {
+            if (useSmokeParticles != GlobalSettings.JetpackSmokeParticles) {
+                var emission = thrusterLeft.emission;
+                emission.enabled = GlobalSettings.JetpackSmokeParticles;
+                emission = thrusterRight.emission;
+                emission.enabled = GlobalSettings.JetpackSmokeParticles;
+                useSmokeParticles = GlobalSettings.JetpackSmokeParticles;
+            }
         }
 
         static float GetVectorIntensity(Vector2 vector) {

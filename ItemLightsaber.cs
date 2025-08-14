@@ -84,7 +84,7 @@ namespace TOR {
                 couplerTrans = item.GetCustomReference("CouplerHolder");
 
                 if (saveData != null && saveData.coupledLightsaber != null) {
-                    Catalog.GetData<ItemData>(saveData.coupledLightsaber.itemId, true).SpawnAsync((Item item) => {
+                    Catalog.GetData<ItemData>(saveData.coupledLightsaber.itemId, true).SpawnAsync(item => {
                         Couple(item);
                         var coupledKyberCrystals = saveData.coupledLightsaber.saveData.kyberCrystals;
                         for (int i = 0, l = coupledKyberCrystals.Count(); i < l; i++) {
@@ -824,7 +824,7 @@ namespace TOR {
                     saberParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear); // destroy leftover beam particles
                 }
             }
-            if (unstableParticles) {
+            if (unstableParticles && GlobalSettings.UnstableBladeParticles) {
                 if (state && isUnstable) {
                     unstableParticles.gameObject.SetActive(true);
                     unstableParticles.Play();
@@ -861,8 +861,6 @@ namespace TOR {
 
         public void CalculateUnstableParticleSize() {
             if (unstableParticles) {
-                var main = unstableParticles.main;
-                main.startLifetimeMultiplier = 33.333f * maxLength * saberBodyTrans.parent.localScale.z;
                 var shape = unstableParticles.GetComponentInChildren<ParticleSystem>().shape;
                 shape.scale = new Vector3(shape.scale.x, maxLength, shape.scale.y);
             }
@@ -872,7 +870,7 @@ namespace TOR {
             if (!string.IsNullOrEmpty(kyberCrystalId)) {
                 var kyberCrystalData = Catalog.GetData<ItemData>(kyberCrystalId, true);
                 if (kyberCrystalData == null) return;
-                kyberCrystalData.SpawnAsync((Item item) => {
+                kyberCrystalData.SpawnAsync(item => {
                     AddCrystal(item.GetComponent<ItemKyberCrystal>());
                 });  
             }
@@ -880,6 +878,8 @@ namespace TOR {
 
         public void AddCrystal(ItemKyberCrystal kyberCrystalObject) {
             if (!saberBody) return;
+            isUnstable = kyberCrystalObject.module.isUnstable;
+
             saberBodyMaterialInstance.material.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
             saberBodyMaterialInstance.material.SetColor("_Color", kyberCrystalObject.coreColour);
             saberBodyMaterialInstance.material.SetFloat("_InnerGlow", kyberCrystalObject.module.innerGlow);
@@ -889,6 +889,7 @@ namespace TOR {
             saberBodyMaterialInstance.material.SetFloat("_Flicker", kyberCrystalObject.module.flicker);
             saberBodyMaterialInstance.material.SetFloat("_FlickerSpeed", kyberCrystalObject.module.flickerSpeed);
             saberBodyMaterialInstance.material.SetFloatArray("_FlickerScale", kyberCrystalObject.module.flickerScale);
+            if (isUnstable) saberBodyMaterialInstance.material.EnableKeyword("_UNSTABLE_BLADE"); else saberBodyMaterialInstance.material.DisableKeyword("_UNSTABLE_BLADE");
 
             if (trailMeshRenderer) {
                 trailMaterialInstance.material.SetColor("_GlowColor", kyberCrystalObject.bladeColour);
@@ -918,8 +919,6 @@ namespace TOR {
                 saberTipGlow.intensity = kyberCrystalObject.module.glowIntensity * glowIntensity;
                 saberTipGlow.range = kyberCrystalObject.module.glowRange;
             }
-
-            isUnstable = kyberCrystalObject.module.isUnstable;
 
             if (idleSoundSource) {
                 idleSound = kyberCrystalObject.module.idleSoundAsset;
@@ -1158,7 +1157,7 @@ namespace TOR {
             if (creature.brain.instance.id == "ForceSensitive") {
                 if (creature.animator) {
                     originalSpeed = creature.animator.speed;
-                    creature.animator.speed = originalSpeed * GlobalSettings.SaberNPCAttackSpeed;
+                    creature.animator.speed = originalSpeed * Mathf.Clamp(GlobalSettings.SaberNPCAttackSpeed, 0.1f, 10f);
                 }
             }
             creature.OnKillEvent += OnKillEvent;

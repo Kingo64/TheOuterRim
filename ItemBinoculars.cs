@@ -89,7 +89,6 @@ namespace TOR {
                 module.scopeResolution != null ? module.scopeResolution[1] : GlobalSettings.BlasterScopeResolution,
                 module.scopeDepth, RenderTextureFormat.DefaultHDR);
             scopeMaterial.material.SetTexture("_RenderTexture", renderTexture);
-            if (GlobalSettings.BlasterScope3D) scopeMaterial.material.EnableKeyword("_3D_SCOPE"); else scopeMaterial.material.DisableKeyword("_3D_SCOPE");
         }
 
         void SetScopeRender(MaterialInstance scopeMaterial, Camera scopeCamera, bool state, ref RenderTexture renderTexture) {

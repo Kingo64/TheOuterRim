@@ -387,8 +387,7 @@ namespace TOR {
                 scopeMaterialInstance.material.SetFloat("_EdgeWarp", module.scopeEdgeWarp);
 
                 UpdateScopeReticleColour();
-                if (GlobalSettings.BlasterScope3D) scopeMaterialInstance.material.EnableKeyword("_3D_SCOPE"); else scopeMaterialInstance.material.DisableKeyword("_3D_SCOPE");
-                if (GlobalSettings.BlasterScopeReticles) scopeMaterialInstance.material.EnableKeyword("_USE_RETICLE"); else scopeMaterialInstance.material.DisableKeyword("_USE_RETICLE");
+                if (GlobalSettings.BlasterScopeReticles) scopeMaterialInstance.material.SetInt("_USE_RETICLE", 1); else scopeMaterialInstance.material.SetInt("_USE_RETICLE", 0);
             }
         }
 

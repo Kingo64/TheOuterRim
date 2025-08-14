@@ -109,8 +109,6 @@ namespace TOR {
         [ModOption(name: "Require Manual Refill", tooltip: "Can only reload via a manual power cell refill. (Default: False)", category = "Blasters", defaultValueIndex = 0)]
         public static bool BlasterRequireRefill = false;
 
-        public static bool BlasterScope3D = true;
-
         [ModOption(name: "Scope Resolution", tooltip: "Resolution of scope render in pixels. (Default: 512x512)", category = "Blasters", valueSourceName = nameof(OptionsResolution), defaultValueIndex = 3)]
         public static int BlasterScopeResolution {
             get => _blasterScopeResolution;
@@ -128,7 +126,7 @@ namespace TOR {
                 _blasterScopeReticles = value;
                 ItemBlaster.all.ForEach(blaster => {
                     if (blaster.scope != null) {
-                        if (value) blaster.scopeMaterialInstance.material.EnableKeyword("_USE_RETICLE"); else blaster.scopeMaterialInstance.material.DisableKeyword("_USE_RETICLE");
+                        if (value) blaster.scopeMaterialInstance.material.SetInt("_USE_RETICLE", 1); else blaster.scopeMaterialInstance.material.SetInt("_USE_RETICLE", 0);
                     }
                 });
             }
@@ -141,6 +139,9 @@ namespace TOR {
 
         [ModOption(name: "Jetpack activates with Jump button only", tooltip: "Prevents pushing the aiming joystick Up from activating the jetpacks. Instead can only be activated with the Jump button when in the air. (Default: False)", category = "General", defaultValueIndex = 0)]
         public static bool JetpackJumpButtonOnly = false;
+
+        [ModOption(name: "Jetpack smoke particles", tooltip: "Enable smoke particle effects for jetpacks. Disable for improved GPU/CPU performance. (Default: True)", category = "General", defaultValueIndex = 1)]
+        public static bool JetpackSmokeParticles = true;
 
         [ModOption(name: "TOR Soundtrack", tooltip: "Use the TOR non-dynamic soundtrack instead of vanilla dynamic music on TOR levels. Requires a reloading level to apply. (Default: True)", category = "General", defaultValueIndex = 1)]
         public static bool TORSoundtrack = true;
@@ -218,6 +219,9 @@ namespace TOR {
 
         [ModOption(name: "Trail Duration", tooltip: "Time in seconds (s) a lightsaber trail will be visible. (Default: 0.04s)", category = "Lightsabers", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 4)]
         public static float SaberTrailDuration = 0.04f;
+
+        [ModOption(name: "Unstable Blade Particles", tooltip: "Enable particle effects for unstable lightsaber blades. Disable for improved CPU performance. (Default: True)", category = "Lightsabers", defaultValueIndex = 1)]
+        public static bool UnstableBladeParticles = true;
 
         [ModOption(name: "Length Adjust Increment", tooltip: "Amount of length to adjust on a lightsaber blade per use. (Default: 0.05m)", category = "Lightsaber Tool", valueSourceName = nameof(OptionsFloatCenti), defaultValueIndex = 5)]
         public static float LightsaberToolAdjustIncrement = 0.05f;
