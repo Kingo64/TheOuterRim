@@ -17,9 +17,17 @@ namespace TOR {
         public string explosionSound2;
         public AudioContainer explosionSoundAsset2;
 
+        public string decalEffectID;
+        public EffectData decalEffect;
+
         public override void OnItemLoaded(Item item) {
             base.OnItemLoaded(item);
             item.OnSpawnEvent += AddCustomModules;
+        }
+
+        public override void OnItemDataRefresh(ItemData data) {
+            base.OnItemDataRefresh(data);
+            if (!string.IsNullOrEmpty(decalEffectID)) decalEffect = Catalog.GetData<EffectData>(decalEffectID, true);
         }
 
         public void AddCustomModules(EventTime eventTime) {

@@ -12,6 +12,7 @@ namespace TOR {
 
         protected Item item;
         protected ItemModuleThermalDetonator module;
+        Transform meshObj;
         Renderer renderer;
         Animator animator;
         ParticleSystem particles;
@@ -61,6 +62,10 @@ namespace TOR {
             { RagdollPart.Type.RightLeg, 0.8f }
         };
 
+        static readonly int toHitMask = (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 24) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 31);
+        static readonly int raycastIgnoreMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
+        static readonly int creatureMask = ~((1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
+
         protected void Awake() {
             item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleThermalDetonator>();
@@ -70,6 +75,7 @@ namespace TOR {
             item.OnUngrabEvent += OnUngrabEvent;
             item.OnTelekinesisGrabEvent += OnTelekinesisGrabEvent;
             item.OnTelekinesisReleaseEvent += OnTelekinesisReleaseEvent;
+            item.OnCullEvent += OnCullEvent;
 
             animator = item.GetCustomReference("Animator").GetComponent<Animator>();
             armedSound = item.GetCustomReference("ArmedSound").GetComponent<AudioSource>();
@@ -80,12 +86,22 @@ namespace TOR {
             explosionSound = item.GetCustomReference("ExplosionSound").GetComponent<AudioSource>();
             explosionSound2 = item.GetCustomReference("ExplosionSound2").GetComponent<AudioSource>();
             particles = item.GetCustomReference("Explosion").GetComponent<ParticleSystem>();
-            renderer = item.GetCustomReference("Mesh").GetComponent<MeshRenderer>();
+            meshObj = item.GetCustomReference("Mesh");
+            renderer = meshObj.GetComponent<MeshRenderer>();
 
             obstacle = GetComponent<NavMeshObstacle>();
             obstacle.radius = GlobalSettings.ThermalDetonatorRange * module.radius;
+        }
 
-            item.OnCullEvent += OnCullEvent;
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+                item.OnTelekinesisGrabEvent -= OnTelekinesisGrabEvent;
+                item.OnTelekinesisReleaseEvent -= OnTelekinesisReleaseEvent;
+                item.OnCullEvent -= OnCullEvent;
+            }
         }
 
         private void OnCullEvent(bool culled) {
@@ -97,7 +113,10 @@ namespace TOR {
                 if (!isOpen) ToggleSlider(interactor);
                 if (!isArmed) Arm(interactor);
             }
-            if (isArmed && ((armedByPlayer && interactor.playerHand) || (!armedByPlayer && !interactor.playerHand))) detonateTime = 0;
+            if (isArmed && ((armedByPlayer && interactor.playerHand) || (!armedByPlayer && !interactor.playerHand))) {
+                detonateTime = 0;
+                obstacle.enabled = false;
+            }
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
@@ -110,6 +129,7 @@ namespace TOR {
             }
             if (isArmed) {
                 detonateTime = module.detonateTime;
+                obstacle.enabled = true;
                 if (item.currentArea != null) {
                     item.currentArea.SpawnedArea.UnRegisterItem(item);
                     item.currentArea = null;
@@ -174,7 +194,6 @@ namespace TOR {
                     armedNoise = Utils.PlaySoundLoop(armedSound, null, item, Utils.NoiseLevel.LOUD);
                     Utils.StopSoundLoop(idleSound, ref idleNoise);
                     beepTime = 1f;
-                    obstacle.enabled = true;
                 } else {
                     Utils.StopSoundLoop(armedSound, ref armedNoise);
                     idleNoise = Utils.PlaySoundLoop(idleSound, null, item, Utils.NoiseLevel.LOUD);
@@ -185,28 +204,63 @@ namespace TOR {
             }
         }
 
+
         public void Detonate() {
             var pos = transform.position;
-            List<Creature> hitCreatures = new List<Creature>();
-            var toHitMask = (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 24) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 31);
-            var raycastIgnoreMask = ~((1 << 10) | (1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
-            var creatureMask = ~((1 << 13) | (1 << 26) | (1 << 27) | (1 << 31));
+            var hitCreatures = new HashSet<Creature>();
 
             Utils.StopSoundLoop(armedSound, ref armedNoise);
             beepTime = 0;
 
-            renderer.enabled = false;
+            meshObj.gameObject.SetActive(false);
             item.physicBody.rigidBody.isKinematic = true;
+            foreach (var cg in item.colliderGroups) cg.enabled = false;
 
             var radius = module.radius * GlobalSettings.ThermalDetonatorRange;
             var colliders = Physics.OverlapSphere(pos, radius, toHitMask, QueryTriggerInteraction.Ignore);
+
+            Vector3[] omniDir = {
+                Vector3.up,
+                Vector3.down,
+                Vector3.left,
+                Vector3.right,
+                Vector3.forward,
+                Vector3.back,
+                (Vector3.up + Vector3.forward).normalized,
+                (Vector3.up + Vector3.back).normalized,
+                (Vector3.down + Vector3.forward).normalized,
+                (Vector3.down + Vector3.back).normalized
+            };
+
+            RaycastHit closestWorldHit = default;
+            var closestWorldDist = float.MaxValue;
+            var foundWorldHit = false;
+
+            foreach (var dir in omniDir) {
+                if (Physics.Raycast(pos, dir, out RaycastHit hit, radius, raycastIgnoreMask, QueryTriggerInteraction.Ignore)) {
+                    if (hit.distance < closestWorldDist) {
+                        closestWorldDist = hit.distance;
+                        closestWorldHit = hit;
+                        foundWorldHit = true;
+                    }
+                }
+            }
+
+            if (foundWorldHit) {
+                float intensity = 1f - Mathf.Clamp01(closestWorldDist / (radius * 0.3f));
+                SpawnDecal(closestWorldHit, intensity);
+            }
+
             foreach (var hit in colliders) {
-                var distance = Vector3.Distance(hit.transform.position, pos);
+                var hitPos = hit.transform.position;
+                var distance = Vector3.Distance(hitPos, pos);
                 var multiplier = (radius - distance) / radius;
-                var rb = hit.GetComponent<Rigidbody>() ?? hit.GetComponentInParent<Rigidbody>();
-                if (rb && (distance < 0.3 || !Physics.Linecast(pos, hit.transform.position, raycastIgnoreMask, QueryTriggerInteraction.Ignore))) {
+
+                if (!hit.TryGetComponent(out Rigidbody rb)) rb = hit.GetComponentInParent<Rigidbody>();
+                var creature = hit.transform.GetComponentInParent<Creature>();
+                if (rb && (distance < 0.3f || !Physics.Linecast(pos, hitPos, raycastIgnoreMask, QueryTriggerInteraction.Ignore))) {
                     rb.AddExplosionForce(module.impuse * multiplier, pos, radius, 1.0f);
-                    var creature = hit.transform.GetComponentInParent<Creature>();
+
                     if (creature) {
                         if (creature != Player.currentCreature) {
                             var rp = hit.GetComponent<RagdollPart>() ?? hit.GetComponentInParent<RagdollPart>();
@@ -217,7 +271,8 @@ namespace TOR {
                                 catch { }
                             }
                         }
-                        if (!hitCreatures.Contains(creature) && !Physics.Linecast(pos, hit.transform.position, creatureMask, QueryTriggerInteraction.Ignore)) {
+
+                        if (!hitCreatures.Contains(creature) && !Physics.Linecast(pos, hitPos, creatureMask, QueryTriggerInteraction.Ignore)) {
                             hitCreatures.Add(creature);
                             var damage = new CollisionInstance(new DamageStruct(DamageType.Energy, module.damage), null, null);
                             damage.damageStruct.damage = module.damage * GlobalSettings.ThermalDetonatorDamage * multiplier;
@@ -232,13 +287,30 @@ namespace TOR {
                 }
             }
 
-            var handler = item?.lastHandler?.creature;
             Utils.PlayParticleEffect(particles, true);
 
+            var handler = item?.lastHandler?.creature;
             Utils.PlaySound(explosionSound, module.explosionSoundAsset, handler, Utils.NoiseLevel.VERY_LOUD);
             Utils.PlaySound(explosionSound2, module.explosionSoundAsset2, handler, Utils.NoiseLevel.VERY_LOUD);
 
             item.Despawn(3f);
+        }
+
+        public void SpawnDecal(RaycastHit hit, float intensity) {
+            if (module.decalEffect == null) return;
+            var instance = module.decalEffect.Spawn(
+                position: hit.point,
+                rotation: Quaternion.LookRotation(hit.normal) * Quaternion.Euler(0, 0, UnityEngine.Random.Range(0f, 360f)),
+                parent: hit.collider.transform,
+                collisionInstance: null,
+                pooled: true,
+                colliderGroup: null,
+                fromPlayer: false,
+                intensity: intensity,
+                speed: 1f
+            );
+            instance.SetSize(intensity);
+            instance.Play();
         }
 
         public void ToggleSlider(RagdollHand interactor = null) {

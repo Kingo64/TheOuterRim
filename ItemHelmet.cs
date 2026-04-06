@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using ThunderRoad;
-using System.Linq;
 
 namespace TOR {
     public class ItemHelmet : ThunderBehaviour {
@@ -38,6 +37,14 @@ namespace TOR {
             if (!string.IsNullOrEmpty(module.secondaryModelID)) secondaryModel = item.GetCustomReference(module.secondaryModelID).GetComponentsInChildren<MeshRenderer>();
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnHeldActionEvent -= OnHeldAction;
+            }
+
+            if (toggleSound && toggleSound.isPlaying) Utils.StopSoundLoop(toggleSound, ref toggleNoise);
+        }
+
         public void ExecuteAction(string action, RagdollHand interactor = null) {
             if (action == "playSound") {
                 Utils.PlaySound(playSound, null, item);
@@ -54,8 +61,15 @@ namespace TOR {
         public void CycleModels(RagdollHand interactor = null) {
             modelState++;
             if (modelState > 2) modelState = 0;
-            primaryModel.ToList().ForEach(m => m.enabled = (modelState == 0 || modelState == 1));
-            secondaryModel.ToList().ForEach(m => m.enabled = (modelState == 0 || modelState == 2));
+
+            if (primaryModel != null) {
+                foreach (var m in primaryModel) m.enabled = (modelState == 0 || modelState == 1);
+            }
+
+            if (secondaryModel != null) {
+                foreach (var m in secondaryModel) m.enabled = (modelState == 0 || modelState == 2);
+            }
+
             Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }
 
@@ -69,13 +83,17 @@ namespace TOR {
             if (lightSound) Utils.PlaySound(lightSound, null, item);
             if (light1) {
                 light1.enabled = !light1.enabled;
-                if (light1.enabled) light1Sprite.Play();
-                else light1Sprite.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                if (light1Sprite) {
+                    if (light1.enabled) light1Sprite.Play();
+                    else light1Sprite.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
             }
             if (light2) {
                 light2.enabled = !light2.enabled;
-                if (light2.enabled) light2Sprite.Play();
-                else light2Sprite.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                if (light2Sprite) {
+                    if (light2.enabled) light2Sprite.Play();
+                    else light2Sprite.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
             }
             Utils.PlayHaptic(interactor, Utils.HapticIntensity.Minor);
         }

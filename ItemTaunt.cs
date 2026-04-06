@@ -24,6 +24,14 @@ namespace TOR {
             if (grip == null) grip = item.mainHandleRight;
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+            }
+        }
+
         public void ExecuteAction(string action) {
             if (action == "playTaunt") {
                 PlayTaunt(module.tauntAsset);
@@ -37,12 +45,12 @@ namespace TOR {
         }
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
-            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value <= module.aiTauntChance)
+            if (!interactor.playerHand && Random.value <= module.aiTauntChance)
                 PlayTaunt(module.tauntAsset);
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool thrown) {
-            if (interactor.playerHand != Player.local.handRight && interactor.playerHand != Player.local.handLeft && Random.value <= module.aiTauntChance)
+            if (!interactor.playerHand && Random.value <= module.aiTauntChance)
                 PlayTaunt(module.tauntDropAsset);
         }
 

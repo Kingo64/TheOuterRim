@@ -21,7 +21,6 @@ namespace TOR {
             if (!moesGreen) {
                 moesGreen = new Texture2D(1, 1);
                 moesGreen.SetPixel(0, 0, Color.green);
-                moesGreen.Reinitialize(1, 1);
                 moesGreen.Apply();
             }
         }

@@ -132,6 +132,15 @@ namespace TOR {
             if (GlobalSettings.LightsaberColliders != null && GlobalSettings.LightsaberColliders.ContainsKey(GetInstanceID())) {
                 GlobalSettings.LightsaberColliders.Remove(GetInstanceID());
             }
+            if (item != null) {
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+                item.OnTelekinesisGrabEvent -= OnTeleGrabEvent;
+                item.OnTelekinesisReleaseEvent -= OnTeleUngrabEvent;
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnSnapEvent -= OnSnapEvent;
+                item.OnUnSnapEvent -= OnUnSnapEvent;
+            }
         }
 
         public ItemLightsaberSaveData UpdateCustomData() {
@@ -1035,7 +1044,6 @@ namespace TOR {
             public override ManagedLoops EnabledManagedLoops => ManagedLoops.FixedUpdate;
 
             public float height = 0.9f;
-            public float time;
             public float timeTransitionSpeed = 5f;
             public Color startColor = Color.white;
             public Color endColor = new Color(1, 1, 1, 0);
@@ -1046,48 +1054,54 @@ namespace TOR {
             TronTrailSection currentSection;
             Matrix4x4 localSpaceTransform;
 
-            Transform trans;
             Mesh mesh;
             Vector3[] vertices;
             Color[] colors;
             Vector2[] uv;
+            int[] triangles;
+            int maxSections = 128;
 
             public List<TronTrailSection> sections = new List<TronTrailSection>();
 
             protected void Awake() {
-                MeshFilter meshF = GetComponent<MeshFilter>();
-                mesh = meshF.mesh;
-                trans = transform;
+                mesh = GetComponent<MeshFilter>().mesh;
+
+                vertices = new Vector3[maxSections * 2];
+                colors = new Color[maxSections * 2];
+                uv = new Vector2[maxSections * 2];
+                triangles = new int[(maxSections - 1) * 2 * 3];
             }
 
             protected override void ManagedFixedUpdate() {
                 if (GlobalSettings.SaberTrailEnabled) {
                     Iterate(Time.time);
-                    UpdateTrail(Time.time, Time.deltaTime);
+                    UpdateTrail(Time.time);
                 } else {
                     mesh.Clear();
                     sections.Clear();
                 }
             }
 
-            public void Iterate(float itterateTime) { // ** call everytime you sample animation **
-                position = trans.position;
-                now = itterateTime;
+            public void Iterate(float iterateTime) { // ** call everytime you sample animation **
+                position = transform.position;
+                now = iterateTime;
 
-                var velocity = (lastRotation - trans.rotation.eulerAngles).sqrMagnitude;
-                lastRotation = trans.rotation.eulerAngles;
+                var velocity = (lastRotation - transform.rotation.eulerAngles).sqrMagnitude;
+                lastRotation = transform.rotation.eulerAngles;
 
                 if (sections.Count == 0 || velocity > 0) {
-                    TronTrailSection section = new TronTrailSection {
-                        point = position,
-                        upDir = trans.TransformDirection(Vector3.up),
-                        time = now
-                    };
-                    sections.Insert(0, section);
+                    if (sections.Count < maxSections) {
+                        TronTrailSection section = new TronTrailSection {
+                            point = position,
+                            upDir = transform.TransformDirection(Vector3.up),
+                            time = now
+                        };
+                        sections.Insert(0, section);
+                    }
                 }
             }
 
-            public void UpdateTrail(float currentTime, float deltaTime) {
+            public void UpdateTrail(float currentTime) {
                 mesh.Clear();
 
                 while (sections.Count > 0 && currentTime > sections[sections.Count - 1].time + GlobalSettings.SaberTrailDuration) {
@@ -1096,12 +1110,12 @@ namespace TOR {
 
                 if (sections.Count < 2) return;
 
-                vertices = new Vector3[sections.Count * 2];
-                colors = new Color[sections.Count * 2];
-                uv = new Vector2[sections.Count * 2];
+                int vertCount = sections.Count * 2;
+                int triCount = (sections.Count - 1) * 6;
+                if (vertCount > vertices.Length) return; // Stop rendering if we exceed the array length
 
                 currentSection = sections[0];
-                localSpaceTransform = trans.worldToLocalMatrix;
+                localSpaceTransform = transform.worldToLocalMatrix;
 
                 for (var i = 0; i < sections.Count; i++) {
                     currentSection = sections[i];
@@ -1121,8 +1135,7 @@ namespace TOR {
                     colors[i * 2 + 1] = interpolatedColor;
                 }
 
-                int[] triangles = new int[(sections.Count - 1) * 2 * 3];
-                for (int i = 0; i < triangles.Length / 6; i++) {
+                for (int i = 0; i < sections.Count - 1; i++) {
                     triangles[i * 6 + 0] = i * 2;
                     triangles[i * 6 + 1] = i * 2 + 1;
                     triangles[i * 6 + 2] = i * 2 + 2;
@@ -1132,18 +1145,10 @@ namespace TOR {
                     triangles[i * 6 + 5] = i * 2 + 3;
                 }
 
-                mesh.vertices = vertices;
-                mesh.colors = colors;
-                mesh.uv = uv;
-                mesh.triangles = triangles;
-
-                if (time > GlobalSettings.SaberTrailDuration) {
-                    time -= deltaTime * timeTransitionSpeed;
-                    if (time <= GlobalSettings.SaberTrailDuration) time = GlobalSettings.SaberTrailDuration;
-                } else if (time < GlobalSettings.SaberTrailDuration) {
-                    time += deltaTime * timeTransitionSpeed;
-                    if (time >= GlobalSettings.SaberTrailDuration) time = GlobalSettings.SaberTrailDuration;
-                }
+                mesh.SetVertices(vertices, 0, vertCount);
+                mesh.SetColors(colors, 0, vertCount);
+                mesh.SetUVs(0, uv, 0, vertCount);
+                mesh.SetTriangles(triangles, 0, triCount, 0);
             }
         }
     }

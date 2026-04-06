@@ -12,13 +12,13 @@ namespace TOR {
         bool holdingRight;
 
         protected void Awake() {
-            item = this.GetComponent<Item>();
+            item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleBlasterPowerCell>();
             audio = item.GetCustomReference("Particle").GetComponent<AudioSource>();
             particle = item.GetCustomReference("Particle").GetComponent<ParticleSystem>();
 
-            for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
-                item.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            foreach (var handler in item.collisionHandlers) {
+                handler.OnCollisionStartEvent += CollisionHandler;
             }
 
             item.OnGrabEvent += OnGrabEvent;
@@ -36,14 +36,25 @@ namespace TOR {
             }
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+
+                foreach (var handler in item.collisionHandlers) {
+                    handler.OnCollisionStartEvent -= CollisionHandler;
+                }
+            }
+        }
+
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
-            holdingRight |= interactor.playerHand == Player.local.handRight;
-            holdingLeft |= interactor.playerHand == Player.local.handLeft;
+            if (interactor.playerHand == Player.local.handRight) holdingRight = true;
+            if (interactor.playerHand == Player.local.handLeft) holdingLeft = true;
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
-            holdingRight &= interactor.playerHand != Player.local.handRight;
-            holdingLeft &= interactor.playerHand == Player.local.handLeft;
+            if (interactor.playerHand == Player.local.handRight) holdingRight = false;
+            if (interactor.playerHand == Player.local.handLeft) holdingLeft = false;
         }
 
         void CollisionHandler(CollisionInstance collisionInstance) {

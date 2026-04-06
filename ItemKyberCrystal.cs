@@ -19,7 +19,7 @@ namespace TOR {
         MaterialInstance _materialInstance;
         public MaterialInstance materialInstance {
             get {
-                if (_materialInstance == null) {
+                if (_materialInstance == null && mesh != null) {
                     mesh.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
                     _materialInstance = mi;
                 }
@@ -29,7 +29,7 @@ namespace TOR {
         static readonly int emissionColorId = Shader.PropertyToID("_EmissionColor");
 
         protected void Awake() {
-            item = this.GetComponent<Item>();
+            item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleKyberCrystal>();
 
             bladeColour = new Color(module.bladeColour[0], module.bladeColour[1], module.bladeColour[2], module.bladeColour[3]);
@@ -41,10 +41,16 @@ namespace TOR {
 
             itemTrans = item.transform;
 
-            for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
-                item.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            foreach (var handler in item.collisionHandlers) {
+                handler.OnCollisionStartEvent += CollisionHandler;
             }
 
+        }
+
+        protected void OnDestroy() {
+            foreach (var handler in item.collisionHandlers) {
+                handler.OnCollisionStartEvent -= CollisionHandler;
+            }
         }
 
         void CollisionHandler(CollisionInstance collisionInstance) {
@@ -62,7 +68,7 @@ namespace TOR {
             if (!rightHandTrans) rightHandTrans = Player.local.handRight.transform;
             var distanceToHandLeft = Vector3.SqrMagnitude(itemTrans.position - leftHandTrans.position);
             var distanceToHandRight = Vector3.SqrMagnitude(itemTrans.position - rightHandTrans.position);
-            return (distanceToHandLeft < distanceToHandRight) ? distanceToHandLeft : distanceToHandRight;
+            return Mathf.Min(distanceToHandLeft, distanceToHandRight);
         }
 
         protected override void ManagedUpdate() {

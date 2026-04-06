@@ -49,9 +49,19 @@ namespace TOR {
             StartCoroutine(coroutine);
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
+                    item.collisionHandlers[i].OnCollisionStartEvent -= CollisionHandler;
+                }
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+            }
+        }
+
         private IEnumerator GetPlayerColliders() {
             while (!Player.local) {
-                yield return Utils.waitSeconds_01;
+                yield return Utils.waitSeconds_1;
             }
             while (Player.local && playerColliders.Count < 1) {
                 try {
@@ -72,16 +82,16 @@ namespace TOR {
 
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
             healer = interactor.creature;
-            holdingRight |= interactor.playerHand == Player.local.handRight;
-            holdingLeft |= interactor.playerHand == Player.local.handLeft;
+            if (interactor.playerHand == Player.local.handRight) holdingRight = true;
+            if (interactor.playerHand == Player.local.handLeft) holdingLeft = true;
             light.enabled = true;
             text.enabled = true;
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
             healer = null;
-            holdingRight &= interactor.playerHand == Player.local.handRight;
-            holdingLeft &= interactor.playerHand == Player.local.handLeft;
+            if (interactor.playerHand == Player.local.handRight) holdingRight = false;
+            if (interactor.playerHand == Player.local.handLeft) holdingLeft = false;
             light.enabled = false;
             text.enabled = false;
         }

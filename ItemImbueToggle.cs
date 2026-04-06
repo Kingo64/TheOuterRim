@@ -24,17 +24,31 @@ namespace TOR {
             module = item.data.GetModule<ItemModuleImbueToggle>();
 
             item.OnHeldActionEvent += OnHeldAction;
-
-            if (!string.IsNullOrEmpty(module.gripID)) grip = item.GetCustomReference(module.gripID).GetComponent<Handle>();
-            if (grip) {
-                grip.Grabbed += OnGrabbed;
-                grip.UnGrabbed += OnUngrabbed;
-            }
-
             item.OnGrabEvent += OnGrabEvent;
             item.OnUngrabEvent += OnUngrabEvent;
 
+            if (!string.IsNullOrEmpty(module.gripID)) {
+                grip = item.GetCustomReference(module.gripID).GetComponent<Handle>();
+                if (grip) {
+                    grip.Grabbed += OnGrabbed;
+                    grip.UnGrabbed += OnUngrabbed;
+                }
+            }
+
             castCharge = Catalog.GetData<SpellCastCharge>(module.spell, true);
+        }
+
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+            }
+
+            if (grip != null) {
+                grip.Grabbed -= OnGrabbed;
+                grip.UnGrabbed -= OnUngrabbed;
+            }
         }
 
         public void ExecuteAction(string action, RagdollHand interactor = null) {

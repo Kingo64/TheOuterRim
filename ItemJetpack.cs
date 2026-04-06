@@ -67,6 +67,11 @@ namespace TOR {
 
         protected void OnDestroy() {
             UnassignItem();
+
+            if (item != null) {
+                item.OnSnapEvent -= OnSnapEvent;
+                item.OnUnSnapEvent -= OnUnSnapEvent;
+            }
         }
 
         public void OnSnapEvent(Holder holder) {
@@ -81,7 +86,7 @@ namespace TOR {
             waterHandler = creature.waterHandler;
             waterHandler.OnWaterEnter += TurnOff;
 
-            SpellPowerSlowTime.OnTimeScaleChangeEvent += OnTimeScaleChangeEvent; ;
+            SpellPowerSlowTime.OnTimeScaleChangeEvent += OnTimeScaleChangeEvent;
         }
 
         private void OnTimeScaleChangeEvent(SpellPowerSlowTime spell, float scale) {
@@ -167,8 +172,8 @@ namespace TOR {
                 Utils.StopSoundLoop(idleSoundRight, ref idleNoiseRight);
             }
 
-            thrusterLeft.Stop();
-            thrusterRight.Stop();
+            thrusterLeft?.Stop();
+            thrusterRight?.Stop();
 
             isFlying = false;
 

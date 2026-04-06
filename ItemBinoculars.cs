@@ -62,21 +62,24 @@ namespace TOR {
         }
 
         protected void OnDestroy() {
+            if (item != null) {
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+                item.OnHeldActionEvent -= OnHeldAction;
+            }
+
             if (scopeCameraL) scopeCameraL.targetTexture = null;
             if (scopeCameraR) scopeCameraR.targetTexture = null;
-            if (renderScopeTextureL) {
-                if (renderScopeTextureL.IsCreated()) {
-                    renderScopeTextureL.Release();
-                }
-                Destroy(renderScopeTextureL);
-                renderScopeTextureL = null;
-            }
-            if (renderScopeTextureR) {
-                if (renderScopeTextureR.IsCreated()) {
-                    renderScopeTextureR.Release();
-                }
-                Destroy(renderScopeTextureR);
-                renderScopeTextureR = null;
+            CleanupRenderTexture(ref renderScopeTextureL, scopeMaterialInstanceL);
+            CleanupRenderTexture(ref renderScopeTextureR, scopeMaterialInstanceR);
+        }
+
+        void CleanupRenderTexture(ref RenderTexture rt, MaterialInstance mi) {
+            if (mi != null && mi.material != null) mi.material.SetTexture("_RenderTexture", null);
+            if (rt != null) {
+                if (rt.IsCreated()) rt.Release();
+                Destroy(rt);
+                rt = null;
             }
         }
 
@@ -100,7 +103,7 @@ namespace TOR {
                 scopeMaterial.material.EnableKeyword("_SCOPE_ACTIVE");
             } else {
                 scopeCamera.targetTexture = null;
-                renderTexture.Release();
+                if (renderTexture.IsCreated()) renderTexture.Release();
                 scopeMaterial.material.DisableKeyword("_SCOPE_ACTIVE");
             }
         }

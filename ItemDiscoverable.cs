@@ -27,6 +27,12 @@ namespace TOR {
             item.OnGrabEvent += OnGrabEvent;
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnGrabEvent -= OnGrabEvent;
+            }
+        }
+
         private void OnGrabEvent(Handle handle, RagdollHand ragdollHand) {
             item.OnGrabEvent -= OnGrabEvent;
             if (LevelModuleSaveManager.saveData.discoveredItems.Contains(item.itemId)) {

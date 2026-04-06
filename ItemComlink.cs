@@ -114,6 +114,15 @@ namespace TOR {
             SetColour();
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+                item.OnSnapEvent -= OnSnapEvent;
+            }
+        }
+
         public void UpdateCustomData() {
             Utils.UpdateCustomData(item, new ItemComlinkSaveData {
                 faction = currentFaction,

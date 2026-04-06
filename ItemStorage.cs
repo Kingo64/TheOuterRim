@@ -67,6 +67,15 @@ namespace TOR {
             }
         }
 
+        protected void OnDestroy() {
+            EventManager.onUnpossess -= OnUnpossess;
+
+            foreach (var holder in holders) {
+                holder.Snapped -= OnHolderSnapped;
+                holder.UnSnapped -= OnHolderUnSnapped;
+            }
+        }
+
         private void OnUnpossess(Creature creature, EventTime eventTime) {
             if (eventTime == EventTime.OnStart && creature == Player.currentCreature) {
                 foreach (var holder in holders) {

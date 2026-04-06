@@ -308,9 +308,14 @@ namespace TOR {
                 stunMaterial.SetColor("_EmissionColor", Color.HSVToRGB(hue, 1f, 0.75f) * 4);
 
                 foreach (var rendererData in creature.renderers) {
-                    originalMaterials.Add(rendererData.GetHashCode(), rendererData.renderer.materials);
+                    var id = rendererData.GetHashCode();
+                    if (!originalMaterials.ContainsKey(id)) {
+                        originalMaterials.Add(id, rendererData.renderer.sharedMaterials);
+                    }
+                    Material[] temp = new Material[rendererData.renderer.sharedMaterials.Length];
+                    for (int i = 0; i < temp.Length; i++) temp[i] = stunMaterial;
+                    rendererData.renderer.sharedMaterials = temp;
                 }
-                AssignMaterials(creature.renderers);
             }
             if (creature.state == Creature.State.Alive) {
                 if (creature != Player.currentCreature) creature.ragdoll.SetState(Ragdoll.State.Destabilized);
@@ -324,44 +329,13 @@ namespace TOR {
 
         protected void OnDestroy() {
             if (creature) {
-                RestoreMaterials(creature.renderers);
-            }
-        }
-
-        public void AssignMaterials(MeshRenderer[] renderers) {
-            for (int i = 0, l = renderers.Length; i < l; i++) {
-                Material[] tempMaterials = renderers[i].materials;
-                for (int j = 0, k = tempMaterials.Length; j < k; j++) {
-                    tempMaterials[j] = stunMaterial;
-                }
-                renderers[i].materials = tempMaterials;
-            }
-        }
-
-        public void AssignMaterials(List<Creature.RendererData> renderers) {
-            for (int i = 0, l = renderers.Count; i < l; i++) {
-                Material[] tempMaterials = renderers[i].renderer.materials;
-                for (int j = 0, k = tempMaterials.Length; j < k; j++) {
-                    tempMaterials[j] = stunMaterial;
-                }
-                renderers[i].renderer.materials = tempMaterials;
-            }
-        }
-
-        public void RestoreMaterials(MeshRenderer[] renderers) {
-            for (int i = 0, l = renderers.Length; i < l; i++) {
-                if (originalMaterials.TryGetValue(renderers[i].GetHashCode(), out Material[] original)) {
-                    renderers[i].materials = original;
-                }
-            }
-        }
-
-        public void RestoreMaterials(List<Creature.RendererData> renderers) {
-            for (int i = 0, l = renderers.Count; i < l; i++) {
-                if (originalMaterials.TryGetValue(renderers[i].GetHashCode(), out Material[] original)) {
-                    renderers[i].renderer.materials = original;
+                foreach (var rendererData in creature.renderers) {
+                    if (originalMaterials.TryGetValue(rendererData.GetHashCode(), out Material[] original)) {
+                        rendererData.renderer.sharedMaterials = original;
+                    }
                 }
             }
         }
     }
+
 }

@@ -289,8 +289,7 @@ namespace TOR {
         }
 
         protected void OnDestroy() {
-            if (scopeCamera?.targetTexture) {
-                scopeCamera.targetTexture.Release();
+            if (scopeCamera?.targetTexture && scopeCamera.targetTexture == renderScopeTexture) {
                 scopeCamera.targetTexture = null;
             }
             if (renderScopeTexture) {
@@ -301,6 +300,32 @@ namespace TOR {
 
             if (all.Contains(this)) {
                 all.Remove(this);
+            }
+
+            if (item) {
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnSnapEvent -= OnSnapEvent;
+                item.OnTelekinesisGrabEvent -= OnTelekinesisGrabEvent;
+                item.OnTelekinesisReleaseEvent -= OnTelekinesisReleaseEvent;
+            }
+
+            if (gunGrip) {
+                gunGrip.Grabbed -= OnGripGrabbed;
+                gunGrip.UnGrabbed -= OnGripUnGrabbed;
+            }
+            if (foreGrip) {
+                foreGrip.Grabbed -= OnForeGripGrabbed;
+                foreGrip.UnGrabbed -= OnForeGripUnGrabbed;
+            }
+            if (scopeGrip) {
+                scopeGrip.Grabbed -= OnScopeGripGrabbed;
+                scopeGrip.UnGrabbed -= OnScopeGripUnGrabbed;
+            }
+            if (secondaryGrip) {
+                secondaryGrip.Grabbed -= OnSecondaryGripGrabbed;
+                secondaryGrip.UnGrabbed -= OnSecondaryGripUnGrabbed;
             }
         }
 
@@ -715,9 +740,7 @@ namespace TOR {
             foreach (var bulletSpawn in spawns) {
                 activeProjectileItemData.SpawnAsync(projectile => {
                     var boltData = projectile.gameObject.GetComponent<ItemBlasterBolt>();
-                    if (boltData != null) {
-                        boltData.UpdateValues(ref activeProjectileData);
-                    }
+                    boltData?.UpdateValues(ref activeProjectileData);
                     var ignoreHandler = projectile.gameObject.GetComponent<CollisionIgnoreHandler>();
                     if (!ignoreHandler) ignoreHandler = projectile.gameObject.AddComponent<CollisionIgnoreHandler>();
                     if (!projectile.gameObject.activeInHierarchy) projectile.gameObject.SetActive(true);
@@ -1019,7 +1042,7 @@ namespace TOR {
                     }
                 }
             }
-            if (telekinesis != null) telekinesis.SetSpinMode(false);
+            telekinesis?.SetSpinMode(false);
 
             // handle reload update if needed
             if (reloadTime <= 0 && module.magazineSize > 0) {

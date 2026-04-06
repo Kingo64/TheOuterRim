@@ -7,7 +7,7 @@ namespace TOR {
         protected ItemModuleLightsaberTool module;
 
         public int currentMode = 0;
-        public readonly string[] modes = {"TryEjectCrystal", "IncreaseBladeLength", "DecreaseBladeLength", "ResetBladeLength"};
+        public readonly string[] modes = { "TryEjectCrystal", "IncreaseBladeLength", "DecreaseBladeLength", "ResetBladeLength" };
         public readonly Color[] modeColours = {
             new Color(5.7f, 6f, 0.3f, 1f),
             new Color(0.47f, 6f, 0.3f, 1f),
@@ -21,7 +21,7 @@ namespace TOR {
         MaterialInstance _materialInstance;
         public MaterialInstance materialInstance {
             get {
-                if (_materialInstance == null) {
+                if (_materialInstance == null && mesh != null) {
                     mesh.gameObject.TryGetOrAddComponent(out MaterialInstance mi);
                     _materialInstance = mi;
                 }
@@ -31,11 +31,11 @@ namespace TOR {
         static readonly int emissionColorId = Shader.PropertyToID("_EmissionColor");
 
         protected void Awake() {
-            item = this.GetComponent<Item>();
+            item = GetComponent<Item>();
             module = item.data.GetModule<ItemModuleLightsaberTool>();
 
-            for (int i = 0, l = item.collisionHandlers.Count; i < l; i++) {
-                item.collisionHandlers[i].OnCollisionStartEvent += CollisionHandler;
+            foreach (var handler in item.collisionHandlers) {
+                handler.OnCollisionStartEvent += CollisionHandler;
             }
 
             item.OnHeldActionEvent += OnHeldAction;
@@ -46,14 +46,26 @@ namespace TOR {
             materialInstance.material.SetColor(emissionColorId, modeColours[currentMode]);
         }
 
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnHeldActionEvent -= OnHeldAction;
+                item.OnGrabEvent -= OnGrabEvent;
+                item.OnUngrabEvent -= OnUngrabEvent;
+
+                foreach (var handler in item.collisionHandlers) {
+                    handler.OnCollisionStartEvent -= CollisionHandler;
+                }
+            }
+        }
+
         public void OnGrabEvent(Handle handle, RagdollHand interactor) {
-            holdingRight |= interactor.playerHand == Player.local.handRight;
-            holdingLeft |= interactor.playerHand == Player.local.handLeft;
+            if (interactor.playerHand == Player.local.handRight) holdingRight = true;
+            if (interactor.playerHand == Player.local.handLeft) holdingLeft = true;
         }
 
         public void OnUngrabEvent(Handle handle, RagdollHand interactor, bool throwing) {
-            holdingRight &= interactor.playerHand != Player.local.handRight;
-            holdingLeft &= interactor.playerHand == Player.local.handLeft;
+            if (interactor.playerHand == Player.local.handRight) holdingRight = false;
+            if (interactor.playerHand == Player.local.handLeft) holdingLeft = false;
         }
 
         void CollisionHandler(CollisionInstance collisionInstance) {

@@ -7,15 +7,25 @@ namespace TOR {
     public class LevelModuleFixCreatureEvent : LevelModule {
         public override IEnumerator OnLoadCoroutine() {
             EventManager.onCreatureSpawn += OnCreatureSpawned;
+            EventManager.onCreatureDespawn += OnCreatureDespawn;
             yield break;
         }
 
         public override void OnUnload() {
             EventManager.onCreatureSpawn -= OnCreatureSpawned;
+            EventManager.onCreatureDespawn -= OnCreatureDespawn;
         }
 
         void OnCreatureSpawned(Creature creature) {
-            creature.gameObject.AddComponent<CreatureZoneController>();
+            creature.gameObject.TryGetOrAddComponent(out CreatureZoneController _);
+        }
+
+        void OnCreatureDespawn(Creature creature, EventTime eventTime) {
+            if (eventTime == EventTime.OnStart) {
+                foreach (var c in creature.gameObject.GetComponents<CreatureZoneController>()) {
+                    Object.Destroy(c);
+                }
+            }
         }
     }
 
@@ -30,19 +40,25 @@ namespace TOR {
             trigger.transform.position = transform.position;
             trigger.AddComponent<SphereCollider>().isTrigger = true;
         }
+
+        protected void OnDestroy() {
+            if (trigger) Destroy(trigger);
+            trigger= null;
+        }
     }
 
     public class CreatureZoneTrigger : ThunderBehaviour {
         protected void OnTriggerEnter(Collider other) {
             if (other.gameObject.layer == Common.zoneLayer) {
                 Zone component = other.GetComponent<Zone>();
-                component.creatureEnterEvent.Invoke(this);
+                if (component) component.creatureEnterEvent.Invoke(this);
             }
         }
 
         protected void OnTriggerExit(Collider other) {
             if (other.gameObject.layer == Common.zoneLayer) {
-                other.GetComponent<Zone>().creatureExitEvent.Invoke(this);
+                Zone component = other.GetComponent<Zone>();
+                if (component) component.creatureExitEvent.Invoke(this);
             }
         }
     }

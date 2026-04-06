@@ -1,63 +1,60 @@
-﻿using ThunderRoad;
-using System.Collections;
-using UnityEngine.Events;
-using UnityEngine;
-using System;
+﻿using System.Collections;
+using System.Collections.Generic;
+using ThunderRoad;
 
 namespace TOR {
     public class LevelModuleSurvivalExtended : LevelModuleSurvival {
         public override IEnumerator OnLoadCoroutine() {
             if (Level.current.options != null) {
                 if (Level.current.options.TryGetValue("rewardsToSpawn", out string val)) rewardsToSpawn = int.Parse(val);
+                if (Level.current.options.TryGetValue("surivalWavePreset", out string wavePresetId)) {
+                    var wavePreset = Catalog.GetData<SurvivalWavePreset>(wavePresetId);
+                    waves = wavePreset.waves; 
+                }
             }
-            yield return Catalog.LoadAssetCoroutine(rewardPillarAddress, new Action<GameObject>(OnPillarSpawn), "LevelModuleSurvival");
-            waitingToChooseReward = false;
-            currentWaveNumberForReward = 0;
-            waveIndex = -1;
-            waveDisplay = -1;
-            DisableSandboxItems();
-            SpawnRewardPillar();
             if (WaveSpawner.instances.Count > 0) {
                 var customWaveSpawner = level.customReferences.Find(x => x.name == "SurvivalWaveSpawner");
                 if (customWaveSpawner != null) {
                     waveSpawner = customWaveSpawner.transforms[0].GetComponent<WaveSpawner>();
-                } else {
-                    waveSpawner = WaveSpawner.instances[0];
+                    WaveSpawner.instances.Remove(waveSpawner);
+                    WaveSpawner.instances.Insert(0, waveSpawner);
                 }
-                waveSpawner.OnWaveWinEvent.AddListener(new UnityAction(OnWaveEnded));
-                waveSpawner.OnWaveLossEvent.AddListener(new UnityAction(OnWaveEnded));
-                waveSpawner.OnWaveCancelEvent.AddListener(new UnityAction(OnWaveEnded));
-                EventManager.onCreatureKill += OnCreatureKill;
-                EventManager.onPossess += OnPossessionEvent;
-                EventManager.onUnpossess += OnUnpossessionEvent;
-                yield break;
             }
-            Debug.LogError("No wave spawner available for survival module!");
+            yield return base.OnLoadCoroutine();
+
+            if (Level.current.options.TryGetValue("startingWave", out string startingWave)) {
+                var i = int.Parse(startingWave);
+                waveIndex = i - 1;
+                waveDisplay = i - 1;
+                currentWaveNumberForReward = i;
+            }
+
             yield break;
         }
+    }
 
-        private void OnUnpossessionEvent(Creature creature, EventTime eventTime) {
-            if (eventTime == EventTime.OnEnd) {
-                Player local = Player.local;
-                if (local?.creature) {
-                    Holder[] holders = Player.local.creature.GetComponentsInChildren<Holder>();
-                    for (int i = 0; i < holders.Length; i++) {
-                        holders[i].Snapped -= OnHolderSnapped;
-                    }
-                }
+    public class SurvivalWavePreset : CustomData {
+        public List<LevelModuleSurvival.Waves> waves;
+    }
+
+    public class OptionSurvivalWavePreset : OptionStringList {
+        public List<string> valueList = null;
+
+        public override List<string> GetOptionList() {
+            if (valueList == null) PopulateList();
+            return valueList;
+        }
+
+        public void PopulateList() {
+            valueList = new List<string>();
+            var presets = Catalog.GetDataList<SurvivalWavePreset>();
+            foreach (var preset in presets) {
+                valueList.Add(preset.id);
             }
         }
 
-        private void OnHolderSnapped(Item item) {
-            if (waitingToChooseReward && canOnlyUseRewards) {
-                item.Despawn();
-            }
-        }
-
-        private void OnPillarSpawn(GameObject obj) {
-            if (obj) {
-                rewardPillarPrefab = obj.GetComponent<ArenaPillar>();
-            }
+        public override void SetOptionList(List<string> list) {
+            valueList = list;
         }
     }
 }

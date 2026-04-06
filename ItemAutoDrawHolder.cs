@@ -21,14 +21,23 @@ namespace TOR {
 
             foreach (var holderPath in module.holders) {
                 var holderTransform = transform.Find(holderPath);
+                if (!holderTransform) continue;
+
                 var holder = holderTransform.GetComponent<Holder>();
-                holders.Add(holder);
+                if (holder) holders.Add(holder);
             }
 
             item.OnSnapEvent += OnSnap;
             item.OnUnSnapEvent += OnUnsnap;
 
             if (item.holder != null) SetupDrawToHolders(item.holder);
+        }
+
+        protected void OnDestroy() {
+            if (item != null) {
+                item.OnSnapEvent -= OnSnap;
+                item.OnUnSnapEvent -= OnUnsnap;
+            }
         }
 
         public void OnSnap(Holder holder) {
@@ -43,39 +52,41 @@ namespace TOR {
         public void SetupDrawToHolders(Holder holder) {
             if (!holder) return;
             var creature = holder.creature;
+            if (!creature) return;
             if (!module.aiOnly || creature != Player.local.creature) {
+                drawToHolders.Clear();
+
                 foreach (var holderPath in module.drawToHolders) {
                     var foundHolder = creature.holders.Find(x => x.name == holderPath);
                     if (foundHolder) drawToHolders.Add(foundHolder);
                 }
-                isDrawing = true;
+                isDrawing = drawToHolders.Count > 0;
             }
         }
 
         protected override void ManagedUpdate() {
             drawTime -= Time.deltaTime;
-            if (isDrawing && drawTime < 0) {
-                drawTime = 1;
+            if (!isDrawing || drawTime >= 0) return;
+            drawTime = 1;
 
-                if (drawToHolders == null || drawToHolders.Count == 0) {
-                    isDrawing = false;
+            if (drawToHolders == null || drawToHolders.Count == 0) {
+                isDrawing = false;
+                return;
+            }
+
+            Holder vacantHolder = null;
+            foreach (var holder in drawToHolders) {
+                if (holder && holder.HasSlotFree()) {
+                    vacantHolder = holder;
+                    break;
                 }
+            }
 
-                Holder vacantHolder = null;
-                foreach (var holder in drawToHolders) {
-                    if (holder.HasSlotFree()) {
-                        vacantHolder = holder;
-                        break;
-                    }
-                }
-
-                if (vacantHolder) {
-                    foreach (var holder in holders) {
-                        if (holder.items.Count > 0) {
-                            vacantHolder.Snap(holder.UnSnapOne());
-                            break;
-                        }
-                    }
+            if (!vacantHolder) return;
+            foreach (var holder in holders) {
+                if (holder.items.Count > 0) {
+                    vacantHolder.Snap(holder.UnSnapOne());
+                    break;
                 }
             }
         }
